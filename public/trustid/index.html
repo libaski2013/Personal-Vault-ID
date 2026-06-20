@@ -1,0 +1,1660 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#1E1B4B">
+  <meta name="description" content="TrustID realtime identity, document, finance, reminder, and admin dashboard app.">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <title>TrustID Realtime</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body, #preview-app { min-height: 100%; margin: 0; }
+    body { margin: 0; background: #94A3B8; font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    button, input, select { font: inherit; }
+    @media (max-width: 760px) {
+      body { background: #f8fafc; }
+      #preview-app { max-width: 100vw !important; overflow-x: hidden !important; }
+      #preview-app > div { width: 100vw !important; max-width: 100vw !important; overflow-x: hidden !important; padding: 0 !important; align-items: stretch !important; justify-content: flex-start !important; min-height: 100vh !important; }
+      #preview-app > div > div:first-child { width: 100vw !important; max-width: 100vw !important; overflow-x: hidden !important; height: 100vh !important; min-height: 100vh !important; border-radius: 0 !important; box-shadow: none !important; }
+      #preview-app > div > div:not(:first-child) { display: none !important; }
+    }
+    .trustid-config {
+      position: fixed;
+      right: 16px;
+      bottom: 16px;
+      z-index: 1000;
+      padding: 8px;
+      border: 1px solid rgba(15, 23, 42, .12);
+      border-radius: 12px;
+      background: rgba(255,255,255,.92);
+      box-shadow: 0 16px 40px rgba(15,23,42,.18);
+      backdrop-filter: blur(10px);
+    }
+    .trustid-config summary { list-style: none; cursor: pointer; border-radius: 8px; padding: 8px 10px; background: #1E1B4B; color: #fff; font-size: 12px; font-weight: 800; }
+    .trustid-config summary::-webkit-details-marker { display: none; }
+    .trustid-config-panel { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
+    .trustid-config input { width: min(46vw, 340px); border: 1px solid #CBD5E1; border-radius: 8px; padding: 8px 10px; font-size: 12px; }
+    .trustid-config button { border: 0; border-radius: 8px; padding: 8px 10px; background: #1E1B4B; color: #fff; font-size: 12px; font-weight: 700; cursor: pointer; }
+    @media (max-width: 760px) { .trustid-config { display: none; } }
+  </style>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/prop-types@15/prop-types.min.js"></script>
+  <script src="https://unpkg.com/recharts/umd/Recharts.min.js"></script>
+</head>
+<body>
+  <div id="preview-app"></div>
+  <details class="trustid-config" aria-label="TrustID backend configuration">
+    <summary>API</summary>
+    <div class="trustid-config-panel">
+      <input id="trustid-api-input" placeholder="Live API base URL" aria-label="Live API base URL">
+      <button id="trustid-live-btn" type="button">Use Live</button>
+      <button id="trustid-demo-btn" type="button">Demo</button>
+    </div>
+  </details>
+  <script>
+    var exports = {};
+    var React = window.React;
+    var _motionProxy = new Proxy({}, { get: function(_, tag) { return tag; } });
+    function require(name) {
+      if (name === "react") return window.React;
+      if (name === "framer-motion") return { motion: _motionProxy, AnimatePresence: function AnimatePresence(props) { return React.createElement(React.Fragment, null, props.children); } };
+      if (name === "recharts") return window.Recharts || window.TrustIdCharts;
+      throw new Error("Unsupported dependency: " + name);
+    }
+    window.TrustIdCharts = {
+      ResponsiveContainer: function ResponsiveContainer(props) {
+        return React.createElement("div", { style: { width: "100%", height: props.height || 140 } }, props.children);
+      },
+      BarChart: function BarChart(props) {
+        var bars = React.Children.toArray(props.children).filter(function(child) { return child && child.type === window.TrustIdCharts.Bar; });
+        var keys = bars.map(function(bar) { return bar.props.dataKey; });
+        var colors = bars.map(function(bar) { return bar.props.fill || "#7C3AED"; });
+        var data = props.data || [];
+        var max = Math.max(1, ...data.flatMap(function(row) { return keys.map(function(key) { return Number(row[key]) || 0; }); }));
+        return React.createElement("div", { style: { height: "100%", display: "flex", alignItems: "flex-end", gap: 8, padding: "10px 4px 18px" } },
+          data.map(function(row, i) {
+            return React.createElement("div", { key: i, title: Object.keys(row).map(function(k) { return k + ": " + row[k]; }).join(" | "), style: { flex: 1, minWidth: 18, display: "flex", alignItems: "flex-end", justifyContent: "center", gap: 3, height: "100%", position: "relative" } },
+              keys.map(function(key, j) {
+                return React.createElement("div", { key: key, style: { width: keys.length > 1 ? "42%" : "70%", height: Math.max(4, ((Number(row[key]) || 0) / max) * 100) + "%", borderRadius: "4px 4px 0 0", background: colors[j] } });
+              }),
+              React.createElement("span", { style: { position: "absolute", bottom: -16, left: 0, right: 0, textAlign: "center", fontSize: 9, color: "#64748B", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" } }, row.cat || row.m || "")
+            );
+          })
+        );
+      },
+      Bar: function Bar() { return null; },
+      XAxis: function XAxis() { return null; },
+      YAxis: function YAxis() { return null; },
+      Tooltip: function Tooltip() { return null; }
+    };
+    Object.defineProperty(exports, "__esModule", {value: true}); function _optionalChain(ops) { let lastAccessLHS = undefined; let value = ops[0]; let i = 1; while (i < ops.length) { const op = ops[i]; const fn = ops[i + 1]; i += 2; if ((op === 'optionalAccess' || op === 'optionalCall') && value == null) { return undefined; } if (op === 'access' || op === 'optionalAccess') { lastAccessLHS = value; value = fn(value); } else if (op === 'call' || op === 'optionalCall') { value = fn((...args) => value.call(lastAccessLHS, ...args)); lastAccessLHS = undefined; } } return value; }var _react = require('react');
+var _framermotion = require('framer-motion');
+var _recharts = require('recharts');
+if (!_recharts || !_recharts.ResponsiveContainer || !_recharts.BarChart) _recharts = window.TrustIdCharts;
+
+/* ═══════════════════════════════════════════════════════
+   CONFIG  ← change API_BASE to your Render URL
+            set DEMO_MODE = false after deploying backend
+═══════════════════════════════════════════════════════ */
+const API_BASE = localStorage.getItem("TRUSTID_API_BASE") || "/api/trustid";
+const DEMO_MODE = new URLSearchParams(window.location.search).get("demo") === "true" || localStorage.getItem("TRUSTID_DEMO_MODE") === "true";
+
+/* ─── module-level token (survives re-renders) ─── */
+let _token = null;
+
+/* ═══════════════════ COLORS ═══════════════════ */
+const PURPLE="#7C3AED",NAVY="#1E1B4B",GREEN="#22C55E",ORANGE="#F97316",RED="#EF4444",BLUE="#3B82F6";
+const SL={50:"#F8FAFC",100:"#F1F5F9",200:"#E2E8F0",300:"#CBD5E1",400:"#94A3B8",500:"#64748B",600:"#475569",700:"#334155",800:"#1E293B",900:"#0F172A"};
+
+/* ═══════════════════ DEMO DATA ═══════════════ */
+const D_USERS = {
+  user:  { _id:"u001", firstName:"Jane", lastName:"Doe",   email:"jane@example.com",       role:"user",
+            trustId:{ id:"TID-2024-XK7B-9M2Q", level:4, score:742, status:"active", issuedAt:"2024-03-01" } },
+  admin: { _id:"a001", firstName:"Admin", lastName:"User", email:"admin@trustid.com",       role:"admin",
+            trustId:{ id:"TID-2024-ADMN-0001", level:5, score:950, status:"active" } }
+};
+let D_DOCS = [
+  {_id:"d1",name:"Passport",         type:"Passport",         category:"identity",   status:"verified", createdAt:"2024-01-20",isPrimary:true},
+  {_id:"d2",name:"Driver's License", type:"Driver's License", category:"identity",   status:"verified", createdAt:"2024-02-05",isPrimary:false},
+  {_id:"d3",name:"Bank Statement",   type:"Bank Statement",   category:"financial",  status:"pending",  createdAt:"2024-06-10",isPrimary:false},
+  {_id:"d4",name:"Utility Bill",     type:"Utility Bill",     category:"address",    status:"rejected", createdAt:"2024-05-22",isPrimary:false},
+];
+let D_EXPENSES = [
+  {_id:"e1",title:"Grocery Shopping",amount:85.40, category:"Food",          icon:"🛒",date:"2024-06-18"},
+  {_id:"e2",title:"Netflix",          amount:15.99, category:"Entertainment",icon:"🎬",date:"2024-06-15"},
+  {_id:"e3",title:"Electricity Bill", amount:124.00,category:"Utilities",    icon:"⚡",date:"2024-06-12"},
+  {_id:"e4",title:"Coffee",           amount:4.50,  category:"Food",         icon:"☕",date:"2024-06-11"},
+  {_id:"e5",title:"Gym",              amount:49.99, category:"Health",       icon:"💪",date:"2024-06-01"},
+];
+let D_REMINDERS = [
+  {_id:"r1",title:"Renew Passport",       dueDate:"2024-07-15",done:false,priority:"high"},
+  {_id:"r2",title:"Submit Tax Documents", dueDate:"2024-06-30",done:false,priority:"high"},
+  {_id:"r3",title:"Doctor Appointment",   dueDate:"2024-06-25",done:false,priority:"medium"},
+  {_id:"r4",title:"Call Insurance",       dueDate:"2024-06-20",done:true, priority:"low"},
+];
+let D_TODOS = [
+  {_id:"t1",title:"Complete KYC verification",   done:false,priority:"high",  category:"TrustID"},
+  {_id:"t2",title:"Upload utility bill",          done:false,priority:"high",  category:"Documents"},
+  {_id:"t3",title:"Review privacy settings",      done:false,priority:"medium",category:"Settings"},
+  {_id:"t4",title:"Set up 2FA",                   done:true, priority:"high",  category:"Security"},
+  {_id:"t5",title:"Download TrustID certificate", done:true, priority:"low",   category:"TrustID"},
+];
+let D_ALL_DOCS = [
+  {_id:"ad1",type:"Passport",        status:"verified", createdAt:"2024-01-20",user:{firstName:"Jane",  lastName:"Doe"}},
+  {_id:"ad2",type:"Driver's License",status:"pending",  createdAt:"2024-06-10",user:{firstName:"John",  lastName:"Smith"}},
+  {_id:"ad3",type:"Bank Statement",  status:"pending",  createdAt:"2024-06-15",user:{firstName:"Sarah", lastName:"Johnson"}},
+  {_id:"ad4",type:"National ID",     status:"rejected", createdAt:"2024-05-22",user:{firstName:"Emily", lastName:"Brown"}},
+];
+const D_ADMIN_USERS = [
+  {_id:"u1",firstName:"Jane",  lastName:"Doe",     email:"jane@example.com",  role:"user",trustId:{level:4,score:742},status:"active",   docsCount:4},
+  {_id:"u2",firstName:"John",  lastName:"Smith",   email:"john@example.com",  role:"user",trustId:{level:3,score:580},status:"active",   docsCount:2},
+  {_id:"u3",firstName:"Sarah", lastName:"Johnson", email:"sarah@example.com", role:"user",trustId:{level:2,score:320},status:"pending",  docsCount:1},
+  {_id:"u4",firstName:"Mike",  lastName:"Wilson",  email:"mike@example.com",  role:"user",trustId:{level:1,score:100},status:"suspended",docsCount:0},
+  {_id:"u5",firstName:"Emily", lastName:"Brown",   email:"emily@example.com", role:"user",trustId:{level:5,score:950},status:"active",   docsCount:6},
+];
+const D_STATS = {
+  totalUsers:1284,activeTrustIds:987,verifiedDocs:4521,pendingReviews:43,
+  growth:[{m:"Jan",users:12,docs:24},{m:"Feb",users:19,docs:35},{m:"Mar",users:28,docs:52},
+          {m:"Apr",users:35,docs:61},{m:"May",users:42,docs:78},{m:"Jun",users:51,docs:94}]
+};
+
+/* ═══════════════════ API SERVICE ═══════════════════ */
+const pause = (ms=500)=>new Promise(r=>setTimeout(r,ms));
+const h = ()=>({ "Content-Type":"application/json", Authorization:`Bearer ${_token}` });
+const jfetch = async (url,opts={})=>{ const r=await fetch(url,{...opts,headers:{...h(),...(opts.headers||{})}}); return r.json(); };
+
+const CAT_COLORS = {Food:GREEN,Entertainment:PURPLE,Utilities:ORANGE,Health:BLUE,Transport:RED,Shopping:"#EC4899",Other:SL[500]};
+const CAT_ICONS  = {Food:"🍔",Entertainment:"🎬",Utilities:"⚡",Health:"💊",Transport:"🚗",Shopping:"🛍️",Other:"💸"};
+
+const api = {
+  /* AUTH */
+  login: async (email, password) => {
+    if (DEMO_MODE) {
+      await pause(700);
+      if (email==="admin@trustid.com") { _token="demo_admin"; return {success:true,token:"demo_admin",user:D_USERS.admin}; }
+      if (password.length>=6)          { _token="demo_user";  return {success:true,token:"demo_user", user:D_USERS.user};  }
+      return {success:false,message:"Invalid credentials. Try any password ≥ 6 chars."};
+    }
+    const d = await jfetch(`${API_BASE}/auth/login`,{method:"POST",body:JSON.stringify({email,password})});
+    if (d.token) { _token=d.token; return {success:true,...d}; }
+    return {success:false,message:d.message};
+  },
+  register: async (body) => {
+    if (DEMO_MODE) { await pause(900); return {success:true}; }
+    const d = await jfetch(`${API_BASE}/auth/register`,{method:"POST",body:JSON.stringify(body)});
+    return d.token ? {success:true,...d} : {success:false,message:d.message};
+  },
+  changePassword: async (cur,nw) => {
+    if (DEMO_MODE) { await pause(500); return {success:true}; }
+    const d = await jfetch(`${API_BASE}/auth/change-password`,{method:"PUT",body:JSON.stringify({currentPassword:cur,newPassword:nw})});
+    return _optionalChain([d, 'access', _2 => _2.message, 'optionalAccess', _3 => _3.includes, 'call', _4 => _4("success")]) ? {success:true} : {success:false,message:d.message};
+  },
+  /* DOCUMENTS */
+  getDocs:    async ()  => { if(DEMO_MODE){await pause(500);return{success:true,data:[...D_DOCS]};} return {success:true,data:await jfetch(`${API_BASE}/documents`)}; },
+  uploadDoc:  async (b) => {
+    if (DEMO_MODE) {
+      await pause(1200);
+      const n={_id:`d${Date.now()}`,name:b.name||b.type,type:b.type,category:b.category||"other",status:"pending",createdAt:new Date().toISOString(),isPrimary:false};
+      D_DOCS.unshift(n); return {success:true,data:n};
+    }
+    return {success:true,data:await jfetch(`${API_BASE}/documents`,{method:"POST",body:JSON.stringify(b)})};
+  },
+  getAllDocs:  async ()      => { if(DEMO_MODE){await pause(400);return{success:true,data:[...D_ALL_DOCS]};} return {success:true,data:await jfetch(`${API_BASE}/documents/all`)}; },
+  verifyDoc:  async (id)    => { if(DEMO_MODE){await pause(600);const i=D_ALL_DOCS.findIndex(d=>d._id===id);if(i>-1)D_ALL_DOCS[i].status="verified";return{success:true};}
+                                  await jfetch(`${API_BASE}/documents/${id}/verify`,{method:"PUT"}); return {success:true}; },
+  rejectDoc:  async (id,r)  => { if(DEMO_MODE){await pause(600);const i=D_ALL_DOCS.findIndex(d=>d._id===id);if(i>-1)D_ALL_DOCS[i].status="rejected";return{success:true};}
+                                  await jfetch(`${API_BASE}/documents/${id}/reject`,{method:"PUT",body:JSON.stringify({reason:r})}); return {success:true}; },
+  /* EXPENSES */
+  getExpenses:   async ()  => { if(DEMO_MODE){await pause(400);return{success:true,data:[...D_EXPENSES]};} return {success:true,data:await jfetch(`${API_BASE}/expenses`)}; },
+  addExpense:    async (b) => {
+    if (DEMO_MODE) {
+      await pause(400);
+      const e={_id:`e${Date.now()}`,icon:CAT_ICONS[b.category]||"💸",date:new Date().toISOString(),...b};
+      D_EXPENSES.unshift(e); return {success:true,data:e};
+    }
+    return {success:true,data:await jfetch(`${API_BASE}/expenses`,{method:"POST",body:JSON.stringify(b)})};
+  },
+  deleteExpense: async (id) => { if(DEMO_MODE){await pause(300);D_EXPENSES=D_EXPENSES.filter(e=>e._id!==id);return{success:true};}
+                                  await jfetch(`${API_BASE}/expenses/${id}`,{method:"DELETE"}); return {success:true}; },
+  /* REMINDERS */
+  getReminders:    async ()      => { if(DEMO_MODE){await pause(400);return{success:true,data:[...D_REMINDERS]};} return {success:true,data:await jfetch(`${API_BASE}/reminders`)}; },
+  addReminder:     async (b)     => { if(DEMO_MODE){await pause(400);const r={_id:`r${Date.now()}`,done:false,...b};D_REMINDERS.unshift(r);return{success:true,data:r};}
+                                       return {success:true,data:await jfetch(`${API_BASE}/reminders`,{method:"POST",body:JSON.stringify(b)})}; },
+  updateReminder:  async (id,b)  => { if(DEMO_MODE){await pause(300);const i=D_REMINDERS.findIndex(r=>r._id===id);if(i>-1)Object.assign(D_REMINDERS[i],b);return{success:true,data:D_REMINDERS.find(r=>r._id===id)};}
+                                       return {success:true,data:await jfetch(`${API_BASE}/reminders/${id}`,{method:"PUT",body:JSON.stringify(b)})}; },
+  deleteReminder:  async (id)    => { if(DEMO_MODE){await pause(300);D_REMINDERS=D_REMINDERS.filter(r=>r._id!==id);return{success:true};}
+                                       await jfetch(`${API_BASE}/reminders/${id}`,{method:"DELETE"}); return {success:true}; },
+  /* TODOS */
+  getTodos:    async ()     => { if(DEMO_MODE){await pause(400);return{success:true,data:[...D_TODOS]};} return {success:true,data:await jfetch(`${API_BASE}/todos`)}; },
+  addTodo:     async (b)    => { if(DEMO_MODE){await pause(400);const t={_id:`t${Date.now()}`,done:false,...b};D_TODOS.unshift(t);return{success:true,data:t};}
+                                  return {success:true,data:await jfetch(`${API_BASE}/todos`,{method:"POST",body:JSON.stringify(b)})}; },
+  updateTodo:  async (id,b) => { if(DEMO_MODE){await pause(300);const i=D_TODOS.findIndex(t=>t._id===id);if(i>-1)Object.assign(D_TODOS[i],b);return{success:true,data:D_TODOS.find(t=>t._id===id)};}
+                                  return {success:true,data:await jfetch(`${API_BASE}/todos/${id}`,{method:"PUT",body:JSON.stringify(b)})}; },
+  deleteTodo:  async (id)   => { if(DEMO_MODE){await pause(300);D_TODOS=D_TODOS.filter(t=>t._id!==id);return{success:true};}
+                                  await jfetch(`${API_BASE}/todos/${id}`,{method:"DELETE"}); return {success:true}; },
+  /* ADMIN */
+  getAdminUsers: async () => { if(DEMO_MODE){await pause(500);return{success:true,data:D_ADMIN_USERS};} return {success:true,data:await jfetch(`${API_BASE}/admin/users`)}; },
+  getAdminStats: async () => { if(DEMO_MODE){await pause(400);return{success:true,data:D_STATS};} return {success:true,data:await jfetch(`${API_BASE}/admin/stats`)}; },
+};
+
+/* ═══════════════════ HELPERS ═══════════════════ */
+const tlC = l=>[null,RED,ORANGE,"#EAB308",GREEN,PURPLE][l]||SL[400];
+const tlN = l=>[null,"Basic","Standard","Enhanced","High","Sovereign"][l]||"Unknown";
+const fmtDate = d=>d?new Date(d).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}):"—";
+
+/* ═══════════════════ ICON ═══════════════════ */
+const PATHS={
+  home:"M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6",
+  shield:"M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z",
+  folder:"M3 7a2 2 0 012-2h4l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z",
+  qr:"M4 4h6v6H4V4zm0 10h6v6H4v-6zm10-10h6v6h-6V4zm0 10h2v2h-2v-2zm0 4h2v2h-2v-2zm4-4h2v6h-2v-6zm-4 0h2v2h-2v-2z",
+  person:"M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z",
+  bell:"M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9",
+  check:"M5 13l4 4L19 7",
+  x:"M6 18L18 6M6 6l12 12",
+  upload:"M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12",
+  settings:"M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z",
+  logout:"M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1",
+  info:"M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
+  chevron:"M9 5l7 7-7 7",
+  plus:"M12 4v16m8-8H4",
+  eye:"M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z",
+  lock:"M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z",
+  mail:"M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z",
+  back:"M15 19l-7-7 7-7",
+  camera:"M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z M15 13a3 3 0 11-6 0 3 3 0 016 0z",
+  sparkle:"M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z",
+  wallet:"M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z",
+  calendar:"M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z",
+  list:"M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4",
+  tools:"M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z",
+  users:"M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z",
+  security:"M20.618 5.984A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016zM12 9v2m0 4h.01",
+  trash:"M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16",
+  trend:"M13 7h8m0 0v8m0-8l-8 8-4-4-6 6",
+  pdf:"M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z",
+};
+function Ic({n,s=18,c=SL[600]}){
+  return React.createElement('svg', { width: s, height: s, fill: "none", stroke: c, strokeWidth: 1.8, strokeLinecap: "round", strokeLinejoin: "round", viewBox: "0 0 24 24"   ,}, React.createElement('path', { d: PATHS[n]||PATHS.info,}));
+}
+
+/* ═══════════════════ SHARED UI ═══════════════════ */
+function TopBar({title,onBack,right,light}){
+  return(
+    React.createElement('div', { style: {display:"flex",alignItems:"center",gap:8,padding:"12px 16px",background:light?"transparent":SL[50],flexShrink:0},}
+      , onBack&&React.createElement('button', { onClick: onBack, style: {background:"none",border:"none",cursor:"pointer",padding:4,borderRadius:8,display:"flex"},}, React.createElement(Ic, { n: "back", s: 20, c: light?"#fff":SL[700],}))
+      , React.createElement('span', { style: {flex:1,fontWeight:800,fontSize:17,color:light?"#fff":SL[900]},}, title)
+      , right
+    )
+  );
+}
+function Btn({label,onClick,v="primary",icon,small,loading,disabled}){
+  const bg={primary:PURPLE,danger:RED,outline:"transparent","danger-outline":"transparent","ghost":"transparent"}[v]||PURPLE;
+  const fg={outline:PURPLE,"danger-outline":RED,danger:"#fff",ghost:SL[600]}[v]||"#fff";
+  const bd={outline:PURPLE,"danger-outline":RED,primary:PURPLE,danger:RED,ghost:SL[200]}[v]||PURPLE;
+  return(
+    React.createElement('button', { onClick: (!loading&&!disabled)?onClick:undefined, style: {width:"100%",height:small?40:50,borderRadius:12,background:disabled?SL[200]:bg,border:`1.5px solid ${disabled?SL[200]:bd}`,color:disabled?SL[400]:fg,fontWeight:700,fontSize:small?13:15,cursor:disabled?"not-allowed":"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8,opacity:loading?0.7:1},}
+      , loading?React.createElement(Spin, { s: 16,}):(icon&&React.createElement(Ic, { n: icon, s: small?14:17, c: disabled?SL[400]:fg,})), label
+    )
+  );
+}
+function Field({label,value,onChange,type="text",icon,placeholder,error}){
+  return(
+    React.createElement('div', null
+      , label&&React.createElement('div', { style: {fontWeight:600,fontSize:12,color:SL[700],marginBottom:5},}, label)
+      , React.createElement('div', { style: {position:"relative"},}
+        , icon&&React.createElement('div', { style: {position:"absolute",left:12,top:"50%",transform:"translateY(-50%)",pointerEvents:"none"},}, React.createElement(Ic, { n: icon, s: 16, c: SL[400],}))
+        , React.createElement('input', { type: type, value: value, placeholder: placeholder, onChange: e=>onChange&&onChange(e.target.value),
+          style: {width:"100%",padding:`12px 12px 12px ${icon?"38px":"12px"}`,borderRadius:12,border:`1px solid ${error?RED:SL[200]}`,background:SL[100],fontSize:14,color:SL[900],outline:"none",boxSizing:"border-box"},})
+      )
+      , error&&React.createElement('div', { style: {color:RED,fontSize:11,marginTop:4},}, error)
+    )
+  );
+}
+function Spin({s=20}){
+  return React.createElement(_framermotion.motion.div, { animate: {rotate:360}, transition: {duration:0.8,repeat:Infinity,ease:"linear"}, style: {width:s,height:s,borderRadius:"50%",border:`2px solid ${SL[200]}`,borderTopColor:PURPLE},});
+}
+function LoadScreen(){
+  return React.createElement('div', { style: {flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:16,background:SL[50]},}, React.createElement(Spin, { s: 32,}), React.createElement('div', { style: {color:SL[500],fontSize:13},}, "Loading…"));
+}
+function ErrMsg({msg,onRetry}){
+  return(
+    React.createElement('div', { style: {padding:20,textAlign:"center"},}
+      , React.createElement('div', { style: {color:RED,fontSize:13,marginBottom:12},}, msg||"Something went wrong")
+      , onRetry&&React.createElement('button', { onClick: onRetry, style: {padding:"8px 20px",borderRadius:10,border:`1px solid ${PURPLE}`,background:"transparent",color:PURPLE,cursor:"pointer",fontWeight:600,fontSize:13},}, "Retry")
+    )
+  );
+}
+function StatusBadge({status}){
+  const m={verified:[GREEN,"Verified"],pending:[ORANGE,"Pending"],rejected:[RED,"Rejected"],active:[GREEN,"Active"],inactive:[SL[400],"Inactive"],suspended:[RED,"Suspended"]};
+  const[c,l]=m[status]||[SL[400],status];
+  return React.createElement('span', { style: {padding:"3px 8px",borderRadius:100,background:`${c}18`,color:c,fontSize:10,fontWeight:700},}, l);
+}
+function TrustBadge({level}){
+  const c=tlC(level);
+  return React.createElement('span', { style: {display:"inline-flex",alignItems:"center",gap:4,padding:"3px 10px",borderRadius:100,background:`${c}20`,border:`1px solid ${c}60`,fontSize:10,fontWeight:700,color:c},}, React.createElement('span', { style: {width:5,height:5,borderRadius:"50%",background:c,display:"inline-block"},}), "L", level, " · "  , tlN(level));
+}
+function ScoreRing({score,size=90}){
+  const r=size/2-8,circ=2*Math.PI*r,c=tlC(score>=800?5:score>=600?4:score>=400?3:score>=200?2:1);
+  return(
+    React.createElement('div', { style: {position:"relative",width:size,height:size,flexShrink:0},}
+      , React.createElement('svg', { width: size, height: size, style: {transform:"rotate(-90deg)"},}
+        , React.createElement('circle', { cx: size/2, cy: size/2, r: r, fill: "none", stroke: SL[200], strokeWidth: 6,})
+        , React.createElement('circle', { cx: size/2, cy: size/2, r: r, fill: "none", stroke: c, strokeWidth: 6, strokeDasharray: circ, strokeDashoffset: circ*(1-score/1000), strokeLinecap: "round",})
+      )
+      , React.createElement('div', { style: {position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"},}
+        , React.createElement('span', { style: {fontSize:size*0.22,fontWeight:800,color:c,lineHeight:1},}, score)
+        , React.createElement('span', { style: {fontSize:size*0.1,color:SL[500],fontWeight:600},}, score>=800?"Excellent":score>=600?"High":"Good")
+      )
+    )
+  );
+}
+function Toast({msg,type,onClose}){
+  _react.useEffect.call(void 0, ()=>{ const t=setTimeout(onClose,3000); return ()=>clearTimeout(t); },[onClose]);
+  const bg={success:GREEN,error:RED,info:BLUE}[type]||GREEN;
+  return(
+    React.createElement(_framermotion.motion.div, { initial: {opacity:0,y:-20}, animate: {opacity:1,y:0}, exit: {opacity:0,y:-20},
+      style: {position:"fixed",top:16,left:"50%",transform:"translateX(-50%)",zIndex:999,background:bg,color:"#fff",padding:"10px 18px",borderRadius:12,fontWeight:600,fontSize:13,boxShadow:"0 4px 12px rgba(0,0,0,0.2)",whiteSpace:"nowrap"},}
+      , msg
+    )
+  );
+}
+
+/* ═══════════════════ SPLASH ═══════════════════ */
+function SplashScreen({onUser,onAdmin}){
+  return(
+    React.createElement('div', { style: {flex:1,background:`linear-gradient(160deg,${NAVY},#312E81,${PURPLE})`,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"space-between",padding:"50px 28px 44px"},}
+      , React.createElement('div', null)
+      , React.createElement(_framermotion.motion.div, { initial: {opacity:0,y:30}, animate: {opacity:1,y:0}, transition: {duration:0.7}, style: {display:"flex",flexDirection:"column",alignItems:"center",gap:20,width:"100%"},}
+        , React.createElement('div', { style: {width:100,height:100,borderRadius:28,background:"rgba(255,255,255,0.1)",border:"1.5px solid rgba(255,255,255,0.2)",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 20px 50px rgba(0,0,0,0.3)"},}
+          , React.createElement(Ic, { n: "shield", s: 52, c: "#fff",})
+        )
+        , React.createElement('div', { style: {textAlign:"center"},}
+          , React.createElement('div', { style: {color:"#fff",fontSize:44,fontWeight:900,letterSpacing:-1},}, "TrustID")
+          , React.createElement('div', { style: {color:"rgba(255,255,255,0.6)",fontSize:14,marginTop:6},}, "Secure Digital Identity Platform"   )
+        )
+        , React.createElement('div', { style: {display:"flex",gap:8,flexWrap:"wrap",justifyContent:"center",maxWidth:"100%"},}
+          , ["🔒 Secure","🤖 AI Scan","📋 Smart Docs","🌐 Universal"].map(f=>(
+            React.createElement('span', { key: f, style: {padding:"5px 8px",borderRadius:100,background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.2)",color:"rgba(255,255,255,0.85)",fontSize:11},}, f)
+          ))
+        )
+        , DEMO_MODE&&React.createElement('div', { style: {padding:"6px 14px",borderRadius:100,background:"rgba(255,165,0,0.2)",border:"1px solid rgba(255,165,0,0.4)",color:"#FCD34D",fontSize:11,fontWeight:700},}, "🎭 Demo Mode — No backend needed"      )
+      )
+      , React.createElement(_framermotion.motion.div, { initial: {opacity:0,y:20}, animate: {opacity:1,y:0}, transition: {delay:0.3,duration:0.6}, style: {width:"100%",display:"flex",flexDirection:"column",gap:12},}
+        , React.createElement('button', { onClick: onUser, style: {width:"100%",height:56,borderRadius:16,background:"#fff",border:"none",cursor:"pointer",fontWeight:800,fontSize:16,color:PURPLE,display:"flex",alignItems:"center",justifyContent:"center",gap:10,boxShadow:"0 8px 24px rgba(0,0,0,0.2)"},}
+          , React.createElement(Ic, { n: "person", s: 20, c: PURPLE,}), " Sign in as User"
+        )
+        , React.createElement('button', { onClick: onAdmin, style: {width:"100%",height:56,borderRadius:16,background:"rgba(255,255,255,0.1)",border:"1.5px solid rgba(255,255,255,0.3)",cursor:"pointer",fontWeight:700,fontSize:16,color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",gap:10},}
+          , React.createElement(Ic, { n: "security", s: 20, c: "#fff",}), " Admin Portal"
+        )
+        , React.createElement('div', { style: {textAlign:"center",color:"rgba(255,255,255,0.3)",fontSize:11},}, "TrustID Platform v1.0 · MongoDB + Render"      )
+      )
+    )
+  );
+}
+
+/* ═══════════════════ USER LOGIN ═══════════════════ */
+function UserLoginScreen({onLogin,onRegister,onBack}){
+  const[email,setEmail]=_react.useState.call(void 0, "jane@example.com");
+  const[pass,setPass]=_react.useState.call(void 0, "password123");
+  const[loading,setLoading]=_react.useState.call(void 0, false);
+  const[err,setErr]=_react.useState.call(void 0, "");
+  const submit=async()=>{
+    if(!email||!pass){setErr("Please fill in all fields.");return;}
+    setErr("");setLoading(true);
+    const r=await api.login(email,pass);
+    setLoading(false);
+    if(r.success) onLogin(r.token,r.user);
+    else setErr(r.message||"Login failed");
+  };
+  return(
+    React.createElement('div', { style: {flex:1,overflowY:"auto",background:"#fff"},}
+      , React.createElement('div', { style: {padding:"14px 16px"},}, React.createElement('button', { onClick: onBack, style: {background:"none",border:"none",cursor:"pointer",display:"flex",alignItems:"center",gap:6,color:SL[600],fontWeight:600,fontSize:13},}, React.createElement(Ic, { n: "back", s: 18, c: SL[600],}), "Back"))
+      , React.createElement('div', { style: {padding:"4px 24px 32px"},}
+        , React.createElement('div', { style: {width:52,height:52,borderRadius:14,background:`linear-gradient(135deg,${NAVY},${PURPLE})`,display:"flex",alignItems:"center",justifyContent:"center",marginBottom:18},}, React.createElement(Ic, { n: "person", s: 26, c: "#fff",}))
+        , React.createElement('div', { style: {fontSize:26,fontWeight:900,color:SL[900],marginBottom:6},}, "Welcome back" )
+        , React.createElement('div', { style: {color:SL[500],fontSize:14,marginBottom:24},}, "Sign in to your TrustID account"     )
+        , err&&React.createElement('div', { style: {padding:"10px 14px",borderRadius:10,background:`${RED}12`,border:`1px solid ${RED}30`,color:RED,fontSize:13,fontWeight:500,marginBottom:14},}, err)
+        , React.createElement(Field, { label: "Email address" , value: email, onChange: setEmail, icon: "mail", type: "email",})
+        , React.createElement('div', { style: {height:12},}), React.createElement(Field, { label: "Password", value: pass, onChange: setPass, icon: "lock", type: "password",})
+        , React.createElement('div', { style: {textAlign:"right",margin:"8px 0 22px"},}, React.createElement('span', { style: {color:PURPLE,fontSize:13,fontWeight:600,cursor:"pointer"},}, "Forgot password?" ))
+        , React.createElement(Btn, { label: "Sign In" , onClick: submit, loading: loading, icon: "lock",})
+        , DEMO_MODE&&React.createElement('div', { style: {marginTop:12,padding:10,borderRadius:10,background:`${BLUE}10`,border:`1px solid ${BLUE}25`,fontSize:12,color:BLUE,lineHeight:1.5},}
+          , React.createElement('b', null, "Demo:"), " any email + password ≥ 6 chars logs in as Jane Doe."            , React.createElement('br', null), "Use " , React.createElement('b', null, "admin@trustid.com"), " + "  , React.createElement('b', null, "Admin@2024!"), " for admin."
+        )
+        , React.createElement('div', { style: {textAlign:"center",marginTop:20,fontSize:14,color:SL[500]},}, "No account? "  , React.createElement('span', { style: {color:PURPLE,fontWeight:700,cursor:"pointer"}, onClick: onRegister,}, "Sign up" ))
+      )
+    )
+  );
+}
+
+/* ═══════════════════ ADMIN LOGIN ═══════════════════ */
+function AdminLoginScreen({onLogin,onBack}){
+  const[email,setEmail]=_react.useState.call(void 0, "admin@trustid.com");
+  const[pass,setPass]=_react.useState.call(void 0, "Admin@2024!");
+  const[code,setCode]=_react.useState.call(void 0, "123456");
+  const[loading,setLoading]=_react.useState.call(void 0, false);
+  const[err,setErr]=_react.useState.call(void 0, "");
+  const submit=async()=>{
+    setErr("");setLoading(true);
+    const r=await api.login(email,pass);
+    setLoading(false);
+    if(r.success&&r.user.role==="admin") onLogin(r.token,r.user);
+    else setErr(r.success?"Account is not an admin account.":r.message||"Login failed");
+  };
+  return(
+    React.createElement('div', { style: {flex:1,overflowY:"auto",background:"#fff"},}
+      , React.createElement('div', { style: {background:`linear-gradient(135deg,${NAVY},#1e3a5f)`,padding:"32px 24px 28px"},}
+        , React.createElement('button', { onClick: onBack, style: {background:"rgba(255,255,255,0.1)",border:"none",cursor:"pointer",padding:"6px 14px",borderRadius:8,color:"#fff",fontSize:12,fontWeight:600,marginBottom:22},}, "← Back" )
+        , React.createElement('div', { style: {display:"flex",alignItems:"center",gap:12},}
+          , React.createElement('div', { style: {width:50,height:50,borderRadius:14,background:"rgba(255,255,255,0.1)",border:"1px solid rgba(255,255,255,0.2)",display:"flex",alignItems:"center",justifyContent:"center"},}, React.createElement(Ic, { n: "security", s: 26, c: "#fff",}))
+          , React.createElement('div', null
+            , React.createElement('div', { style: {color:"rgba(255,255,255,0.6)",fontSize:11,fontWeight:700,letterSpacing:1},}, "ADMIN PORTAL" )
+            , React.createElement('div', { style: {color:"#fff",fontSize:20,fontWeight:900},}, "TrustID Management" )
+          )
+        )
+      )
+      , React.createElement('div', { style: {padding:"22px 24px 32px"},}
+        , err&&React.createElement('div', { style: {padding:"10px 14px",borderRadius:10,background:`${RED}12`,border:`1px solid ${RED}30`,color:RED,fontSize:13,marginBottom:14},}, err)
+        , React.createElement(Field, { label: "Admin Email" , value: email, onChange: setEmail, icon: "mail", type: "email",})
+        , React.createElement('div', { style: {height:12},}), React.createElement(Field, { label: "Password", value: pass, onChange: setPass, icon: "lock", type: "password",})
+        , React.createElement('div', { style: {height:12},}), React.createElement(Field, { label: "Security Code (demo: any 6 digits)"     , value: code, onChange: setCode, icon: "security", type: "password",})
+        , React.createElement('div', { style: {height:24},})
+        , React.createElement(Btn, { label: "Access Admin Portal"  , onClick: submit, loading: loading, icon: "security",})
+        , React.createElement('div', { style: {marginTop:12,padding:10,borderRadius:10,background:`${RED}08`,border:`1px solid ${RED}20`,display:"flex",gap:8,alignItems:"center"},}
+          , React.createElement(Ic, { n: "info", s: 14, c: RED,}), React.createElement('span', { style: {color:RED,fontSize:11,fontWeight:600},}, "Restricted — Authorized personnel only"    )
+        )
+      )
+    )
+  );
+}
+
+/* ═══════════════════ MFA ═══════════════════ */
+function MfaScreen({onBack,onVerify}){
+  const[loading,setLoading]=_react.useState.call(void 0, false);
+  const go=async()=>{setLoading(true);await pause(700);setLoading(false);onVerify();};
+  return(
+    React.createElement('div', { style: {flex:1,background:"#fff",display:"flex",flexDirection:"column"},}
+      , React.createElement(TopBar, { title: "", onBack: onBack,})
+      , React.createElement('div', { style: {flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:24},}
+        , React.createElement('div', { style: {width:76,height:76,borderRadius:"50%",background:`${PURPLE}12`,display:"flex",alignItems:"center",justifyContent:"center",marginBottom:20},}, React.createElement(Ic, { n: "security", s: 38, c: PURPLE,}))
+        , React.createElement('div', { style: {fontSize:22,fontWeight:800,marginBottom:8,textAlign:"center"},}, "Two-Factor Verification" )
+        , React.createElement('div', { style: {color:SL[500],fontSize:14,textAlign:"center",lineHeight:1.5,marginBottom:32},}, "Enter the 6-digit code from your authenticator app"       )
+        , React.createElement('div', { style: {display:"flex",gap:8,marginBottom:32},}
+          , ["•","•","•","—","—","—"].map((d,i)=>(
+            React.createElement('div', { key: i, style: {width:44,height:54,borderRadius:12,background:SL[100],border:`1.5px solid ${i<3?PURPLE:SL[200]}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,fontWeight:700,color:i<3?PURPLE:SL[300]},}, d)
+          ))
+        )
+        , React.createElement('div', { style: {width:"100%"},}, React.createElement(Btn, { label: "Verify & Continue"  , onClick: go, loading: loading, icon: "check",}))
+        , React.createElement('div', { style: {color:SL[400],fontSize:12,marginTop:10},}, "Demo: tap to proceed"   )
+      )
+    )
+  );
+}
+
+/* ═══════════════════ REGISTER ═══════════════════ */
+function RegisterScreen({onBack,onDone}){
+  const[form,setForm]=_react.useState.call(void 0, {firstName:"",lastName:"",email:"",password:"",confirm:""});
+  const[loading,setLoading]=_react.useState.call(void 0, false);
+  const[done,setDone]=_react.useState.call(void 0, false);
+  const[err,setErr]=_react.useState.call(void 0, "");
+  const set=k=>v=>setForm(f=>({...f,[k]:v}));
+  const submit=async()=>{
+    if(!form.firstName||!form.email||!form.password){setErr("Please fill required fields.");return;}
+    if(form.password!==form.confirm){setErr("Passwords do not match.");return;}
+    setErr("");setLoading(true);
+    const r=await api.register(form);
+    setLoading(false);
+    if(r.success) setDone(true); else setErr(r.message||"Registration failed");
+  };
+  if(done) return(
+    React.createElement('div', { style: {flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:32,background:"#fff"},}
+      , React.createElement('div', { style: {width:80,height:80,borderRadius:"50%",background:`${GREEN}18`,display:"flex",alignItems:"center",justifyContent:"center",marginBottom:20},}, React.createElement(Ic, { n: "check", s: 42, c: GREEN,}))
+      , React.createElement('div', { style: {fontSize:24,fontWeight:800,marginBottom:10},}, "Account Created!" )
+      , React.createElement('div', { style: {color:SL[500],textAlign:"center",fontSize:14,lineHeight:1.6,marginBottom:32},}, "Your account is ready. Sign in to get started."        )
+      , React.createElement(Btn, { label: "Go to Sign In"   , onClick: onDone,})
+    )
+  );
+  return(
+    React.createElement('div', { style: {flex:1,overflowY:"auto",background:"#fff"},}
+      , React.createElement(TopBar, { title: "Create Account" , onBack: onBack,})
+      , React.createElement('div', { style: {padding:"4px 24px 32px"},}
+        , err&&React.createElement('div', { style: {padding:"10px 14px",borderRadius:10,background:`${RED}12`,border:`1px solid ${RED}30`,color:RED,fontSize:13,marginBottom:14},}, err)
+        , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12},}
+          , React.createElement(Field, { label: "First name *"  , value: form.firstName, onChange: set("firstName"), placeholder: "Jane",})
+          , React.createElement(Field, { label: "Last name" , value: form.lastName, onChange: set("lastName"), placeholder: "Doe",})
+        )
+        , React.createElement(Field, { label: "Email *" , value: form.email, onChange: set("email"), icon: "mail", type: "email", placeholder: "jane@example.com",})
+        , React.createElement('div', { style: {height:12},})
+        , React.createElement(Field, { label: "Password *" , value: form.password, onChange: set("password"), icon: "lock", type: "password", placeholder: "Min 6 characters"  ,})
+        , React.createElement('div', { style: {height:12},})
+        , React.createElement(Field, { label: "Confirm Password *"  , value: form.confirm, onChange: set("confirm"), icon: "lock", type: "password", placeholder: "Repeat password" ,})
+        , React.createElement('div', { style: {height:24},}), React.createElement(Btn, { label: "Create Account" , onClick: submit, loading: loading,})
+      )
+    )
+  );
+}
+
+/* ═══════════════════ DASHBOARD ═══════════════════ */
+function DashboardScreen({user,onNav,onNotif}){
+  const tid=_optionalChain([user, 'optionalAccess', _5 => _5.trustId]);
+  const name=_optionalChain([user, 'optionalAccess', _6 => _6.firstName])||"User";
+  return(
+    React.createElement('div', { style: {flex:1,overflowY:"auto",background:SL[50]},}
+      , React.createElement('div', { style: {display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px 18px 0"},}
+        , React.createElement('div', null
+          , React.createElement('div', { style: {fontSize:12,color:SL[500]},}, "Good morning," )
+          , React.createElement('div', { style: {fontSize:22,fontWeight:900,color:SL[900]},}, name, " 👋" )
+        )
+        , React.createElement('button', { onClick: onNotif, style: {position:"relative",background:"#fff",border:"none",cursor:"pointer",padding:10,borderRadius:12,boxShadow:"0 1px 4px rgba(0,0,0,0.08)"},}
+          , React.createElement(Ic, { n: "bell", s: 22, c: SL[600],}), React.createElement('span', { style: {position:"absolute",top:7,right:7,width:8,height:8,borderRadius:"50%",background:RED},})
+        )
+      )
+      , React.createElement('div', { style: {padding:"14px 14px 0"},}
+        /* TrustID Card */
+        , React.createElement('div', { onClick: ()=>onNav("trustid"), style: {cursor:"pointer",background:`linear-gradient(135deg,${NAVY},#312E81,${PURPLE})`,borderRadius:22,padding:20,display:"flex",alignItems:"center",justifyContent:"space-between",boxShadow:`0 8px 24px ${PURPLE}50`,marginBottom:14},}
+          , React.createElement('div', null
+            , React.createElement('div', { style: {display:"flex",alignItems:"center",gap:6,color:"#fff",fontSize:12,fontWeight:600,marginBottom:8},}, React.createElement(Ic, { n: "shield", s: 14, c: "#fff",}), " TrustID Active"  )
+            , React.createElement('div', { style: {color:"#fff",fontSize:13,fontWeight:800,letterSpacing:1.2,marginBottom:8},}, _optionalChain([tid, 'optionalAccess', _7 => _7.id])||"Not issued yet")
+            , React.createElement(TrustBadge, { level: _optionalChain([tid, 'optionalAccess', _8 => _8.level])||1,})
+          )
+          , React.createElement(ScoreRing, { score: _optionalChain([tid, 'optionalAccess', _9 => _9.score])||100, size: 76,})
+        )
+        /* Stats */
+        , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14},}
+          , [
+            {icon:"folder",label:"Documents",val:D_DOCS.length,color:BLUE,screen:"docs"},
+            {icon:"check",label:"Verified",val:D_DOCS.filter(d=>d.status==="verified").length,color:GREEN,screen:"docs"},
+            {icon:"qr",label:"QR Codes",val:3,color:PURPLE,screen:"qr"},
+            {icon:"wallet",label:"Expenses",val:`$${D_EXPENSES.reduce((s,e)=>s+e.amount,0).toFixed(0)}`,color:ORANGE,screen:"expenses"},
+          ].map(s=>(
+            React.createElement('div', { key: s.label, onClick: ()=>onNav(s.screen), style: {background:"#fff",borderRadius:14,padding:13,boxShadow:"0 1px 4px rgba(0,0,0,0.06)",cursor:"pointer"},}
+              , React.createElement('div', { style: {width:32,height:32,borderRadius:8,background:`${s.color}18`,display:"flex",alignItems:"center",justifyContent:"center",marginBottom:8},}, React.createElement(Ic, { n: s.icon, s: 16, c: s.color,}))
+              , React.createElement('div', { style: {fontSize:21,fontWeight:800,color:s.color},}, s.val)
+              , React.createElement('div', { style: {fontSize:11,color:SL[500]},}, s.label)
+            )
+          ))
+        )
+        /* Quick Actions */
+        , React.createElement('div', { style: {fontSize:14,fontWeight:800,marginBottom:10},}, "Quick Actions" )
+        , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:14},}
+          , [{icon:"camera",label:"AI Scan",color:PURPLE,screen:"scanner"},{icon:"upload",label:"Upload",color:BLUE,screen:"upload"},{icon:"qr",label:"QR Code",color:GREEN,screen:"qr"}].map(a=>(
+            React.createElement('button', { key: a.label, onClick: ()=>onNav(a.screen), style: {padding:"14px 0",borderRadius:14,background:`${a.color}12`,border:`1px solid ${a.color}28`,cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:6},}
+              , React.createElement(Ic, { n: a.icon, s: 22, c: a.color,}), React.createElement('span', { style: {color:a.color,fontWeight:700,fontSize:10},}, a.label)
+            )
+          ))
+        )
+        /* Smart Tools */
+        , React.createElement('div', { style: {fontSize:14,fontWeight:800,marginBottom:10},}, "Smart Tools" )
+        , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:20},}
+          , [{icon:"calendar",label:"Calendar",sub:"5 events",color:BLUE,s:"calendar"},{icon:"list",label:"To-Do",sub:`${D_TODOS.filter(t=>!t.done).length} pending`,color:GREEN,s:"todo"},{icon:"bell",label:"Reminders",sub:`${D_REMINDERS.filter(r=>!r.done).length} due`,color:ORANGE,s:"reminders"},{icon:"wallet",label:"Expenses",sub:`$${D_EXPENSES.reduce((s,e)=>s+e.amount,0).toFixed(0)} total`,color:PURPLE,s:"expenses"}].map(t=>(
+            React.createElement('div', { key: t.label, onClick: ()=>onNav(t.s), style: {background:"#fff",borderRadius:14,padding:13,cursor:"pointer",display:"flex",alignItems:"center",gap:12,boxShadow:"0 1px 4px rgba(0,0,0,0.06)"},}
+              , React.createElement('div', { style: {width:40,height:40,borderRadius:10,background:`${t.color}18`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0},}, React.createElement(Ic, { n: t.icon, s: 20, c: t.color,}))
+              , React.createElement('div', null, React.createElement('div', { style: {fontWeight:700,fontSize:13},}, t.label), React.createElement('div', { style: {color:SL[500],fontSize:11},}, t.sub))
+            )
+          ))
+        )
+      )
+    )
+  );
+}
+
+/* ═══════════════════ TRUSTID ═══════════════════ */
+function TrustIdScreen({user,onBack}){
+  const tid=_optionalChain([user, 'optionalAccess', _10 => _10.trustId]);const c=tlC(_optionalChain([tid, 'optionalAccess', _11 => _11.level])||1);
+  return(
+    React.createElement('div', { style: {flex:1,overflowY:"auto",background:SL[50]},}
+      , React.createElement(TopBar, { title: "My TrustID" , onBack: onBack,})
+      , React.createElement('div', { style: {padding:"0 16px 32px"},}
+        , React.createElement('div', { style: {background:`linear-gradient(135deg,${NAVY},#312E81,${PURPLE})`,borderRadius:22,padding:22,boxShadow:`0 8px 24px ${PURPLE}50`,marginBottom:14},}
+          , React.createElement('div', { style: {display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18},}
+            , React.createElement('div', { style: {display:"flex",alignItems:"center",gap:6,color:"#fff",fontSize:13,fontWeight:700},}, React.createElement(Ic, { n: "shield", s: 16, c: "#fff",}), " TrustID" )
+            , React.createElement(TrustBadge, { level: _optionalChain([tid, 'optionalAccess', _12 => _12.level])||1,})
+          )
+          , React.createElement('div', { style: {color:"#fff",fontSize:15,fontWeight:800,letterSpacing:1.5,marginBottom:6},}, _optionalChain([tid, 'optionalAccess', _13 => _13.id])||"Pending Issuance")
+          , React.createElement('div', { style: {display:"flex",justifyContent:"space-between"},}
+            , React.createElement('span', { style: {color:"rgba(255,255,255,0.6)",fontSize:12},}, "Score: " , _optionalChain([tid, 'optionalAccess', _14 => _14.score])||100)
+            , React.createElement('span', { style: {background:"rgba(255,255,255,0.15)",padding:"3px 10px",borderRadius:100,color:"#fff",fontSize:10,fontWeight:700},}, _optionalChain([tid, 'optionalAccess', _15 => _15.status, 'optionalAccess', _16 => _16.toUpperCase, 'call', _17 => _17()])||"PENDING")
+          )
+        )
+        , React.createElement('div', { style: {background:"#fff",borderRadius:16,padding:18,display:"flex",alignItems:"center",gap:20,marginBottom:12,boxShadow:"0 1px 4px rgba(0,0,0,0.06)"},}
+          , React.createElement(ScoreRing, { score: _optionalChain([tid, 'optionalAccess', _18 => _18.score])||100, size: 96,})
+          , React.createElement('div', null
+            , React.createElement('div', { style: {fontWeight:700,fontSize:15,marginBottom:4},}, "Trust Score" )
+            , React.createElement('div', { style: {fontSize:26,fontWeight:800,color:c},}, _optionalChain([tid, 'optionalAccess', _19 => _19.score])||100, "/1000")
+            , React.createElement('div', { style: {color:SL[500],fontSize:12},}, "Verify more documents to increase"    )
+          )
+        )
+        , React.createElement('div', { style: {background:"#fff",borderRadius:16,padding:18,marginBottom:14,boxShadow:"0 1px 4px rgba(0,0,0,0.06)"},}
+          , React.createElement('div', { style: {fontWeight:700,fontSize:14,marginBottom:12},}, "Certificate Details" )
+          , [["TrustID Number",_optionalChain([tid, 'optionalAccess', _20 => _20.id])||"Pending"],["Status",_optionalChain([tid, 'optionalAccess', _21 => _21.status])||"Pending"],["Trust Level",`${_optionalChain([tid, 'optionalAccess', _22 => _22.level])||1} — ${tlN(_optionalChain([tid, 'optionalAccess', _23 => _23.level])||1)}`],["Issued",fmtDate(_optionalChain([tid, 'optionalAccess', _24 => _24.issuedAt]))],["Owner",`${_optionalChain([user, 'optionalAccess', _25 => _25.firstName])} ${_optionalChain([user, 'optionalAccess', _26 => _26.lastName])}`]].map(([k,v])=>(
+            React.createElement('div', { key: k, style: {display:"flex",justifyContent:"space-between",padding:"7px 0",borderBottom:`1px solid ${SL[100]}`},}
+              , React.createElement('span', { style: {color:SL[500],fontSize:12},}, k), React.createElement('span', { style: {fontWeight:600,fontSize:12},}, v)
+            )
+          ))
+        )
+        , React.createElement(Btn, { label: "Download Certificate PDF"  , onClick: ()=>{}, variant: "outline", icon: "pdf",})
+      )
+    )
+  );
+}
+
+/* ═══════════════════ AI SCANNER ═══════════════════ */
+function AiScannerScreen({onBack,onSaved}){
+  const[stage,setStage]=_react.useState.call(void 0, "select");
+  const[docType,setDocType]=_react.useState.call(void 0, "Passport");
+  const[progress,setProgress]=_react.useState.call(void 0, 0);
+  const[enh,setEnh]=_react.useState.call(void 0, {shadows:true,perspective:true,contrast:true,crop:true});
+  const[saving,setSaving]=_react.useState.call(void 0, false);
+  const startScan=()=>{
+    setStage("scanning");setProgress(0);
+    const iv=setInterval(()=>setProgress(p=>{if(p>=100){clearInterval(iv);setStage("enhanced");return 100;}return p+3;}),60);
+  };
+  const saveDoc=async()=>{
+    setSaving(true);
+    await api.uploadDoc({name:docType,type:docType,category:"identity",aiEnhanced:true});
+    setSaving(false);setStage("saved");
+  };
+  return(
+    React.createElement('div', { style: {flex:1,display:"flex",flexDirection:"column",background:SL[50]},}
+      , React.createElement(TopBar, { title: "AI Document Scanner"  , onBack: onBack,})
+      , React.createElement('div', { style: {flex:1,overflowY:"auto",padding:"0 16px 24px"},}
+        , stage==="select"&&(React.createElement(React.Fragment, null
+          , React.createElement('div', { style: {background:`linear-gradient(135deg,${PURPLE}15,${BLUE}15)`,borderRadius:14,padding:14,marginBottom:14,display:"flex",alignItems:"center",gap:12},}
+            , React.createElement('div', { style: {width:40,height:40,borderRadius:10,background:`${PURPLE}20`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0},}, React.createElement(Ic, { n: "sparkle", s: 20, c: PURPLE,}))
+            , React.createElement('div', null, React.createElement('div', { style: {fontWeight:700,fontSize:13,color:PURPLE},}, "AI-Powered Enhancement" ), React.createElement('div', { style: {color:SL[500],fontSize:12},}, "Remove shadows, fix perspective & sharpen docs"      ))
+          )
+          , React.createElement('div', { style: {fontWeight:600,fontSize:13,color:SL[700],marginBottom:6},}, "Document Type" )
+          , React.createElement('select', { value: docType, onChange: e=>setDocType(e.target.value), style: {width:"100%",padding:"12px 14px",borderRadius:12,border:`1px solid ${SL[200]}`,background:SL[100],fontSize:14,outline:"none",marginBottom:14},}
+            , ["Passport","Driver's License","National ID","Bank Statement","Utility Bill","Birth Certificate","Tax Document"].map(t=>React.createElement('option', { key: t,}, t))
+          )
+          , React.createElement('div', { style: {background:SL[800],borderRadius:20,height:200,position:"relative",overflow:"hidden",marginBottom:14,display:"flex",alignItems:"center",justifyContent:"center"},}
+            , React.createElement('div', { style: {position:"absolute",top:"12%",left:"8%",width:20,height:20,borderTop:"3px solid #fff",borderLeft:"3px solid #fff"},})
+            , React.createElement('div', { style: {position:"absolute",top:"12%",right:"8%",width:20,height:20,borderTop:"3px solid #fff",borderRight:"3px solid #fff"},})
+            , React.createElement('div', { style: {position:"absolute",bottom:"12%",left:"8%",width:20,height:20,borderBottom:"3px solid #fff",borderLeft:"3px solid #fff"},})
+            , React.createElement('div', { style: {position:"absolute",bottom:"12%",right:"8%",width:20,height:20,borderBottom:"3px solid #fff",borderRight:"3px solid #fff"},})
+            , React.createElement('div', { style: {display:"flex",flexDirection:"column",alignItems:"center",gap:8},}, React.createElement(Ic, { n: "camera", s: 36, c: "rgba(255,255,255,0.5)",}), React.createElement('div', { style: {color:"rgba(255,255,255,0.6)",fontSize:13},}, "Position document here"  ))
+          )
+          , React.createElement('div', { style: {display:"flex",gap:10},}
+            , React.createElement('button', { onClick: ()=>setStage("preview"), style: {flex:1,height:48,borderRadius:12,background:"#fff",border:`1.5px solid ${SL[200]}`,cursor:"pointer",fontWeight:700,fontSize:14,color:SL[700]},}, "🖼️ Gallery" )
+            , React.createElement('button', { onClick: ()=>setStage("preview"), style: {flex:2,height:48,borderRadius:12,background:PURPLE,border:"none",cursor:"pointer",fontWeight:700,fontSize:14,color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",gap:8},}, React.createElement(Ic, { n: "camera", s: 16, c: "#fff",}), " Capture" )
+          )
+        ))
+        , stage==="preview"&&(React.createElement(React.Fragment, null
+          , React.createElement('div', { style: {fontWeight:700,fontSize:14,marginBottom:10},}, "Raw Document — Issues Detected"    )
+          , React.createElement('div', { style: {background:"#f5edcf",borderRadius:16,padding:18,marginBottom:12,transform:"rotate(-2deg)",boxShadow:"4px 6px 20px rgba(0,0,0,0.2)"},}
+            , React.createElement('div', { style: {display:"flex",gap:10,marginBottom:12},}
+              , React.createElement('div', { style: {width:44,height:44,borderRadius:"50%",background:SL[300]},})
+              , React.createElement('div', null, React.createElement('div', { style: {height:10,background:SL[400],borderRadius:4,width:80,marginBottom:6},}), React.createElement('div', { style: {height:8,background:SL[300],borderRadius:4,width:55},}))
+            )
+            , [100,82,90,65].map((w,i)=>React.createElement('div', { key: i, style: {height:7,background:`rgba(0,0,0,0.15)`,borderRadius:4,width:`${w}%`,marginBottom:5},}))
+          )
+          , React.createElement('div', { style: {background:`${ORANGE}10`,border:`1px solid ${ORANGE}30`,borderRadius:12,padding:12,marginBottom:14,display:"flex",gap:8,alignItems:"center"},}
+            , React.createElement(Ic, { n: "info", s: 16, c: ORANGE,}), React.createElement('span', { style: {color:ORANGE,fontSize:12},}, "Detected: shadows, perspective skew, low contrast"     )
+          )
+          , React.createElement('div', { style: {fontWeight:700,fontSize:14,marginBottom:10},}, "AI Enhancements" )
+          , [["shadows","Remove Shadows","🌑"],["perspective","Fix Perspective","📐"],["contrast","Boost Contrast","✨"],["crop","Auto Crop","✂️"]].map(([k,lab,em])=>(
+            React.createElement('div', { key: k, onClick: ()=>setEnh(e=>({...e,[k]:!e[k]})), style: {display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 14px",borderRadius:12,background:"#fff",marginBottom:8,cursor:"pointer"},}
+              , React.createElement('div', { style: {display:"flex",alignItems:"center",gap:10},}, React.createElement('span', { style: {fontSize:18},}, em), React.createElement('span', { style: {fontWeight:600,fontSize:13},}, lab))
+              , React.createElement('div', { style: {width:44,height:24,borderRadius:12,background:enh[k]?PURPLE:SL[200],position:"relative",flexShrink:0},}
+                , React.createElement('div', { style: {position:"absolute",top:3,left:enh[k]?20:3,width:18,height:18,borderRadius:"50%",background:"#fff",transition:"left 0.2s",boxShadow:"0 1px 4px rgba(0,0,0,0.2)"},})
+              )
+            )
+          ))
+          , React.createElement('div', { style: {height:16},}), React.createElement(Btn, { label: "🤖 Enhance with AI"   , onClick: startScan,})
+        ))
+        , stage==="scanning"&&(
+          React.createElement('div', { style: {display:"flex",flexDirection:"column",alignItems:"center",padding:"30px 0"},}
+            , React.createElement(_framermotion.motion.div, { animate: {rotate:360}, transition: {duration:2,repeat:Infinity,ease:"linear"}, style: {width:80,height:80,borderRadius:"50%",background:`${PURPLE}12`,display:"flex",alignItems:"center",justifyContent:"center",marginBottom:20},}
+              , React.createElement(Ic, { n: "sparkle", s: 40, c: PURPLE,})
+            )
+            , React.createElement('div', { style: {fontWeight:800,fontSize:18,marginBottom:6},}, "AI Processing…" )
+            , React.createElement('div', { style: {color:SL[500],fontSize:13,marginBottom:22,textAlign:"center"},}, "Cleaning and enhancing your document"    )
+            , React.createElement('div', { style: {width:"100%",height:8,background:SL[200],borderRadius:4,overflow:"hidden",marginBottom:8},}
+              , React.createElement(_framermotion.motion.div, { animate: {width:`${progress}%`}, transition: {duration:0.1}, style: {height:"100%",background:`linear-gradient(90deg,${PURPLE},${BLUE})`,borderRadius:4},})
+            )
+            , React.createElement('div', { style: {color:SL[500],fontSize:13,marginBottom:24},}, progress, "%")
+            , [["Removing shadows",25],["Fixing perspective",50],["Enhancing contrast",75],["Auto-cropping",95]].map(([s,t])=>(
+              React.createElement('div', { key: s, style: {display:"flex",alignItems:"center",gap:10,marginBottom:8,width:"100%"},}
+                , React.createElement('div', { style: {width:18,height:18,borderRadius:"50%",background:progress>=t?`${GREEN}20`:SL[100],border:`1.5px solid ${progress>=t?GREEN:SL[200]}`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0},}
+                  , progress>=t&&React.createElement(Ic, { n: "check", s: 10, c: GREEN,})
+                )
+                , React.createElement('span', { style: {fontSize:12,color:progress>=t?GREEN:SL[400]},}, s)
+              )
+            ))
+          )
+        )
+        , stage==="enhanced"&&(React.createElement(React.Fragment, null
+          , React.createElement('div', { style: {display:"flex",alignItems:"center",gap:8,marginBottom:14,padding:"10px 14px",borderRadius:12,background:`${GREEN}12`,border:`1px solid ${GREEN}30`},}
+            , React.createElement(Ic, { n: "check", s: 18, c: GREEN,}), React.createElement('span', { style: {color:GREEN,fontWeight:700,fontSize:13},}, "Enhancement complete ✨"  )
+          )
+          , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14},}
+            , React.createElement('div', { style: {background:"#f5edcf",borderRadius:12,padding:12,transform:"rotate(-1.5deg)",boxShadow:"2px 3px 10px rgba(0,0,0,0.15)"},}
+              , React.createElement('div', { style: {fontSize:10,fontWeight:700,color:ORANGE,marginBottom:6},}, "⚠ BEFORE" )
+              , [90,70,82].map((w,i)=>React.createElement('div', { key: i, style: {height:6,background:`rgba(0,0,0,0.2)`,borderRadius:3,width:`${w}%`,marginBottom:5},}))
+            )
+            , React.createElement('div', { style: {background:"#fff",borderRadius:12,padding:12,boxShadow:"0 4px 14px rgba(0,0,0,0.1)",border:`1px solid ${GREEN}30`},}
+              , React.createElement('div', { style: {fontSize:10,fontWeight:700,color:GREEN,marginBottom:6},}, "✨ AFTER" )
+              , [90,70,82].map((w,i)=>React.createElement('div', { key: i, style: {height:6,background:SL[800],borderRadius:3,width:`${w}%`,marginBottom:5},}))
+            )
+          )
+          , React.createElement(Btn, { label: "Save to Documents"  , onClick: saveDoc, loading: saving, icon: "upload",})
+          , React.createElement('div', { style: {height:10},}), React.createElement(Btn, { label: "Re-scan", onClick: ()=>setStage("select"), variant: "outline", icon: "camera",})
+        ))
+        , stage==="saved"&&(
+          React.createElement('div', { style: {display:"flex",flexDirection:"column",alignItems:"center",padding:"30px 0"},}
+            , React.createElement('div', { style: {width:76,height:76,borderRadius:"50%",background:`${GREEN}15`,display:"flex",alignItems:"center",justifyContent:"center",marginBottom:18},}, React.createElement(Ic, { n: "check", s: 40, c: GREEN,}))
+            , React.createElement('div', { style: {fontSize:22,fontWeight:800,marginBottom:8},}, "Document Saved!" )
+            , React.createElement('div', { style: {color:SL[500],fontSize:14,textAlign:"center",lineHeight:1.6,marginBottom:8},}, "Your enhanced "  , React.createElement('b', null, docType), " has been saved and queued for admin review."        )
+            , React.createElement('div', { style: {padding:"7px 16px",borderRadius:100,background:`${GREEN}12`,color:GREEN,fontSize:12,fontWeight:700,marginBottom:32},}, "⏱ Review within 24–48 hours"    )
+            , React.createElement(Btn, { label: "Scan Another Document"  , onClick: ()=>setStage("select"), icon: "camera",})
+            , React.createElement('div', { style: {height:10},}), React.createElement(Btn, { label: "View Documents" , onClick: onBack, variant: "outline", icon: "folder",})
+          )
+        )
+      )
+    )
+  );
+}
+
+/* ═══════════════════ DOCUMENTS ═══════════════════ */
+function DocumentsScreen({onBack,onUpload,onScan}){
+  const[docs,setDocs]=_react.useState.call(void 0, []);
+  const[loading,setLoading]=_react.useState.call(void 0, true);
+  const[tab,setTab]=_react.useState.call(void 0, "all");
+  const load=_react.useCallback.call(void 0, async()=>{setLoading(true);const r=await api.getDocs();if(r.success)setDocs(r.data);setLoading(false);},[]);
+  _react.useEffect.call(void 0, ()=>{load();},[load]);
+  const filtered=tab==="all"?docs:docs.filter(d=>d.status===tab);
+  return(
+    React.createElement('div', { style: {flex:1,display:"flex",flexDirection:"column",background:SL[50]},}
+      , React.createElement(TopBar, { title: "Documents", onBack: onBack,})
+      , React.createElement('div', { style: {display:"flex",borderBottom:`1px solid ${SL[200]}`,background:"#fff"},}
+        , ["all","pending","verified","rejected"].map(t=>(
+          React.createElement('button', { key: t, onClick: ()=>setTab(t), style: {flex:1,padding:"10px 0",border:"none",background:"none",cursor:"pointer",fontWeight:tab===t?700:400,fontSize:11,color:tab===t?PURPLE:SL[400],borderBottom:tab===t?`2px solid ${PURPLE}`:"2px solid transparent",textTransform:"capitalize"},}, t)
+        ))
+      )
+      , React.createElement('div', { style: {flex:1,overflowY:"auto",padding:14},}
+        , loading?React.createElement(LoadScreen, null):filtered.length===0?(
+          React.createElement('div', { style: {textAlign:"center",padding:40,color:SL[400]},}, React.createElement(Ic, { n: "folder", s: 40, c: SL[300],}), React.createElement('div', { style: {marginTop:12,fontSize:14},}, "No documents found"  ))
+        ):filtered.map(doc=>(
+          React.createElement('div', { key: doc._id, style: {background:"#fff",borderRadius:14,padding:14,display:"flex",alignItems:"center",gap:12,marginBottom:10,boxShadow:"0 1px 4px rgba(0,0,0,0.06)"},}
+            , React.createElement('div', { style: {width:44,height:44,borderRadius:12,background:SL[100],display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0},}, React.createElement(Ic, { n: "folder", s: 20, c: SL[600],}))
+            , React.createElement('div', { style: {flex:1},}
+              , React.createElement('div', { style: {fontWeight:700,fontSize:13,marginBottom:2},}, doc.name||doc.type)
+              , React.createElement('div', { style: {color:SL[500],fontSize:11},}, fmtDate(doc.createdAt), doc.aiEnhanced&&" · 🤖 AI Enhanced")
+            )
+            , React.createElement('div', { style: {display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4},}
+              , React.createElement(StatusBadge, { status: doc.status,})
+              , doc.isPrimary&&React.createElement('span', { style: {fontSize:10,color:PURPLE,fontWeight:600},}, "Primary")
+            )
+          )
+        ))
+      )
+      , React.createElement('div', { style: {padding:"8px 14px 12px",display:"flex",gap:8},}
+        , React.createElement('button', { onClick: onScan, style: {flex:1,height:46,borderRadius:12,background:`${PURPLE}12`,border:`1.5px solid ${PURPLE}40`,cursor:"pointer",fontWeight:700,fontSize:12,color:PURPLE,display:"flex",alignItems:"center",justifyContent:"center",gap:6},}, React.createElement(Ic, { n: "camera", s: 15, c: PURPLE,}), " AI Scan"  )
+        , React.createElement('button', { onClick: onUpload, style: {flex:2,height:46,borderRadius:12,background:PURPLE,border:"none",cursor:"pointer",fontWeight:700,fontSize:13,color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",gap:6},}, React.createElement(Ic, { n: "upload", s: 15, c: "#fff",}), " Upload" )
+      )
+    )
+  );
+}
+
+/* ═══════════════════ UPLOAD ═══════════════════ */
+function UploadScreen({onBack,onDone}){
+  const[type,setType]=_react.useState.call(void 0, "");const[file,setFile]=_react.useState.call(void 0, null);const[cat,setCat]=_react.useState.call(void 0, "identity");
+  const[loading,setLoading]=_react.useState.call(void 0, false);const[err,setErr]=_react.useState.call(void 0, "");
+  const submit=async()=>{
+    if(!type){setErr("Select a document type.");return;}
+    if(!file){setErr("Select a file.");return;}
+    setErr("");setLoading(true);
+    const r=await api.uploadDoc({name:type,type,category:cat,fileBase64:null});
+    setLoading(false);
+    if(r.success) onDone();else setErr(r.message||"Upload failed");
+  };
+  return(
+    React.createElement('div', { style: {flex:1,display:"flex",flexDirection:"column",background:SL[50]},}
+      , React.createElement(TopBar, { title: "Upload Document" , onBack: onBack,})
+      , React.createElement('div', { style: {flex:1,overflowY:"auto",padding:"0 20px 24px"},}
+        , err&&React.createElement('div', { style: {padding:"10px 14px",borderRadius:10,background:`${RED}12`,border:`1px solid ${RED}30`,color:RED,fontSize:13,marginBottom:14},}, err)
+        , React.createElement('div', { style: {fontWeight:600,fontSize:13,color:SL[700],marginBottom:6},}, "Document Type *"  )
+        , React.createElement('select', { value: type, onChange: e=>setType(e.target.value), style: {width:"100%",padding:"12px 14px",borderRadius:12,border:`1px solid ${SL[200]}`,background:SL[100],fontSize:14,outline:"none",marginBottom:14},}
+          , React.createElement('option', { value: "",}, "Select type…" )
+          , ["Passport","Driver's License","National ID","Bank Statement","Utility Bill","Tax Return"].map(t=>React.createElement('option', { key: t,}, t))
+        )
+        , React.createElement('div', { style: {fontWeight:600,fontSize:13,color:SL[700],marginBottom:6},}, "Category")
+        , React.createElement('select', { value: cat, onChange: e=>setCat(e.target.value), style: {width:"100%",padding:"12px 14px",borderRadius:12,border:`1px solid ${SL[200]}`,background:SL[100],fontSize:14,outline:"none",marginBottom:14},}
+          , [["identity","Identity"],["financial","Financial"],["address","Address / Proof"],["other","Other"]].map(([v,l])=>React.createElement('option', { key: v, value: v,}, l))
+        )
+        , file?(
+          React.createElement('div', { style: {background:`${GREEN}10`,border:`1px solid ${GREEN}40`,borderRadius:12,padding:14,display:"flex",alignItems:"center",gap:10,marginBottom:16},}
+            , React.createElement(Ic, { n: "check", s: 18, c: GREEN,}), React.createElement('span', { style: {flex:1,fontWeight:500,fontSize:13},}, file)
+            , React.createElement('button', { onClick: ()=>setFile(null), style: {background:"none",border:"none",cursor:"pointer"},}, React.createElement(Ic, { n: "x", s: 16, c: SL[400],}))
+          )
+        ):(
+          React.createElement('div', { style: {display:"flex",gap:10,marginBottom:18},}
+            , [["📷","Camera"],["🖼️","Gallery"],["📄","File"]].map(([em,lab])=>(
+              React.createElement('button', { key: lab, onClick: ()=>setFile(`document_${Date.now()}.jpg`), style: {flex:1,height:70,borderRadius:12,background:SL[100],border:`1px solid ${SL[200]}`,cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:6},}
+                , React.createElement('span', { style: {fontSize:22},}, em), React.createElement('span', { style: {fontSize:11,color:SL[600],fontWeight:500},}, lab)
+              )
+            ))
+          )
+        )
+        , React.createElement('div', { style: {height:24},}), React.createElement(Btn, { label: "Upload Document" , onClick: submit, loading: loading, icon: "upload",})
+      )
+    )
+  );
+}
+
+/* ═══════════════════ QR ═══════════════════ */
+function QrScreen({onBack}){
+  const[dialog,setDialog]=_react.useState.call(void 0, null);
+  const[showGen,setShowGen]=_react.useState.call(void 0, false);
+  const[purpose,setPurpose]=_react.useState.call(void 0, "general");
+  const[gen,setGen]=_react.useState.call(void 0, false);
+  const[loading,setLoading]=_react.useState.call(void 0, false);
+  const qrs=[{id:"q1",purpose:"General",active:true,scans:12,max:null},{id:"q2",purpose:"One-time",active:false,scans:1,max:1},{id:"q3",purpose:"Time-limited",active:true,scans:3,max:10}];
+  const generate=async()=>{setLoading(true);await pause(800);setLoading(false);setGen(true);};
+  return(
+    React.createElement('div', { style: {flex:1,display:"flex",flexDirection:"column",background:SL[50]},}
+      , React.createElement(TopBar, { title: "QR Codes" , onBack: onBack,})
+      , React.createElement('div', { style: {flex:1,overflowY:"auto",padding:14},}
+        , qrs.map(qr=>(
+          React.createElement('div', { key: qr.id, onClick: ()=>setDialog(qr), style: {background:"#fff",borderRadius:14,padding:14,display:"flex",alignItems:"center",gap:12,marginBottom:10,cursor:"pointer",boxShadow:"0 1px 4px rgba(0,0,0,0.06)"},}
+            , React.createElement('div', { style: {width:50,height:50,borderRadius:12,background:qr.active?`${PURPLE}12`:SL[100],display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0},}, React.createElement(Ic, { n: "qr", s: 24, c: qr.active?PURPLE:SL[400],}))
+            , React.createElement('div', { style: {flex:1},}, React.createElement('div', { style: {display:"flex",alignItems:"center",gap:8,marginBottom:4},}, React.createElement('span', { style: {fontWeight:700,fontSize:13},}, qr.purpose), React.createElement(StatusBadge, { status: qr.active?"active":"inactive",})), React.createElement('div', { style: {color:SL[500],fontSize:11},}, qr.scans, " scans" , qr.max?` / ${qr.max} max`:""))
+            , React.createElement(Ic, { n: "chevron", s: 14, c: SL[400],})
+          )
+        ))
+        , !showGen?React.createElement(Btn, { label: "Generate New QR Code"   , onClick: ()=>setShowGen(true), icon: "qr",}):(
+          React.createElement('div', { style: {background:"#fff",borderRadius:14,padding:16,boxShadow:"0 1px 4px rgba(0,0,0,0.06)"},}
+            , React.createElement('div', { style: {fontWeight:700,fontSize:14,marginBottom:12},}, "New QR Code"  )
+            , [["general","General","Reusable"],["one_time","One-time","Single scan"],["time_limited","Time-limited","Expires"]].map(([v,l,d])=>(
+              React.createElement('div', { key: v, onClick: ()=>setPurpose(v), style: {padding:12,borderRadius:10,border:`${purpose===v?1.5:1}px solid ${purpose===v?PURPLE:SL[200]}`,background:purpose===v?`${PURPLE}08`:"transparent",marginBottom:8,cursor:"pointer",display:"flex",alignItems:"center",gap:10},}
+                , React.createElement('div', { style: {width:8,height:8,borderRadius:"50%",background:purpose===v?PURPLE:SL[200],flexShrink:0},})
+                , React.createElement('div', null, React.createElement('div', { style: {fontWeight:700,fontSize:13,color:purpose===v?PURPLE:SL[800]},}, l), React.createElement('div', { style: {color:SL[500],fontSize:11},}, d))
+              )
+            ))
+            , React.createElement('div', { style: {height:12},})
+            , gen?(
+              React.createElement('div', { style: {textAlign:"center",padding:16},}
+                , React.createElement('div', { style: {width:140,height:140,background:SL[100],borderRadius:12,margin:"0 auto 12px",display:"grid",gridTemplateColumns:"repeat(10,1fr)",gap:2,padding:8},}
+                  , Array.from({length:100}).map((_,i)=>React.createElement('div', { key: i, style: {background:Math.random()>0.45?NAVY:"transparent",borderRadius:1},}))
+                )
+                , React.createElement('div', { style: {color:GREEN,fontWeight:700,fontSize:13},}, "✓ QR Code Generated!"   )
+                , React.createElement('div', { style: {height:10},}), React.createElement(Btn, { label: "Close", onClick: ()=>{setShowGen(false);setGen(false);}, variant: "outline", small: true,})
+              )
+            ):React.createElement(Btn, { label: "Generate QR Code"  , onClick: generate, loading: loading, icon: "qr",})
+          )
+        )
+      )
+      , React.createElement(_framermotion.AnimatePresence, null
+        , dialog&&(
+          React.createElement(_framermotion.motion.div, { initial: {opacity:0}, animate: {opacity:1}, exit: {opacity:0}, style: {position:"absolute",inset:0,background:"rgba(0,0,0,0.5)",display:"flex",alignItems:"flex-end",zIndex:50}, onClick: ()=>setDialog(null),}
+            , React.createElement(_framermotion.motion.div, { initial: {y:300}, animate: {y:0}, exit: {y:300}, onClick: e=>e.stopPropagation(), style: {background:"#fff",borderRadius:"24px 24px 0 0",padding:28,width:"100%"},}
+              , React.createElement('div', { style: {textAlign:"center",marginBottom:16},}, React.createElement('div', { style: {fontSize:17,fontWeight:800},}, "Scan to Verify"  ), React.createElement('div', { style: {color:SL[500],fontSize:13},}, dialog.purpose))
+              , React.createElement('div', { style: {background:SL[100],borderRadius:16,padding:16,display:"flex",justifyContent:"center"},}
+                , React.createElement('div', { style: {width:150,height:150,display:"grid",gridTemplateColumns:"repeat(10,1fr)",gap:2},}
+                  , Array.from({length:100}).map((_,i)=>React.createElement('div', { key: i, style: {background:Math.random()>0.45?NAVY:"transparent",borderRadius:1},}))
+                )
+              )
+              , React.createElement('div', { style: {marginTop:16},}, React.createElement(Btn, { label: "Close", onClick: ()=>setDialog(null), variant: "outline",}))
+            )
+          )
+        )
+      )
+    )
+  );
+}
+
+/* ═══════════════════ EXPENSES ═══════════════════ */
+function ExpensesScreen({onBack}){
+  const[expenses,setExpenses]=_react.useState.call(void 0, []);
+  const[loading,setLoading]=_react.useState.call(void 0, true);
+  const[showAdd,setShowAdd]=_react.useState.call(void 0, false);
+  const[form,setForm]=_react.useState.call(void 0, {title:"",amount:"",category:"Food"});
+  const[saving,setSaving]=_react.useState.call(void 0, false);
+  const[toast,setToast]=_react.useState.call(void 0, null);
+  const set=k=>v=>setForm(f=>({...f,[k]:v}));
+  const load=_react.useCallback.call(void 0, async()=>{setLoading(true);const r=await api.getExpenses();if(r.success)setExpenses(r.data);setLoading(false);},[]);
+  _react.useEffect.call(void 0, ()=>{load();},[load]);
+  const add=async()=>{
+    if(!form.title||!form.amount){return;}
+    setSaving(true);
+    const r=await api.addExpense({title:form.title,amount:parseFloat(form.amount),category:form.category});
+    setSaving(false);
+    if(r.success){setExpenses(prev=>[r.data,...prev]);setForm({title:"",amount:"",category:"Food"});setShowAdd(false);setToast({msg:"Expense added!",type:"success"});}
+  };
+  const del=async(id)=>{
+    await api.deleteExpense(id);
+    setExpenses(prev=>prev.filter(e=>e._id!==id));
+    setToast({msg:"Deleted",type:"info"});
+  };
+  const total=expenses.reduce((s,e)=>s+e.amount,0);
+  const bycat=expenses.reduce((acc,e)=>{acc[e.category]=(acc[e.category]||0)+e.amount;return acc;},{});
+  const chartData=Object.entries(bycat).map(([cat,amount])=>({cat:cat.slice(0,5),amount:parseFloat(amount.toFixed(2))}));
+  return(
+    React.createElement('div', { style: {flex:1,display:"flex",flexDirection:"column",background:SL[50]},}
+      , React.createElement(_framermotion.AnimatePresence, null, toast&&React.createElement(Toast, { msg: toast.msg, type: toast.type, onClose: ()=>setToast(null),}))
+      , React.createElement(TopBar, { title: "Personal Expenses" , onBack: onBack, right: 
+        React.createElement('button', { onClick: ()=>setShowAdd(!showAdd), style: {background:ORANGE,border:"none",cursor:"pointer",padding:"5px 12px",borderRadius:10,color:"#fff",fontSize:12,fontWeight:700,display:"flex",alignItems:"center",gap:4},}, React.createElement(Ic, { n: "plus", s: 13, c: "#fff",}), " Add" )
+      ,})
+      , React.createElement('div', { style: {flex:1,overflowY:"auto",padding:"0 14px 24px"},}
+        , React.createElement('div', { style: {background:`linear-gradient(135deg,${PURPLE},#8B5CF6)`,borderRadius:18,padding:20,marginBottom:14,color:"#fff"},}
+          , React.createElement('div', { style: {fontSize:12,fontWeight:600,opacity:0.75,marginBottom:4},}, "Total This Month"  )
+          , React.createElement('div', { style: {fontSize:32,fontWeight:900},}, "$", total.toFixed(2))
+          , React.createElement('div', { style: {fontSize:11,opacity:0.65,marginTop:4},}, expenses.length, " transactions" )
+        )
+        , chartData.length>0&&(
+          React.createElement('div', { style: {background:"#fff",borderRadius:14,padding:14,marginBottom:14,boxShadow:"0 1px 4px rgba(0,0,0,0.06)"},}
+            , React.createElement('div', { style: {fontWeight:700,fontSize:13,marginBottom:10},}, "By Category" )
+            , React.createElement(_recharts.ResponsiveContainer, { width: "100%", height: 110,}
+              , React.createElement(_recharts.BarChart, { data: chartData, margin: {top:0,right:0,bottom:0,left:-24},}
+                , React.createElement(_recharts.XAxis, { dataKey: "cat", tick: {fontSize:10}, axisLine: false, tickLine: false,})
+                , React.createElement(_recharts.YAxis, { tick: {fontSize:10}, axisLine: false, tickLine: false,})
+                , React.createElement(_recharts.Tooltip, { formatter: v=>`$${v}`, contentStyle: {borderRadius:8,fontSize:11},})
+                , React.createElement(_recharts.Bar, { dataKey: "amount", fill: PURPLE, radius: [4,4,0,0],})
+              )
+            )
+          )
+        )
+        , React.createElement(_framermotion.AnimatePresence, null
+          , showAdd&&(
+            React.createElement(_framermotion.motion.div, { initial: {opacity:0,height:0}, animate: {opacity:1,height:"auto"}, exit: {opacity:0,height:0}, style: {overflow:"hidden"},}
+              , React.createElement('div', { style: {background:"#fff",borderRadius:14,padding:14,marginBottom:12,boxShadow:"0 1px 4px rgba(0,0,0,0.06)"},}
+                , React.createElement('div', { style: {fontWeight:700,fontSize:13,marginBottom:10},}, "Add Expense" )
+                , React.createElement(Field, { label: "Title", value: form.title, onChange: set("title"), placeholder: "e.g. Coffee" ,})
+                , React.createElement('div', { style: {height:8},}), React.createElement(Field, { label: "Amount ($)" , value: form.amount, onChange: set("amount"), placeholder: "0.00", type: "number",})
+                , React.createElement('div', { style: {height:8},})
+                , React.createElement('div', { style: {fontWeight:600,fontSize:12,color:SL[700],marginBottom:5},}, "Category")
+                , React.createElement('select', { value: form.category, onChange: e=>set("category")(e.target.value), style: {width:"100%",padding:"10px",borderRadius:10,border:`1px solid ${SL[200]}`,background:SL[100],fontSize:13,outline:"none",marginBottom:12},}
+                  , ["Food","Entertainment","Utilities","Health","Transport","Shopping","Other"].map(c=>React.createElement('option', { key: c,}, c))
+                )
+                , React.createElement('div', { style: {display:"flex",gap:8},}, React.createElement(Btn, { label: "Add", onClick: add, loading: saving, small: true,}), React.createElement(Btn, { label: "Cancel", onClick: ()=>setShowAdd(false), variant: "outline", small: true,}))
+              )
+            )
+          )
+        )
+        , React.createElement('div', { style: {fontWeight:700,fontSize:14,marginBottom:10},}, "Transactions")
+        , loading?React.createElement(LoadScreen, null):expenses.map(e=>{const c=CAT_COLORS[e.category]||SL[500];return(
+          React.createElement('div', { key: e._id, style: {background:"#fff",borderRadius:14,padding:12,display:"flex",alignItems:"center",gap:12,marginBottom:8,boxShadow:"0 1px 4px rgba(0,0,0,0.06)"},}
+            , React.createElement('div', { style: {width:42,height:42,borderRadius:12,background:`${c}15`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,flexShrink:0},}, e.icon||CAT_ICONS[e.category]||"💸")
+            , React.createElement('div', { style: {flex:1},}, React.createElement('div', { style: {fontWeight:700,fontSize:13},}, e.title), React.createElement('div', { style: {color:SL[500],fontSize:11},}, e.category, " · "  , fmtDate(e.date)))
+            , React.createElement('div', { style: {fontWeight:800,fontSize:14,color:c,marginRight:6},}, "-$", parseFloat(e.amount).toFixed(2))
+            , React.createElement('button', { onClick: ()=>del(e._id), style: {background:"none",border:"none",cursor:"pointer",padding:4},}, React.createElement(Ic, { n: "trash", s: 14, c: RED,}))
+          )
+        );})
+      )
+    )
+  );
+}
+
+/* ═══════════════════ REMINDERS ═══════════════════ */
+function RemindersScreen({onBack}){
+  const[reminders,setReminders]=_react.useState.call(void 0, []);
+  const[loading,setLoading]=_react.useState.call(void 0, true);
+  const[showAdd,setShowAdd]=_react.useState.call(void 0, false);
+  const[form,setForm]=_react.useState.call(void 0, {title:"",dueDate:"",priority:"medium"});
+  const[saving,setSaving]=_react.useState.call(void 0, false);
+  const[toast,setToast]=_react.useState.call(void 0, null);
+  const set=k=>v=>setForm(f=>({...f,[k]:v}));
+  const load=_react.useCallback.call(void 0, async()=>{setLoading(true);const r=await api.getReminders();if(r.success)setReminders(r.data);setLoading(false);},[]);
+  _react.useEffect.call(void 0, ()=>{load();},[load]);
+  const add=async()=>{
+    if(!form.title)return;setSaving(true);
+    const r=await api.addReminder(form);setSaving(false);
+    if(r.success){setReminders(prev=>[r.data,...prev]);setForm({title:"",dueDate:"",priority:"medium"});setShowAdd(false);setToast({msg:"Reminder added!",type:"success"});}
+  };
+  const toggle=async(id,done)=>{
+    const r=await api.updateReminder(id,{done:!done});
+    if(r.success)setReminders(prev=>prev.map(x=>x._id===id?{...x,done:!done}:x));
+  };
+  const del=async(id)=>{
+    await api.deleteReminder(id);setReminders(prev=>prev.filter(r=>r._id!==id));setToast({msg:"Deleted",type:"info"});
+  };
+  const pc={high:RED,medium:ORANGE,low:GREEN};
+  return(
+    React.createElement('div', { style: {flex:1,display:"flex",flexDirection:"column",background:SL[50]},}
+      , React.createElement(_framermotion.AnimatePresence, null, toast&&React.createElement(Toast, { msg: toast.msg, type: toast.type, onClose: ()=>setToast(null),}))
+      , React.createElement(TopBar, { title: "Reminders", onBack: onBack, right: 
+        React.createElement('button', { onClick: ()=>setShowAdd(!showAdd), style: {background:ORANGE,border:"none",cursor:"pointer",padding:"5px 12px",borderRadius:10,color:"#fff",fontSize:12,fontWeight:700,display:"flex",alignItems:"center",gap:4},}, React.createElement(Ic, { n: "plus", s: 13, c: "#fff",}), " Add" )
+      ,})
+      , React.createElement('div', { style: {flex:1,overflowY:"auto",padding:"0 14px 24px"},}
+        , React.createElement('div', { style: {display:"flex",gap:10,marginBottom:14},}
+          , [["📌 Active",reminders.filter(r=>!r.done).length,ORANGE],["✅ Done",reminders.filter(r=>r.done).length,GREEN]].map(([l,c,col])=>(
+            React.createElement('div', { key: l, style: {flex:1,background:"#fff",borderRadius:12,padding:"12px 0",textAlign:"center",boxShadow:"0 1px 4px rgba(0,0,0,0.06)"},}
+              , React.createElement('div', { style: {fontSize:22,fontWeight:800,color:col},}, c), React.createElement('div', { style: {color:SL[500],fontSize:11},}, l)
+            )
+          ))
+        )
+        , React.createElement(_framermotion.AnimatePresence, null
+          , showAdd&&(
+            React.createElement(_framermotion.motion.div, { initial: {opacity:0,height:0}, animate: {opacity:1,height:"auto"}, exit: {opacity:0,height:0}, style: {overflow:"hidden"},}
+              , React.createElement('div', { style: {background:"#fff",borderRadius:14,padding:14,marginBottom:12,boxShadow:"0 1px 4px rgba(0,0,0,0.06)"},}
+                , React.createElement('div', { style: {fontWeight:700,fontSize:13,marginBottom:10},}, "New Reminder" )
+                , React.createElement(Field, { label: "Title *" , value: form.title, onChange: set("title"), placeholder: "e.g. Renew ID"  ,})
+                , React.createElement('div', { style: {height:8},}), React.createElement(Field, { label: "Due Date" , value: form.dueDate, onChange: set("dueDate"), type: "date",})
+                , React.createElement('div', { style: {height:8},})
+                , React.createElement('div', { style: {fontWeight:600,fontSize:12,color:SL[700],marginBottom:6},}, "Priority")
+                , React.createElement('div', { style: {display:"flex",gap:8,marginBottom:12},}
+                  , ["low","medium","high"].map(p=>(
+                    React.createElement('button', { key: p, onClick: ()=>set("priority")(p), style: {flex:1,height:34,borderRadius:10,background:form.priority===p?`${pc[p]}20`:"transparent",border:`1.5px solid ${form.priority===p?pc[p]:SL[200]}`,cursor:"pointer",fontWeight:700,fontSize:12,color:form.priority===p?pc[p]:SL[500],textTransform:"capitalize"},}, p)
+                  ))
+                )
+                , React.createElement('div', { style: {display:"flex",gap:8},}, React.createElement(Btn, { label: "Add", onClick: add, loading: saving, small: true,}), React.createElement(Btn, { label: "Cancel", onClick: ()=>setShowAdd(false), variant: "outline", small: true,}))
+              )
+            )
+          )
+        )
+        , loading?React.createElement(LoadScreen, null):reminders.map(r=>(
+          React.createElement('div', { key: r._id, style: {background:"#fff",borderRadius:14,padding:14,display:"flex",alignItems:"center",gap:12,marginBottom:8,boxShadow:"0 1px 4px rgba(0,0,0,0.06)",opacity:r.done?0.6:1},}
+            , React.createElement('div', { onClick: ()=>toggle(r._id,r.done), style: {width:26,height:26,borderRadius:"50%",border:`2px solid ${r.done?GREEN:pc[r.priority]}`,background:r.done?`${GREEN}20`:"transparent",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0},}
+              , r.done&&React.createElement(Ic, { n: "check", s: 12, c: GREEN,})
+            )
+            , React.createElement('div', { style: {flex:1},}
+              , React.createElement('div', { style: {fontWeight:700,fontSize:13,textDecoration:r.done?"line-through":"none",color:r.done?SL[400]:SL[900]},}, r.title)
+              , React.createElement('div', { style: {color:SL[500],fontSize:11,marginTop:2},}, "📅 " , r.dueDate?fmtDate(r.dueDate):"No date")
+            )
+            , React.createElement('span', { style: {padding:"3px 8px",borderRadius:100,background:`${pc[r.priority]}15`,color:pc[r.priority],fontSize:10,fontWeight:700,textTransform:"capitalize"},}, r.priority)
+            , React.createElement('button', { onClick: ()=>del(r._id), style: {background:"none",border:"none",cursor:"pointer",padding:4},}, React.createElement(Ic, { n: "trash", s: 14, c: RED,}))
+          )
+        ))
+      )
+    )
+  );
+}
+
+/* ═══════════════════ CALENDAR ═══════════════════ */
+const CAL_EVENTS=[{date:5,title:"Document Review",color:BLUE},{date:10,title:"ID Expiry Warning",color:RED},{date:15,title:"Tax Deadline",color:ORANGE},{date:20,title:"Doctor Appt",color:GREEN},{date:25,title:"KYC Follow-up",color:PURPLE}];
+function CalendarScreen({onBack}){
+  const[month,setMonth]=_react.useState.call(void 0, 5);const[selected,setSelected]=_react.useState.call(void 0, null);
+  const MONTHS=["January","February","March","April","May","June","July","August","September","October","November","December"];
+  const daysCount=new Date(2024,month+1,0).getDate();
+  const firstDay=new Date(2024,month,1).getDay();
+  const cells=[];
+  for(let i=0;i<firstDay;i++)cells.push(null);
+  for(let i=1;i<=daysCount;i++)cells.push(i);
+  while(cells.length%7!==0)cells.push(null);
+  const evs=d=>CAL_EVENTS.filter(e=>e.date===d);
+  return(
+    React.createElement('div', { style: {flex:1,display:"flex",flexDirection:"column",background:SL[50]},}
+      , React.createElement(TopBar, { title: "Calendar", onBack: onBack,})
+      , React.createElement('div', { style: {flex:1,overflowY:"auto",padding:"0 14px 24px"},}
+        , React.createElement('div', { style: {display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14},}
+          , React.createElement('button', { onClick: ()=>setMonth(m=>Math.max(0,m-1)), style: {width:36,height:36,borderRadius:10,border:"none",background:"#fff",cursor:"pointer",boxShadow:"0 1px 4px rgba(0,0,0,0.06)",fontSize:16},}, "‹")
+          , React.createElement('div', { style: {fontWeight:800,fontSize:17},}, MONTHS[month], " 2024" )
+          , React.createElement('button', { onClick: ()=>setMonth(m=>Math.min(11,m+1)), style: {width:36,height:36,borderRadius:10,border:"none",background:"#fff",cursor:"pointer",boxShadow:"0 1px 4px rgba(0,0,0,0.06)",fontSize:16},}, "›")
+        )
+        , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"repeat(7,1fr)",marginBottom:4},}
+          , ["Su","Mo","Tu","We","Th","Fr","Sa"].map(d=>React.createElement('div', { key: d, style: {textAlign:"center",fontWeight:700,fontSize:11,color:SL[400],padding:"4px 0"},}, d))
+        )
+        , React.createElement('div', { style: {background:"#fff",borderRadius:16,padding:10,marginBottom:14,boxShadow:"0 1px 4px rgba(0,0,0,0.06)"},}
+          , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:2},}
+            , cells.map((d,i)=>{
+              const de=d?evs(d):[];const isSel=d===selected;
+              return(
+                React.createElement('div', { key: i, onClick: ()=>d&&setSelected(d===selected?null:d), style: {aspectRatio:"1",borderRadius:8,background:isSel?PURPLE:"transparent",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",cursor:d?"pointer":"default",padding:2},}
+                  , d&&React.createElement(React.Fragment, null
+                    , React.createElement('span', { style: {fontSize:13,fontWeight:de.length?700:400,color:isSel?"#fff":SL[700]},}, d)
+                    , de.length>0&&React.createElement('div', { style: {display:"flex",gap:2,marginTop:1},}, de.slice(0,2).map((e,j)=>React.createElement('div', { key: j, style: {width:4,height:4,borderRadius:"50%",background:isSel?"rgba(255,255,255,0.8)":e.color},})))
+                  )
+                )
+              );
+            })
+          )
+        )
+        , selected&&evs(selected).length>0?(
+          evs(selected).map(e=>(
+            React.createElement('div', { key: e.title, style: {background:"#fff",borderRadius:12,padding:14,display:"flex",alignItems:"center",gap:12,marginBottom:8,boxShadow:"0 1px 4px rgba(0,0,0,0.06)"},}
+              , React.createElement('div', { style: {width:12,height:12,borderRadius:"50%",background:e.color,flexShrink:0},}), React.createElement('div', { style: {fontWeight:600,fontSize:13},}, e.title)
+            )
+          ))
+        ):(
+          React.createElement(React.Fragment, null
+            , React.createElement('div', { style: {fontWeight:700,fontSize:14,marginBottom:10},}, "Upcoming Events" )
+            , CAL_EVENTS.map(e=>(
+              React.createElement('div', { key: e.date, style: {background:"#fff",borderRadius:12,padding:14,display:"flex",alignItems:"center",gap:12,marginBottom:8,boxShadow:"0 1px 4px rgba(0,0,0,0.06)"},}
+                , React.createElement('div', { style: {width:42,height:42,borderRadius:10,background:`${e.color}18`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0},}, React.createElement('span', { style: {fontWeight:800,fontSize:15,color:e.color},}, e.date))
+                , React.createElement('div', null, React.createElement('div', { style: {fontWeight:700,fontSize:13},}, e.title), React.createElement('div', { style: {color:SL[500],fontSize:11},}, MONTHS[month], " " , e.date, ", 2024" ))
+              )
+            ))
+          )
+        )
+      )
+    )
+  );
+}
+
+/* ═══════════════════ TODO ═══════════════════ */
+function TodoScreen({onBack}){
+  const[todos,setTodos]=_react.useState.call(void 0, []);const[loading,setLoading]=_react.useState.call(void 0, true);
+  const[showAdd,setShowAdd]=_react.useState.call(void 0, false);
+  const[form,setForm]=_react.useState.call(void 0, {title:"",priority:"medium",category:"General"});
+  const[saving,setSaving]=_react.useState.call(void 0, false);const[toast,setToast]=_react.useState.call(void 0, null);
+  const set=k=>v=>setForm(f=>({...f,[k]:v}));
+  const load=_react.useCallback.call(void 0, async()=>{setLoading(true);const r=await api.getTodos();if(r.success)setTodos(r.data);setLoading(false);},[]);
+  _react.useEffect.call(void 0, ()=>{load();},[load]);
+  const add=async()=>{
+    if(!form.title)return;setSaving(true);
+    const r=await api.addTodo(form);setSaving(false);
+    if(r.success){setTodos(prev=>[r.data,...prev]);setForm({title:"",priority:"medium",category:"General"});setShowAdd(false);setToast({msg:"Task added!",type:"success"});}
+  };
+  const toggle=async(id,done)=>{
+    const r=await api.updateTodo(id,{done:!done});
+    if(r.success)setTodos(prev=>prev.map(x=>x._id===id?{...x,done:!done}:x));
+  };
+  const del=async(id)=>{
+    await api.deleteTodo(id);setTodos(prev=>prev.filter(t=>t._id!==id));setToast({msg:"Deleted",type:"info"});
+  };
+  const pc={high:RED,medium:ORANGE,low:GREEN};
+  const active=todos.filter(t=>!t.done),done=todos.filter(t=>t.done);
+  return(
+    React.createElement('div', { style: {flex:1,display:"flex",flexDirection:"column",background:SL[50]},}
+      , React.createElement(_framermotion.AnimatePresence, null, toast&&React.createElement(Toast, { msg: toast.msg, type: toast.type, onClose: ()=>setToast(null),}))
+      , React.createElement(TopBar, { title: "To-Do List" , onBack: onBack, right: 
+        React.createElement('button', { onClick: ()=>setShowAdd(!showAdd), style: {background:GREEN,border:"none",cursor:"pointer",padding:"5px 12px",borderRadius:10,color:"#fff",fontSize:12,fontWeight:700,display:"flex",alignItems:"center",gap:4},}, React.createElement(Ic, { n: "plus", s: 13, c: "#fff",}), " Add" )
+      ,})
+      , React.createElement('div', { style: {flex:1,overflowY:"auto",padding:"0 14px 24px"},}
+        , React.createElement('div', { style: {background:`linear-gradient(135deg,${GREEN},#16A34A)`,borderRadius:16,padding:16,marginBottom:14,display:"flex",alignItems:"center",justifyContent:"space-between"},}
+          , React.createElement('div', null, React.createElement('div', { style: {color:"rgba(255,255,255,0.75)",fontSize:12},}, "Progress"), React.createElement('div', { style: {color:"#fff",fontSize:26,fontWeight:800},}, done.length, "/", todos.length, " done" ))
+          , React.createElement('div', { style: {width:52,height:52,borderRadius:"50%",background:"rgba(255,255,255,0.15)",display:"flex",alignItems:"center",justifyContent:"center"},}, React.createElement(Ic, { n: "list", s: 26, c: "#fff",}))
+        )
+        , React.createElement(_framermotion.AnimatePresence, null
+          , showAdd&&(
+            React.createElement(_framermotion.motion.div, { initial: {opacity:0,height:0}, animate: {opacity:1,height:"auto"}, exit: {opacity:0,height:0}, style: {overflow:"hidden"},}
+              , React.createElement('div', { style: {background:"#fff",borderRadius:14,padding:14,marginBottom:12,boxShadow:"0 1px 4px rgba(0,0,0,0.06)"},}
+                , React.createElement('div', { style: {fontWeight:700,fontSize:13,marginBottom:10},}, "New Task" )
+                , React.createElement(Field, { label: "Task *" , value: form.title, onChange: set("title"), placeholder: "e.g. Upload bank statement"   ,})
+                , React.createElement('div', { style: {height:8},})
+                , React.createElement('div', { style: {fontWeight:600,fontSize:12,color:SL[700],marginBottom:6},}, "Priority")
+                , React.createElement('div', { style: {display:"flex",gap:8,marginBottom:12},}
+                  , ["low","medium","high"].map(p=>(
+                    React.createElement('button', { key: p, onClick: ()=>set("priority")(p), style: {flex:1,height:34,borderRadius:10,background:form.priority===p?`${pc[p]}20`:"transparent",border:`1.5px solid ${form.priority===p?pc[p]:SL[200]}`,cursor:"pointer",fontWeight:700,fontSize:12,color:form.priority===p?pc[p]:SL[500],textTransform:"capitalize"},}, p)
+                  ))
+                )
+                , React.createElement('div', { style: {display:"flex",gap:8},}, React.createElement(Btn, { label: "Add Task" , onClick: add, loading: saving, small: true,}), React.createElement(Btn, { label: "Cancel", onClick: ()=>setShowAdd(false), variant: "outline", small: true,}))
+              )
+            )
+          )
+        )
+        , loading?React.createElement(LoadScreen, null):React.createElement(React.Fragment, null
+          , active.length>0&&React.createElement(React.Fragment, null
+            , React.createElement('div', { style: {fontWeight:700,fontSize:13,marginBottom:8,color:SL[700]},}, "Active (" , active.length, ")")
+            , active.map(t=>(
+              React.createElement('div', { key: t._id, style: {background:"#fff",borderRadius:14,padding:14,display:"flex",alignItems:"center",gap:12,marginBottom:8,boxShadow:"0 1px 4px rgba(0,0,0,0.06)"},}
+                , React.createElement('div', { onClick: ()=>toggle(t._id,t.done), style: {width:24,height:24,borderRadius:"50%",border:`2px solid ${pc[t.priority]}`,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0},})
+                , React.createElement('div', { style: {flex:1},}, React.createElement('div', { style: {fontWeight:700,fontSize:13},}, t.title), React.createElement('div', { style: {color:SL[500],fontSize:11},}, t.category))
+                , React.createElement('span', { style: {padding:"3px 8px",borderRadius:100,background:`${pc[t.priority]}15`,color:pc[t.priority],fontSize:10,fontWeight:700,textTransform:"capitalize"},}, t.priority)
+                , React.createElement('button', { onClick: ()=>del(t._id), style: {background:"none",border:"none",cursor:"pointer",padding:4},}, React.createElement(Ic, { n: "trash", s: 14, c: RED,}))
+              )
+            ))
+          )
+          , done.length>0&&React.createElement(React.Fragment, null
+            , React.createElement('div', { style: {fontWeight:700,fontSize:13,marginBottom:8,marginTop:14,color:SL[500]},}, "Completed (" , done.length, ")")
+            , done.map(t=>(
+              React.createElement('div', { key: t._id, style: {background:"#fff",borderRadius:14,padding:14,display:"flex",alignItems:"center",gap:12,marginBottom:8,boxShadow:"0 1px 4px rgba(0,0,0,0.06)",opacity:0.6},}
+                , React.createElement('div', { onClick: ()=>toggle(t._id,t.done), style: {width:24,height:24,borderRadius:"50%",background:`${GREEN}20`,border:`2px solid ${GREEN}`,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0},}, React.createElement(Ic, { n: "check", s: 12, c: GREEN,}))
+                , React.createElement('div', { style: {flex:1},}, React.createElement('div', { style: {fontWeight:600,fontSize:13,textDecoration:"line-through",color:SL[400]},}, t.title), React.createElement('div', { style: {color:SL[400],fontSize:11},}, t.category))
+              )
+            ))
+          )
+        )
+      )
+    )
+  );
+}
+
+/* ═══════════════════ TOOLS ═══════════════════ */
+function ToolsScreen({onNav}){
+  const tools=[
+    {icon:"folder",label:"Documents",sub:"View & manage docs",color:BLUE,s:"docs"},
+    {icon:"camera",label:"AI Scanner",sub:"Enhance documents",color:PURPLE,s:"scanner"},
+    {icon:"qr",label:"QR Codes",sub:"Share TrustID",color:GREEN,s:"qr"},
+    {icon:"wallet",label:"Expenses",sub:"Track spending",color:ORANGE,s:"expenses"},
+    {icon:"calendar",label:"Calendar",sub:"Upcoming events",color:BLUE,s:"calendar"},
+    {icon:"list",label:"To-Do",sub:"Task tracker",color:GREEN,s:"todo"},
+    {icon:"bell",label:"Reminders",sub:"Don't forget",color:RED,s:"reminders"},
+    {icon:"shield",label:"TrustID",sub:"Your identity card",color:PURPLE,s:"trustid"},
+  ];
+  return(
+    React.createElement('div', { style: {flex:1,overflowY:"auto",background:SL[50]},}
+      , React.createElement(TopBar, { title: "Tools & Features"  ,})
+      , React.createElement('div', { style: {padding:"0 14px 24px"},}
+        , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 1fr",gap:12},}
+          , tools.map(t=>(
+            React.createElement('div', { key: t.label, onClick: ()=>onNav(t.s), style: {background:"#fff",borderRadius:16,padding:16,cursor:"pointer",boxShadow:"0 1px 4px rgba(0,0,0,0.06)",display:"flex",flexDirection:"column",gap:10},}
+              , React.createElement('div', { style: {width:48,height:48,borderRadius:14,background:`${t.color}18`,display:"flex",alignItems:"center",justifyContent:"center"},}, React.createElement(Ic, { n: t.icon, s: 24, c: t.color,}))
+              , React.createElement('div', null, React.createElement('div', { style: {fontWeight:700,fontSize:13},}, t.label), React.createElement('div', { style: {color:SL[500],fontSize:11,marginTop:2},}, t.sub))
+            )
+          ))
+        )
+      )
+    )
+  );
+}
+
+/* ═══════════════════ PROFILE ═══════════════════ */
+function ProfileScreen({user,onBack,onSettings,onLogout}){
+  const initials=`${_optionalChain([user, 'optionalAccess', _27 => _27.firstName, 'optionalAccess', _28 => _28[0]])||""}${_optionalChain([user, 'optionalAccess', _29 => _29.lastName, 'optionalAccess', _30 => _30[0]])||""}`;
+  return(
+    React.createElement('div', { style: {flex:1,overflowY:"auto",background:SL[50]},}
+      , React.createElement(TopBar, { title: "Profile", onBack: onBack, right: React.createElement('button', { onClick: onSettings, style: {background:"none",border:"none",cursor:"pointer",padding:4},}, React.createElement(Ic, { n: "settings", s: 20, c: SL[600],})),})
+      , React.createElement('div', { style: {background:`linear-gradient(135deg,${NAVY},#312E81)`,padding:"18px 24px 26px",textAlign:"center"},}
+        , React.createElement('div', { style: {width:76,height:76,borderRadius:"50%",background:`linear-gradient(135deg,${PURPLE},#8B5CF6)`,margin:"0 auto 12px",display:"flex",alignItems:"center",justifyContent:"center",fontSize:26,fontWeight:700,color:"#fff",border:"2px solid rgba(255,255,255,0.3)"},}, initials||"U")
+        , React.createElement('div', { style: {color:"#fff",fontSize:19,fontWeight:800},}, _optionalChain([user, 'optionalAccess', _31 => _31.firstName]), " " , _optionalChain([user, 'optionalAccess', _32 => _32.lastName]))
+        , React.createElement('div', { style: {color:"rgba(255,255,255,0.6)",fontSize:13,marginBottom:12},}, _optionalChain([user, 'optionalAccess', _33 => _33.email]))
+        , React.createElement(TrustBadge, { level: _optionalChain([user, 'optionalAccess', _34 => _34.trustId, 'optionalAccess', _35 => _35.level])||1,})
+      )
+      , React.createElement('div', { style: {padding:14},}
+        , React.createElement('div', { style: {background:"#fff",borderRadius:14,padding:14,marginBottom:12,boxShadow:"0 1px 4px rgba(0,0,0,0.06)"},}
+          , React.createElement('div', { style: {fontWeight:700,fontSize:11,color:SL[500],marginBottom:10,letterSpacing:0.5},}, "ACCOUNT INFORMATION" )
+          , [["First name",_optionalChain([user, 'optionalAccess', _36 => _36.firstName])],["Last name",_optionalChain([user, 'optionalAccess', _37 => _37.lastName])],["Email",_optionalChain([user, 'optionalAccess', _38 => _38.email])],["Role",_optionalChain([user, 'optionalAccess', _39 => _39.role])==="admin"?"Administrator":"User"],["Trust Level",`Level ${_optionalChain([user, 'optionalAccess', _40 => _40.trustId, 'optionalAccess', _41 => _41.level])||1} — ${tlN(_optionalChain([user, 'optionalAccess', _42 => _42.trustId, 'optionalAccess', _43 => _43.level])||1)}`],["Trust Score",`${_optionalChain([user, 'optionalAccess', _44 => _44.trustId, 'optionalAccess', _45 => _45.score])||100}/1000`]].map(([k,v])=>(
+            React.createElement('div', { key: k, style: {display:"flex",justifyContent:"space-between",padding:"7px 0",borderBottom:`1px solid ${SL[100]}`},}
+              , React.createElement('span', { style: {color:SL[500],fontSize:12},}, k), React.createElement('span', { style: {fontWeight:600,fontSize:12},}, v)
+            )
+          ))
+        )
+        , React.createElement('div', { style: {background:"#fff",borderRadius:14,padding:"6px 14px",boxShadow:"0 1px 4px rgba(0,0,0,0.06)"},}
+          , [{icon:"settings",label:"Settings",color:SL[800],fn:onSettings},{icon:"logout",label:"Sign Out",color:RED,fn:onLogout}].map(a=>(
+            React.createElement('button', { key: a.label, onClick: a.fn, style: {width:"100%",display:"flex",alignItems:"center",gap:12,padding:"12px 0",background:"none",border:"none",cursor:"pointer",borderTop:`1px solid ${SL[100]}`},}
+              , React.createElement(Ic, { n: a.icon, s: 18, c: a.color,}), React.createElement('span', { style: {flex:1,textAlign:"left",fontWeight:600,fontSize:13,color:a.color},}, a.label)
+              , React.createElement(Ic, { n: "chevron", s: 13, c: `${a.color}80`,})
+            )
+          ))
+        )
+        , React.createElement('div', { style: {textAlign:"center",marginTop:16,color:SL[400],fontSize:12},}, "TrustID v1.0 · MongoDB + Render"     , DEMO_MODE?" · Demo Mode":"")
+      )
+    )
+  );
+}
+
+/* ═══════════════════ SETTINGS ═══════════════════ */
+function SettingsScreen({onBack}){
+  const[cur,setCur]=_react.useState.call(void 0, "");const[nw,setNw]=_react.useState.call(void 0, "");const[conf,setConf]=_react.useState.call(void 0, "");
+  const[loading,setLoading]=_react.useState.call(void 0, false);const[toast,setToast]=_react.useState.call(void 0, null);
+  const submit=async()=>{
+    if(!cur||!nw||!conf){setToast({msg:"Fill all password fields",type:"error"});return;}
+    if(nw!==conf){setToast({msg:"Passwords do not match",type:"error"});return;}
+    setLoading(true);const r=await api.changePassword(cur,nw);setLoading(false);
+    if(r.success){setToast({msg:"Password updated!",type:"success"});setCur("");setNw("");setConf("");}
+    else setToast({msg:r.message||"Failed",type:"error"});
+  };
+  return(
+    React.createElement('div', { style: {flex:1,overflowY:"auto",background:SL[50]},}
+      , React.createElement(_framermotion.AnimatePresence, null, toast&&React.createElement(Toast, { msg: toast.msg, type: toast.type, onClose: ()=>setToast(null),}))
+      , React.createElement(TopBar, { title: "Settings", onBack: onBack,})
+      , React.createElement('div', { style: {padding:"0 20px 32px"},}
+        , React.createElement('div', { style: {background:"#fff",borderRadius:14,padding:16,marginBottom:14,boxShadow:"0 1px 4px rgba(0,0,0,0.06)"},}
+          , React.createElement('div', { style: {fontSize:14,fontWeight:800,marginBottom:14},}, "Change Password" )
+          , React.createElement(Field, { label: "Current password" , value: cur, onChange: setCur, icon: "lock", type: "password", placeholder: "Enter current password"  ,})
+          , React.createElement('div', { style: {height:10},}), React.createElement(Field, { label: "New password" , value: nw, onChange: setNw, icon: "lock", type: "password", placeholder: "Min 6 characters"  ,})
+          , React.createElement('div', { style: {height:10},}), React.createElement(Field, { label: "Confirm new password"  , value: conf, onChange: setConf, icon: "lock", type: "password", placeholder: "Repeat new password"  ,})
+          , React.createElement('div', { style: {height:14},}), React.createElement(Btn, { label: "Update Password" , onClick: submit, loading: loading,})
+        )
+        , React.createElement('div', { style: {background:"#fff",borderRadius:14,padding:16,marginBottom:14,boxShadow:"0 1px 4px rgba(0,0,0,0.06)"},}
+          , React.createElement('div', { style: {fontSize:14,fontWeight:800,marginBottom:8},}, "Two-Factor Authentication" )
+          , React.createElement('div', { style: {color:SL[500],fontSize:13,lineHeight:1.5,marginBottom:12},}, "Add an extra layer of security with a TOTP authenticator app."          )
+          , React.createElement(Btn, { label: "Configure 2FA" , onClick: ()=>setToast({msg:"2FA setup would open here",type:"info"}), variant: "outline", icon: "security",})
+        )
+        , React.createElement('div', { style: {background:"#fff",borderRadius:14,padding:16,boxShadow:"0 1px 4px rgba(0,0,0,0.06)"},}
+          , React.createElement('div', { style: {fontSize:14,fontWeight:800,marginBottom:8},}, "API Configuration" )
+          , React.createElement('div', { style: {padding:10,borderRadius:10,background:DEMO_MODE?`${ORANGE}10`:`${GREEN}10`,border:`1px solid ${DEMO_MODE?ORANGE:GREEN}30`},}
+            , React.createElement('div', { style: {fontWeight:700,fontSize:12,color:DEMO_MODE?ORANGE:GREEN,marginBottom:4},}, DEMO_MODE?"🎭 Demo Mode Active":"✅ Live Backend Connected")
+            , React.createElement('div', { style: {color:SL[500],fontSize:11},}, DEMO_MODE?"Set DEMO_MODE=false and update API_BASE in the code to connect your Render backend.":"Connected to "+API_BASE)
+          )
+        )
+      )
+    )
+  );
+}
+
+/* ═══════════════════ NOTIFICATIONS ═══════════════════ */
+const NOTIFS=[{id:"n1",type:"check",title:"Document Verified",body:"Your Passport has been verified.",read:false,time:"2h ago"},{id:"n2",type:"shield",title:"TrustID Issued",body:"Your TrustID is active at Level 4.",read:false,time:"1d ago"},{id:"n3",type:"eye",title:"Verification Request",body:"Bank of America requested verification.",read:true,time:"2d ago"},{id:"n4",type:"x",title:"Document Rejected",body:"Utility Bill rejected. Upload clearer image.",read:true,time:"3d ago"}];
+function NotificationsScreen({onBack}){
+  const[notifs,setNotifs]=_react.useState.call(void 0, NOTIFS);
+  const ic={check:[GREEN,"check"],shield:[PURPLE,"shield"],eye:[BLUE,"eye"],x:[RED,"x"]};
+  return(
+    React.createElement('div', { style: {flex:1,display:"flex",flexDirection:"column",background:SL[50]},}
+      , React.createElement(TopBar, { title: "Notifications", onBack: onBack, right: React.createElement('span', { onClick: ()=>setNotifs(n=>n.map(x=>({...x,read:true}))), style: {color:PURPLE,fontSize:12,fontWeight:600,cursor:"pointer"},}, "Mark all read"  ),})
+      , React.createElement('div', { style: {flex:1,overflowY:"auto"},}
+        , notifs.map(n=>{const[c,ico]=ic[n.type]||[SL[400],"bell"];return(
+          React.createElement('div', { key: n.id, onClick: ()=>setNotifs(ns=>ns.map(x=>x.id===n.id?{...x,read:true}:x)), style: {display:"flex",gap:12,padding:"14px 16px",borderBottom:`1px solid ${SL[100]}`,background:n.read?"#fff":`${PURPLE}04`,cursor:"pointer"},}
+            , React.createElement('div', { style: {width:42,height:42,borderRadius:"50%",background:`${c}18`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0},}, React.createElement(Ic, { n: ico, s: 20, c: c,}))
+            , React.createElement('div', { style: {flex:1},}
+              , React.createElement('div', { style: {fontWeight:n.read?500:700,fontSize:13,marginBottom:3},}, n.title)
+              , React.createElement('div', { style: {color:SL[500],fontSize:12,lineHeight:1.4,marginBottom:4},}, n.body)
+              , React.createElement('div', { style: {color:SL[400],fontSize:11},}, n.time)
+            )
+            , !n.read&&React.createElement('div', { style: {width:8,height:8,borderRadius:"50%",background:PURPLE,flexShrink:0,marginTop:4},})
+          )
+        );})
+      )
+    )
+  );
+}
+
+/* ═══════════════════ ADMIN DASHBOARD ═══════════════════ */
+function AdminDashboard(){
+  const[stats,setStats]=_react.useState.call(void 0, null);const[loading,setLoading]=_react.useState.call(void 0, true);
+  _react.useEffect.call(void 0, ()=>{api.getAdminStats().then(r=>{if(r.success)setStats(r.data);setLoading(false);});},[]);
+  if(loading)return React.createElement(LoadScreen, null);
+  return(
+    React.createElement('div', { style: {flex:1,overflowY:"auto",background:SL[50]},}
+      , React.createElement('div', { style: {background:`linear-gradient(135deg,${NAVY},#1e3a5f)`,padding:"18px 18px 24px"},}
+        , React.createElement('div', { style: {display:"flex",alignItems:"center",gap:12},}
+          , React.createElement('div', { style: {width:42,height:42,borderRadius:12,background:"rgba(255,255,255,0.12)",display:"flex",alignItems:"center",justifyContent:"center"},}, React.createElement(Ic, { n: "security", s: 22, c: "#fff",}))
+          , React.createElement('div', null, React.createElement('div', { style: {color:"rgba(255,255,255,0.6)",fontSize:11,fontWeight:600,letterSpacing:1},}, "ADMIN PORTAL" ), React.createElement('div', { style: {color:"#fff",fontSize:18,fontWeight:900},}, "Platform Overview" ))
+        )
+      )
+      , React.createElement('div', { style: {padding:14},}
+        , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14},}
+          , [{icon:"users",label:"Total Users",val:stats.totalUsers.toLocaleString(),color:BLUE,trend:"+12%"},{icon:"shield",label:"TrustIDs",val:stats.activeTrustIds.toLocaleString(),color:PURPLE,trend:"+8%"},{icon:"check",label:"Verified Docs",val:stats.verifiedDocs.toLocaleString(),color:GREEN,trend:"+24%"},{icon:"info",label:"Pending",val:stats.pendingReviews,color:ORANGE,trend:"-5%"}].map(s=>(
+            React.createElement('div', { key: s.label, style: {background:"#fff",borderRadius:14,padding:13,boxShadow:"0 1px 4px rgba(0,0,0,0.06)"},}
+              , React.createElement('div', { style: {display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8},}
+                , React.createElement('div', { style: {width:32,height:32,borderRadius:8,background:`${s.color}18`,display:"flex",alignItems:"center",justifyContent:"center"},}, React.createElement(Ic, { n: s.icon, s: 16, c: s.color,}))
+                , React.createElement('span', { style: {fontSize:10,fontWeight:700,color:s.trend.startsWith("+")?GREEN:RED},}, s.trend)
+              )
+              , React.createElement('div', { style: {fontSize:20,fontWeight:800,color:s.color},}, s.val)
+              , React.createElement('div', { style: {fontSize:11,color:SL[500]},}, s.label)
+            )
+          ))
+        )
+        , React.createElement('div', { style: {background:"#fff",borderRadius:14,padding:14,marginBottom:14,boxShadow:"0 1px 4px rgba(0,0,0,0.06)"},}
+          , React.createElement('div', { style: {fontWeight:700,fontSize:13,marginBottom:10},}, "Platform Growth 2024"  )
+          , React.createElement(_recharts.ResponsiveContainer, { width: "100%", height: 130,}
+            , React.createElement(_recharts.BarChart, { data: stats.growth, margin: {top:0,right:0,bottom:0,left:-24},}
+              , React.createElement(_recharts.XAxis, { dataKey: "m", tick: {fontSize:10}, axisLine: false, tickLine: false,})
+              , React.createElement(_recharts.YAxis, { tick: {fontSize:10}, axisLine: false, tickLine: false,})
+              , React.createElement(_recharts.Tooltip, { contentStyle: {borderRadius:8,fontSize:11},})
+              , React.createElement(_recharts.Bar, { dataKey: "users", fill: BLUE, radius: [3,3,0,0], name: "Users",})
+              , React.createElement(_recharts.Bar, { dataKey: "docs", fill: PURPLE, radius: [3,3,0,0], name: "Docs",})
+            )
+          )
+          , React.createElement('div', { style: {display:"flex",gap:16,marginTop:6},}
+            , [["Users",BLUE],["Docs",PURPLE]].map(([l,c])=>(
+              React.createElement('div', { key: l, style: {display:"flex",alignItems:"center",gap:5},}, React.createElement('div', { style: {width:10,height:10,borderRadius:3,background:c},}), React.createElement('span', { style: {color:SL[500],fontSize:11},}, l))
+            ))
+          )
+        )
+        , React.createElement('div', { style: {padding:12,borderRadius:12,background:`${DEMO_MODE?ORANGE:GREEN}10`,border:`1px solid ${DEMO_MODE?ORANGE:GREEN}30`,display:"flex",gap:10,alignItems:"center"},}
+          , React.createElement(Ic, { n: "info", s: 16, c: DEMO_MODE?ORANGE:GREEN,})
+          , React.createElement('span', { style: {color:DEMO_MODE?ORANGE:GREEN,fontSize:12,fontWeight:600},}, DEMO_MODE?"Running in Demo Mode — All data is simulated":"Connected to live MongoDB backend")
+        )
+      )
+    )
+  );
+}
+
+/* ═══════════════════ ADMIN USERS ═══════════════════ */
+function AdminUsers(){
+  const[users,setUsers]=_react.useState.call(void 0, []);const[loading,setLoading]=_react.useState.call(void 0, true);const[search,setSearch]=_react.useState.call(void 0, "");
+  _react.useEffect.call(void 0, ()=>{api.getAdminUsers().then(r=>{if(r.success)setUsers(r.data);setLoading(false);});},[]);
+  const filtered=users.filter(u=>`${u.firstName} ${u.lastName} ${u.email}`.toLowerCase().includes(search.toLowerCase()));
+  return(
+    React.createElement('div', { style: {flex:1,display:"flex",flexDirection:"column",background:SL[50]},}
+      , React.createElement('div', { style: {padding:"14px 14px 10px",background:SL[50]},}
+        , React.createElement('div', { style: {fontSize:17,fontWeight:800,marginBottom:10},}, "User Management" )
+        , React.createElement(Field, { value: search, onChange: setSearch, icon: "person", placeholder: "Search users…" ,})
+      )
+      , React.createElement('div', { style: {flex:1,overflowY:"auto",padding:"4px 14px 24px"},}
+        , loading?React.createElement(LoadScreen, null):filtered.map(u=>(
+          React.createElement('div', { key: u._id, style: {background:"#fff",borderRadius:14,padding:14,marginBottom:10,boxShadow:"0 1px 4px rgba(0,0,0,0.06)"},}
+            , React.createElement('div', { style: {display:"flex",alignItems:"center",gap:12,marginBottom:8},}
+              , React.createElement('div', { style: {width:42,height:42,borderRadius:"50%",background:`linear-gradient(135deg,${PURPLE},#8B5CF6)`,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontWeight:700,fontSize:14,flexShrink:0},}, u.firstName[0], u.lastName[0])
+              , React.createElement('div', { style: {flex:1},}, React.createElement('div', { style: {fontWeight:700,fontSize:13},}, u.firstName, " " , u.lastName), React.createElement('div', { style: {color:SL[500],fontSize:11},}, u.email))
+              , React.createElement(StatusBadge, { status: u.status,})
+            )
+            , React.createElement('div', { style: {display:"flex",gap:8,alignItems:"center"},}
+              , React.createElement(TrustBadge, { level: _optionalChain([u, 'access', _46 => _46.trustId, 'optionalAccess', _47 => _47.level])||1,})
+              , React.createElement('span', { style: {padding:"3px 8px",borderRadius:100,background:SL[100],color:SL[600],fontSize:10,fontWeight:600},}, u.docsCount, " docs" )
+              , React.createElement('span', { style: {padding:"3px 8px",borderRadius:100,background:SL[100],color:SL[600],fontSize:10,fontWeight:600},}, "Score: " , _optionalChain([u, 'access', _48 => _48.trustId, 'optionalAccess', _49 => _49.score])||0)
+            )
+          )
+        ))
+      )
+    )
+  );
+}
+
+/* ═══════════════════ ADMIN DOCS ═══════════════════ */
+function AdminDocs(){
+  const[docs,setDocs]=_react.useState.call(void 0, []);const[loading,setLoading]=_react.useState.call(void 0, true);const[tab,setTab]=_react.useState.call(void 0, "all");const[toast,setToast]=_react.useState.call(void 0, null);
+  const load=_react.useCallback.call(void 0, async()=>{setLoading(true);const r=await api.getAllDocs();if(r.success)setDocs(r.data);setLoading(false);},[]);
+  _react.useEffect.call(void 0, ()=>{load();},[load]);
+  const verify=async(id)=>{await api.verifyDoc(id);setDocs(d=>d.map(x=>x._id===id?{...x,status:"verified"}:x));setToast({msg:"Document verified ✓",type:"success"});};
+  const reject=async(id)=>{await api.rejectDoc(id,"Does not meet requirements");setDocs(d=>d.map(x=>x._id===id?{...x,status:"rejected"}:x));setToast({msg:"Document rejected",type:"error"});};
+  const filtered=tab==="all"?docs:docs.filter(d=>d.status===tab);
+  return(
+    React.createElement('div', { style: {flex:1,display:"flex",flexDirection:"column",background:SL[50]},}
+      , React.createElement(_framermotion.AnimatePresence, null, toast&&React.createElement(Toast, { msg: toast.msg, type: toast.type, onClose: ()=>setToast(null),}))
+      , React.createElement('div', { style: {padding:"14px 14px 0"},}, React.createElement('div', { style: {fontSize:17,fontWeight:800,marginBottom:10},}, "Document Verification" ))
+      , React.createElement('div', { style: {display:"flex",borderBottom:`1px solid ${SL[200]}`,background:"#fff"},}
+        , ["all","pending","verified","rejected"].map(t=>(
+          React.createElement('button', { key: t, onClick: ()=>setTab(t), style: {flex:1,padding:"10px 0",border:"none",background:"none",cursor:"pointer",fontWeight:tab===t?700:400,fontSize:11,color:tab===t?PURPLE:SL[400],borderBottom:tab===t?`2px solid ${PURPLE}`:"2px solid transparent",textTransform:"capitalize"},}, t)
+        ))
+      )
+      , React.createElement('div', { style: {flex:1,overflowY:"auto",padding:14},}
+        , loading?React.createElement(LoadScreen, null):filtered.map(d=>(
+          React.createElement('div', { key: d._id, style: {background:"#fff",borderRadius:14,padding:14,marginBottom:10,boxShadow:"0 1px 4px rgba(0,0,0,0.06)"},}
+            , React.createElement('div', { style: {display:"flex",alignItems:"center",gap:12,marginBottom:d.status==="pending"?10:0},}
+              , React.createElement('div', { style: {width:40,height:40,borderRadius:10,background:SL[100],display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0},}, React.createElement(Ic, { n: "pdf", s: 20, c: SL[500],}))
+              , React.createElement('div', { style: {flex:1},}, React.createElement('div', { style: {fontWeight:700,fontSize:12},}, d.type), React.createElement('div', { style: {color:SL[500],fontSize:11},}, _optionalChain([d, 'access', _50 => _50.user, 'optionalAccess', _51 => _51.firstName]), " " , _optionalChain([d, 'access', _52 => _52.user, 'optionalAccess', _53 => _53.lastName]), " · "  , fmtDate(d.createdAt)))
+              , React.createElement(StatusBadge, { status: d.status,})
+            )
+            , d.status==="pending"&&(
+              React.createElement('div', { style: {display:"flex",gap:8},}
+                , React.createElement('button', { onClick: ()=>verify(d._id), style: {flex:1,height:34,borderRadius:10,background:`${GREEN}12`,border:`1px solid ${GREEN}40`,cursor:"pointer",fontWeight:700,fontSize:12,color:GREEN},}, "✓ Verify" )
+                , React.createElement('button', { onClick: ()=>reject(d._id), style: {flex:1,height:34,borderRadius:10,background:`${RED}12`,border:`1px solid ${RED}40`,cursor:"pointer",fontWeight:700,fontSize:12,color:RED},}, "✗ Reject" )
+              )
+            )
+          )
+        ))
+      )
+    )
+  );
+}
+
+/* ═══════════════════ ADMIN TRUSTIDS ═══════════════════ */
+function AdminTrustIds(){
+  const[users,setUsers]=_react.useState.call(void 0, []);const[loading,setLoading]=_react.useState.call(void 0, true);
+  _react.useEffect.call(void 0, ()=>{api.getAdminUsers().then(r=>{if(r.success)setUsers(r.data);setLoading(false);});},[]);
+  return(
+    React.createElement('div', { style: {flex:1,overflowY:"auto",background:SL[50]},}
+      , React.createElement('div', { style: {padding:"14px 14px 10px"},}, React.createElement('div', { style: {fontSize:17,fontWeight:800,marginBottom:12},}, "TrustID Registry" ))
+      , React.createElement('div', { style: {padding:"0 14px 24px"},}
+        , React.createElement('div', { style: {display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:14},}
+          , [[5,"Sovereign",1],[4,"High",87],[3,"Enhanced",234]].map(([l,n,c])=>(
+            React.createElement('div', { key: l, style: {background:"#fff",borderRadius:12,padding:12,textAlign:"center",boxShadow:"0 1px 4px rgba(0,0,0,0.06)"},}
+              , React.createElement('div', { style: {fontSize:18,fontWeight:800,color:tlC(l),marginBottom:4},}, c)
+              , React.createElement(TrustBadge, { level: l,})
+            )
+          ))
+        )
+        , loading?React.createElement(LoadScreen, null):users.map(u=>(
+          React.createElement('div', { key: u._id, style: {background:"#fff",borderRadius:14,padding:14,marginBottom:10,boxShadow:"0 1px 4px rgba(0,0,0,0.06)"},}
+            , React.createElement('div', { style: {display:"flex",alignItems:"center",gap:12},}
+              , React.createElement('div', { style: {width:40,height:40,borderRadius:"50%",background:`${tlC(_optionalChain([u, 'access', _54 => _54.trustId, 'optionalAccess', _55 => _55.level])||1)}18`,display:"flex",alignItems:"center",justifyContent:"center",color:tlC(_optionalChain([u, 'access', _56 => _56.trustId, 'optionalAccess', _57 => _57.level])||1),fontWeight:800,fontSize:15,flexShrink:0},}, u.firstName[0])
+              , React.createElement('div', { style: {flex:1},}, React.createElement('div', { style: {fontWeight:700,fontSize:13},}, u.firstName, " " , u.lastName), React.createElement('div', { style: {color:SL[500],fontSize:11},}, u.docsCount, " verified docs · Score: "     , _optionalChain([u, 'access', _58 => _58.trustId, 'optionalAccess', _59 => _59.score])||0))
+              , React.createElement(TrustBadge, { level: _optionalChain([u, 'access', _60 => _60.trustId, 'optionalAccess', _61 => _61.level])||1,})
+            )
+          )
+        ))
+      )
+    )
+  );
+}
+
+/* ═══════════════════ BOTTOM NAVS ═══════════════════ */
+function UserNav({active,onNav}){
+  const tabs=[{id:"dashboard",icon:"home",label:"Home"},{id:"trustid",icon:"shield",label:"TrustID"},{id:"scanner",icon:"camera",label:"Scan"},{id:"tools",icon:"tools",label:"Tools"},{id:"profile",icon:"person",label:"Profile"}];
+  return(
+    React.createElement('div', { style: {display:"flex",borderTop:`1px solid ${SL[200]}`,background:"#fff",paddingBottom:4},}
+      , tabs.map(t=>{
+        const sel=t.id===active||(t.id==="tools"&&["tools","docs","qr","expenses","reminders","calendar","todo"].includes(active));
+        return(
+          React.createElement('button', { key: t.id, onClick: ()=>onNav(t.id), style: {flex:1,padding:"8px 0 4px",background:"none",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:3},}
+            , React.createElement(Ic, { n: t.icon, s: 22, c: sel?PURPLE:SL[400],})
+            , React.createElement('span', { style: {fontSize:9,fontWeight:sel?700:400,color:sel?PURPLE:SL[400]},}, t.label)
+            , sel&&React.createElement('div', { style: {width:14,height:2,borderRadius:1,background:PURPLE},})
+          )
+        );
+      })
+    )
+  );
+}
+function AdminNav({active,onNav}){
+  const tabs=[{id:"admin-dashboard",icon:"home",label:"Overview"},{id:"admin-users",icon:"users",label:"Users"},{id:"admin-docs",icon:"folder",label:"Docs"},{id:"admin-trustids",icon:"shield",label:"TrustIDs"},{id:"settings",icon:"settings",label:"Settings"}];
+  return(
+    React.createElement('div', { style: {display:"flex",borderTop:`1px solid #1E293B`,background:"#0F172A",paddingBottom:4},}
+      , tabs.map(t=>{const sel=t.id===active;return(
+        React.createElement('button', { key: t.id, onClick: ()=>onNav(t.id), style: {flex:1,padding:"8px 0 4px",background:"none",border:"none",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:3},}
+          , React.createElement(Ic, { n: t.icon, s: 20, c: sel?"#60A5FA":"#475569",})
+          , React.createElement('span', { style: {fontSize:9,fontWeight:sel?700:400,color:sel?"#60A5FA":"#475569"},}, t.label)
+          , sel&&React.createElement('div', { style: {width:14,height:2,borderRadius:1,background:"#60A5FA"},})
+        )
+      );})
+    )
+  );
+}
+
+/* ═══════════════════ MAIN APP ═══════════════════ */
+ function App(){
+  const params = new URLSearchParams(window.location.search);
+  const requestedScreen = params.get("screen") || "splash";
+  const adminScreens = ["admin-dashboard","admin-users","admin-docs","admin-trustids"];
+  const authScreens = ["splash","user-login","admin-login","register","mfa"];
+  const startsAdmin = adminScreens.includes(requestedScreen);
+  const startsUser = !startsAdmin && !authScreens.includes(requestedScreen);
+  const[screen,setScreen]=_react.useState.call(void 0, requestedScreen);
+  const[nav,setNav]=_react.useState.call(void 0, startsAdmin ? requestedScreen : startsUser ? (["dashboard","trustid","profile","scanner","tools"].includes(requestedScreen) ? requestedScreen : "tools") : "dashboard");
+  const[user,setUser]=_react.useState.call(void 0, startsAdmin ? D_USERS.admin : startsUser ? D_USERS.user : null);
+  const[toast,setToast]=_react.useState.call(void 0, null);
+
+  const go=s=>setScreen(s);
+  const goNav=(s,n)=>{ setNav(n||s); setScreen(s); };
+
+  const handleLogin=(token,userData)=>{
+    _token=token;setUser(userData);
+    if(userData.role==="admin"){ goNav("admin-dashboard"); }
+    else go("mfa");
+  };
+  const handleLogout=()=>{ _token=null; setUser(null); go("splash"); };
+  const isAdmin=_optionalChain([user, 'optionalAccess', _62 => _62.role])==="admin";
+  const isAuth=["splash","user-login","admin-login","register","mfa"].includes(screen);
+
+  /* Screen map */
+  const SCREENS={
+    splash:    React.createElement(SplashScreen, { onUser: ()=>go("user-login"), onAdmin: ()=>go("admin-login"),}),
+    "user-login": React.createElement(UserLoginScreen, { onLogin: handleLogin, onRegister: ()=>go("register"), onBack: ()=>go("splash"),}),
+    "admin-login":React.createElement(AdminLoginScreen, { onLogin: handleLogin, onBack: ()=>go("splash"),}),
+    register:  React.createElement(RegisterScreen, { onBack: ()=>go("user-login"), onDone: ()=>go("user-login"),}),
+    mfa:       React.createElement(MfaScreen, { onBack: ()=>go("user-login"), onVerify: ()=>goNav("dashboard"),}),
+    /* User */
+    dashboard: React.createElement(DashboardScreen, { user: user, onNav: s=>["scanner","upload","qr","generate-qr","expenses","reminders","calendar","todo"].includes(s)?go(s):goNav(s), onNotif: ()=>go("notifications"),}),
+    trustid:   React.createElement(TrustIdScreen, { user: user, onBack: ()=>goNav("trustid"),}),
+    scanner:   React.createElement(AiScannerScreen, { onBack: ()=>goNav("docs"), onSaved: ()=>{},}),
+    docs:      React.createElement(DocumentsScreen, { onBack: ()=>goNav("tools"), onUpload: ()=>go("upload"), onScan: ()=>go("scanner"),}),
+    upload:    React.createElement(UploadScreen, { onBack: ()=>go("docs"), onDone: ()=>{setToast({msg:"Document uploaded!",type:"success"});goNav("docs");},}),
+    qr:        React.createElement(QrScreen, { onBack: ()=>goNav("tools"),}),
+    expenses:  React.createElement(ExpensesScreen, { onBack: ()=>goNav("tools"),}),
+    reminders: React.createElement(RemindersScreen, { onBack: ()=>goNav("tools"),}),
+    calendar:  React.createElement(CalendarScreen, { onBack: ()=>goNav("tools"),}),
+    todo:      React.createElement(TodoScreen, { onBack: ()=>goNav("tools"),}),
+    tools:     React.createElement(ToolsScreen, { onNav: s=>{setNav("tools");go(s);},}),
+    notifications:React.createElement(NotificationsScreen, { onBack: ()=>go(nav),}),
+    profile:   React.createElement(ProfileScreen, { user: user, onBack: ()=>goNav("profile"), onSettings: ()=>go("settings"), onLogout: handleLogout,}),
+    settings:  React.createElement(SettingsScreen, { onBack: ()=>go(isAdmin?"admin-dashboard":"profile"),}),
+    /* Admin */
+    "admin-dashboard":React.createElement(AdminDashboard, null),
+    "admin-users":    React.createElement(AdminUsers, null),
+    "admin-docs":     React.createElement(AdminDocs, null),
+    "admin-trustids": React.createElement(AdminTrustIds, null),
+  };
+
+  const ALL_SCREENS=[
+    ["─ AUTH ─",null],["splash","Splash"],["user-login","User Login"],["admin-login","Admin Login"],["register","Register"],["mfa","2FA / MFA"],
+    ["─ USER ─",null],["dashboard","Dashboard"],["trustid","TrustID"],["scanner","AI Scanner"],["docs","Documents"],["upload","Upload Doc"],["qr","QR Codes"],
+    ["tools","Tools Hub"],["expenses","Expenses"],["reminders","Reminders"],["calendar","Calendar"],["todo","To-Do List"],["notifications","Notifications"],["profile","Profile"],["settings","Settings"],
+    ["─ ADMIN ─",null],["admin-dashboard","Overview"],["admin-users","Users"],["admin-docs","Documents"],["admin-trustids","TrustIDs"],
+  ];
+
+  return(
+    React.createElement('div', { style: {minHeight:"100vh",background:"#94A3B8",display:"flex",alignItems:"center",justifyContent:"center",padding:16,fontFamily:"Inter,system-ui,sans-serif",gap:14,flexWrap:"wrap"},}
+      , React.createElement(_framermotion.AnimatePresence, null, toast&&React.createElement(Toast, { msg: toast.msg, type: toast.type, onClose: ()=>setToast(null),}))
+
+      /* Phone */
+      , React.createElement('div', { style: {width:390,background:isAdmin?SL[900]:SL[50],borderRadius:44,boxShadow:"0 32px 80px rgba(0,0,0,0.3),0 0 0 8px #1E293B,0 0 0 10px #475569",overflow:"hidden",display:"flex",flexDirection:"column",height:820,position:"relative",flexShrink:0},}
+        /* Status bar */
+        , React.createElement('div', { style: {background:screen==="splash"?"transparent":isAdmin?"#0F172A":SL[50],padding:"13px 24px 7px",display:"flex",justifyContent:"space-between",alignItems:"center",flexShrink:0,position:screen==="splash"?"absolute":"relative",width:"100%",zIndex:10,boxSizing:"border-box"},}
+          , React.createElement('span', { style: {fontSize:12,fontWeight:700,color:screen==="splash"||isAdmin?"rgba(255,255,255,0.7)":SL[900]},}, "9:41")
+          , React.createElement('div', { style: {display:"flex",gap:6,alignItems:"center"},}
+            , isAdmin&&React.createElement('span', { style: {fontSize:9,color:RED,fontWeight:800,padding:"1px 6px",borderRadius:4,background:"rgba(239,68,68,0.15)",letterSpacing:0.5},}, "ADMIN")
+            , DEMO_MODE&&React.createElement('span', { style: {fontSize:9,color:ORANGE,fontWeight:800,padding:"1px 6px",borderRadius:4,background:"rgba(249,115,22,0.15)"},}, "DEMO")
+            , React.createElement('span', { style: {fontSize:10,color:screen==="splash"||isAdmin?"rgba(255,255,255,0.5)":SL[400]},}, "WiFi" )
+          )
+        )
+        /* Screen content */
+        , React.createElement('div', { style: {flex:1,overflow:"hidden",display:"flex",flexDirection:"column",position:"relative"},}
+          , React.createElement(_framermotion.AnimatePresence, { mode: "wait",}
+            , React.createElement(_framermotion.motion.div, { key: screen, initial: {opacity:0,x:16}, animate: {opacity:1,x:0}, exit: {opacity:0,x:-16}, transition: {duration:0.15}, style: {flex:1,display:"flex",flexDirection:"column",overflow:"hidden"},}
+              , SCREENS[screen]||SCREENS.dashboard
+            )
+          )
+        )
+        /* Nav bar */
+        , !isAuth&&(isAdmin
+          ?React.createElement(AdminNav, { active: nav, onNav: s=>{setNav(s);go(s);},})
+          :React.createElement(UserNav, { active: nav, onNav: s=>{setNav(s);go(s);},})
+        )
+      )
+
+      /* Screen Navigator Panel */
+      , React.createElement('div', { style: {background:"#fff",borderRadius:16,padding:14,boxShadow:"0 4px 16px rgba(0,0,0,0.1)",width:160,maxHeight:820,overflowY:"auto",flexShrink:0},}
+        , React.createElement('div', { style: {fontWeight:800,fontSize:10,color:SL[700],marginBottom:8,letterSpacing:0.8},}, "SCREENS")
+        , React.createElement('div', { style: {marginBottom:10,padding:8,borderRadius:10,background:DEMO_MODE?`${ORANGE}10`:`${GREEN}10`,border:`1px solid ${DEMO_MODE?ORANGE:GREEN}25`},}
+          , React.createElement('div', { style: {fontSize:9,fontWeight:700,color:DEMO_MODE?ORANGE:GREEN},}, DEMO_MODE?"🎭 DEMO MODE":"✅ LIVE MODE")
+          , React.createElement('div', { style: {fontSize:9,color:SL[500],marginTop:2},}, "MongoDB", DEMO_MODE?" (simulated)":"")
+        )
+        , ALL_SCREENS.map(([s,l])=>l===null?(
+          React.createElement('div', { key: s, style: {fontSize:9,fontWeight:800,color:SL[400],letterSpacing:1,marginTop:10,marginBottom:4,paddingLeft:2},}, s)
+        ):(
+          React.createElement('button', { key: s, onClick: ()=>{
+            const adminScreens=["admin-dashboard","admin-users","admin-docs","admin-trustids"];
+            const authScreens=["splash","user-login","admin-login","register","mfa"];
+            if(adminScreens.includes(s)){
+              setUser(D_USERS.admin);_token="demo_admin";
+              setNav(s);
+            } else if(!authScreens.includes(s)){
+              if(!user){setUser(D_USERS.user);_token="demo_user";}
+              if(["dashboard","trustid","profile","scanner","tools"].includes(s))setNav(s);
+            } else {
+              if(s==="splash"){setUser(null);_token=null;}
+            }
+            go(s);
+          }, style: {width:"100%",textAlign:"left",padding:"5px 8px",borderRadius:8,background:screen===s?`${s.startsWith("admin")?RED:PURPLE}12`:"transparent",border:"none",cursor:"pointer",fontSize:11,fontWeight:screen===s?700:400,color:screen===s?s.startsWith("admin")?RED:PURPLE:SL[600],marginBottom:1,display:"block"},}
+            , screen===s?"▶ ":"", l
+          )
+        ))
+        , React.createElement('div', { style: {marginTop:12,padding:8,borderRadius:10,background:SL[100],fontSize:9,color:SL[500],lineHeight:1.5},}
+          , React.createElement('b', null, "To go live:"  ), React.createElement('br', null), "1. Deploy backend to Render"    , React.createElement('br', null), "2. Set API_BASE"  , React.createElement('br', null), "3. Set DEMO_MODE=false"
+        )
+      )
+    )
+  );
+} exports.default = App;
+    var root = ReactDOM.createRoot(document.getElementById("preview-app"));
+    root.render(React.createElement(exports.default));
+    var apiInput = document.getElementById("trustid-api-input");
+    apiInput.value = localStorage.getItem("TRUSTID_API_BASE") || "";
+    document.getElementById("trustid-live-btn").onclick = function() {
+      if (apiInput.value.trim()) localStorage.setItem("TRUSTID_API_BASE", apiInput.value.trim());
+      localStorage.setItem("TRUSTID_DEMO_MODE", "false");
+      location.reload();
+    };
+    document.getElementById("trustid-demo-btn").onclick = function() {
+      localStorage.setItem("TRUSTID_DEMO_MODE", "true");
+      location.reload();
+    };
+    if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js").catch(function(){});
+  </script>
+</body>
+</html>

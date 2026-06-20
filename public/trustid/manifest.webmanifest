@@ -1,0 +1,19 @@
+{
+  "name": "TrustID Realtime",
+  "short_name": "TrustID",
+  "description": "Realtime identity, document, finance, reminder, and admin dashboard app.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F8FAFC",
+  "theme_color": "#1E1B4B",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "appId": "com.trustid.realtime",
+  "appName": "TrustID Realtime",
+  "webDir": "public/trustid",
+  "server": {
+    "androidScheme": "https"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 1200,
+      "backgroundColor": "#1E1B4B",
+      "showSpinner": false
+    }
+  }
+}
