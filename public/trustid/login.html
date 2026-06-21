@@ -43,6 +43,19 @@
     @keyframes spin{to{transform:rotate(360deg)}}
     .register-link{text-align:center;margin-top:24px;font-size:14px;color:#64748B}
     .register-link a{color:#7C3AED;font-weight:700;text-decoration:none}
+    .modal-backdrop{position:fixed;inset:0;background:rgba(15,14,42,0.58);display:none;align-items:center;justify-content:center;padding:20px;z-index:20}
+    .modal{width:100%;max-width:420px;background:#fff;border-radius:16px;padding:24px;box-shadow:0 24px 70px rgba(15,23,42,0.28)}
+    .modal-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:18px}
+    .modal h2{font-size:21px;font-weight:900;color:#0F172A;margin-bottom:5px}
+    .modal .sub{margin-bottom:0;line-height:1.55}
+    .close-btn{width:32px;height:32px;border-radius:8px;border:none;background:#F1F5F9;color:#64748B;font-size:20px;line-height:1;cursor:pointer}
+    .seg{display:grid;grid-template-columns:1fr 1fr;gap:4px;background:#F1F5F9;border-radius:10px;padding:4px;margin-bottom:16px}
+    .seg button{height:36px;border:none;border-radius:8px;background:transparent;color:#64748B;font-weight:700;font-size:13px;cursor:pointer}
+    .seg button.active{background:#fff;color:#0F172A;box-shadow:0 1px 4px rgba(15,23,42,0.08)}
+    .reset-step{display:none}
+    .reset-step.active{display:block}
+    .hint{font-size:12px;color:#64748B;line-height:1.55;margin-top:10px}
+    .ok-box{padding:11px 14px;border-radius:10px;background:#22C55E12;border:1px solid #22C55E30;color:#15803D;font-size:13px;margin-bottom:16px;display:none}
 
     @media(max-width:640px){
       body{flex-direction:column}
@@ -92,7 +105,7 @@
       </div>
     </div>
 
-    <div class="forgot"><a href="#">Forgot password?</a></div>
+    <div class="forgot"><a href="#" onclick="openReset();return false">Forgot password?</a></div>
 
     <button class="btn-submit" id="submitBtn" onclick="doLogin()">
       <div class="spinner" id="spinner"></div>
@@ -101,6 +114,76 @@
 
     <div class="register-link">
       No account? <a href="./register.html">Create one free →</a>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="resetModal">
+  <div class="modal">
+    <div class="modal-head">
+      <div>
+        <h2>Reset password</h2>
+        <p class="sub">Get a verification code by email or phone.</p>
+      </div>
+      <button class="close-btn" onclick="closeReset()" aria-label="Close">×</button>
+    </div>
+
+    <div class="error-box" id="resetErr"></div>
+    <div class="ok-box" id="resetOk"></div>
+
+    <div class="reset-step active" id="resetStep1">
+      <div class="seg">
+        <button id="emailTab" class="active" onclick="setResetChannel('email')">Email</button>
+        <button id="phoneTab" onclick="setResetChannel('phone')">Phone</button>
+      </div>
+      <div class="field" id="resetEmailField">
+        <label>Email Address</label>
+        <div class="field-wrap">
+          <span class="field-icon">📧</span>
+          <input type="email" id="resetEmail" placeholder="ali.baba@example.com" autocomplete="email">
+        </div>
+      </div>
+      <div class="field" id="resetPhoneField" style="display:none">
+        <label>Phone Number</label>
+        <div class="field-wrap">
+          <span class="field-icon">📱</span>
+          <input type="tel" id="resetPhone" placeholder="+233241234567" autocomplete="tel">
+        </div>
+      </div>
+      <button class="btn-submit" id="resetSendBtn" onclick="requestResetCode()">
+        <div class="spinner" id="resetSendSpinner"></div>
+        <span id="resetSendText">Send reset code</span>
+      </button>
+      <p class="hint">Phone reset works only if that phone number is saved on your account.</p>
+    </div>
+
+    <div class="reset-step" id="resetStep2">
+      <div class="field">
+        <label>Verification Code</label>
+        <div class="field-wrap">
+          <span class="field-icon">🔢</span>
+          <input type="text" id="resetCode" maxlength="6" inputmode="numeric" placeholder="123456">
+        </div>
+      </div>
+      <div class="field">
+        <label>New Password</label>
+        <div class="field-wrap">
+          <span class="field-icon">🔒</span>
+          <input type="password" id="resetNewPassword" placeholder="Min 8 characters" autocomplete="new-password">
+        </div>
+      </div>
+      <div class="field">
+        <label>Confirm New Password</label>
+        <div class="field-wrap">
+          <span class="field-icon">🔒</span>
+          <input type="password" id="resetConfirmPassword" placeholder="Repeat password" autocomplete="new-password">
+        </div>
+      </div>
+      <button class="btn-submit" id="resetFinishBtn" onclick="finishPasswordReset()">
+        <div class="spinner" id="resetFinishSpinner"></div>
+        <span id="resetFinishText">Reset password</span>
+      </button>
+      <p class="hint"><a href="#" onclick="showResetStep(1);return false">Use a different email or phone</a></p>
     </div>
   </div>
 </div>
@@ -119,6 +202,123 @@
   document.getElementById('password').addEventListener('keydown', function(e) {
     if (e.key === 'Enter') doLogin();
   });
+
+  var resetChannel = 'email';
+  var resetTarget = '';
+
+  function openReset() {
+    document.getElementById('resetEmail').value = document.getElementById('email').value.trim();
+    clearResetMsg();
+    showResetStep(1);
+    document.getElementById('resetModal').style.display = 'flex';
+  }
+
+  function closeReset() {
+    document.getElementById('resetModal').style.display = 'none';
+  }
+
+  function setResetChannel(channel) {
+    resetChannel = channel;
+    document.getElementById('emailTab').className = channel === 'email' ? 'active' : '';
+    document.getElementById('phoneTab').className = channel === 'phone' ? 'active' : '';
+    document.getElementById('resetEmailField').style.display = channel === 'email' ? 'block' : 'none';
+    document.getElementById('resetPhoneField').style.display = channel === 'phone' ? 'block' : 'none';
+    clearResetMsg();
+  }
+
+  function showResetStep(step) {
+    document.getElementById('resetStep1').className = step === 1 ? 'reset-step active' : 'reset-step';
+    document.getElementById('resetStep2').className = step === 2 ? 'reset-step active' : 'reset-step';
+  }
+
+  function clearResetMsg() {
+    document.getElementById('resetErr').style.display = 'none';
+    document.getElementById('resetOk').style.display = 'none';
+  }
+
+  function showResetErr(msg) {
+    var el = document.getElementById('resetErr');
+    el.textContent = msg;
+    el.style.display = 'block';
+    document.getElementById('resetOk').style.display = 'none';
+  }
+
+  function showResetOk(msg) {
+    var el = document.getElementById('resetOk');
+    el.textContent = msg;
+    el.style.display = 'block';
+    document.getElementById('resetErr').style.display = 'none';
+  }
+
+  function setResetLoading(btnId, spinnerId, textId, loading, label) {
+    document.getElementById(btnId).disabled = loading;
+    document.getElementById(spinnerId).style.display = loading ? 'block' : 'none';
+    document.getElementById(textId).textContent = loading ? 'Please wait...' : label;
+  }
+
+  async function requestResetCode() {
+    clearResetMsg();
+    resetTarget = resetChannel === 'phone'
+      ? document.getElementById('resetPhone').value.trim()
+      : document.getElementById('resetEmail').value.trim();
+    if (!resetTarget) {
+      showResetErr(resetChannel === 'phone' ? 'Enter your phone number.' : 'Enter your email address.');
+      return;
+    }
+    setResetLoading('resetSendBtn', 'resetSendSpinner', 'resetSendText', true, 'Send reset code');
+    try {
+      var body = resetChannel === 'phone' ? { channel:'phone', phone:resetTarget } : { channel:'email', email:resetTarget };
+      var res = await fetch('/api/trustid/auth/request-password-reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      var data = await res.json();
+      if (data.success) {
+        showResetOk(data.message || 'Reset code sent.');
+        showResetStep(2);
+        document.getElementById('resetCode').focus();
+      } else {
+        showResetErr(data.message || 'Unable to send reset code.');
+      }
+    } catch(e) {
+      showResetErr('Network error. Please try again.');
+    }
+    setResetLoading('resetSendBtn', 'resetSendSpinner', 'resetSendText', false, 'Send reset code');
+  }
+
+  async function finishPasswordReset() {
+    clearResetMsg();
+    var code = document.getElementById('resetCode').value.trim();
+    var password = document.getElementById('resetNewPassword').value;
+    var confirm = document.getElementById('resetConfirmPassword').value;
+    if (code.length < 6) { showResetErr('Enter the 6-digit code.'); return; }
+    if (password.length < 8) { showResetErr('Password must be at least 8 characters.'); return; }
+    if (password !== confirm) { showResetErr('Passwords do not match.'); return; }
+
+    setResetLoading('resetFinishBtn', 'resetFinishSpinner', 'resetFinishText', true, 'Reset password');
+    try {
+      var body = resetChannel === 'phone'
+        ? { channel:'phone', phone:resetTarget, code:code, newPassword:password }
+        : { channel:'email', email:resetTarget, code:code, newPassword:password };
+      var res = await fetch('/api/trustid/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      var data = await res.json();
+      if (data.success) {
+        showResetOk(data.message || 'Password reset successfully.');
+        if (resetChannel === 'email') document.getElementById('email').value = resetTarget;
+        setTimeout(closeReset, 1200);
+      } else {
+        showResetErr(data.message || 'Unable to reset password.');
+      }
+    } catch(e) {
+      showResetErr('Network error. Please try again.');
+    }
+    setResetLoading('resetFinishBtn', 'resetFinishSpinner', 'resetFinishText', false, 'Reset password');
+  }
 
   async function doLogin() {
     var email    = document.getElementById('email').value.trim();

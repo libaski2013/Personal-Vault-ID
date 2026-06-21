@@ -9,6 +9,7 @@ const userSchema = new Schema({
   middleName:   { type: String, default: '', trim: true },
   lastName:     { type: String, default: '', trim: true },
   email:        { type: String, required: true, unique: true, lowercase: true, trim: true },
+  phone:        { type: String, default: '', trim: true },
   passwordHash: { type: String, required: true },
   role:         { type: String, enum: ['user', 'admin'], default: 'user' },
   status:       { type: String, enum: ['active', 'pending', 'suspended'], default: 'active' },

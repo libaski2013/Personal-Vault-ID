@@ -24,6 +24,7 @@ Layout.init('settings');
 
 /* Static notification toggles state */
 var notifState = { 'Email Notifications':true, 'Document Alerts':true, 'Reminder Emails':false, 'Security Alerts':true };
+var currentUser = Auth.getUser() || {};
 
 function toggleNotif(key) {
   notifState[key] = !notifState[key];
@@ -73,6 +74,27 @@ function submitPassword() {
   });
 }
 
+function submitPhone() {
+  var phone = document.getElementById('phoneNumber').value.trim();
+  if (!phone) { Layout.toast('Enter a phone number.', 'error'); return; }
+
+  var btn = document.getElementById('phoneBtn');
+  btn.disabled = true;
+  btn.textContent = 'Saving...';
+
+  Api.updatePhone(phone).then(function(res) {
+    btn.disabled = false;
+    btn.textContent = 'Save Phone Number';
+    if (res.success && res.user) {
+      currentUser = res.user;
+      Auth.setSession(Auth.getToken(), res.user);
+      Layout.toast('Phone number saved for password resets.');
+    } else {
+      Layout.toast(res.message || 'Failed to save phone number.', 'error');
+    }
+  });
+}
+
 document.getElementById('content').innerHTML =
   '<div class="page-header">'
   + '<div><h1 class="page-title">Settings</h1><p class="page-sub">Manage account preferences</p></div>'
@@ -82,6 +104,13 @@ document.getElementById('content').innerHTML =
 
   /* ── Left ── */
   + '<div style="display:flex;flex-direction:column;gap:18px">'
+
+  + '<div class="card">'
+  +   '<h3 style="font-size:15px;font-weight:800;margin-bottom:14px">📱 Password Reset Phone</h3>'
+  +   '<div style="font-size:12px;color:#64748B;line-height:1.6;margin-bottom:14px">Use this phone number to receive password reset verification codes.</div>'
+  +   '<div style="margin-bottom:14px"><label class="label">Phone Number</label><input id="phoneNumber" class="input" type="tel" placeholder="+233241234567" value="' + (currentUser.phone || '') + '"></div>'
+  +   '<button id="phoneBtn" onclick="submitPhone()" class="btn btn-primary btn-full">Save Phone Number</button>'
+  + '</div>'
 
   + '<div class="card">'
   +   '<h3 style="font-size:15px;font-weight:800;margin-bottom:18px">🔒 Change Password</h3>'

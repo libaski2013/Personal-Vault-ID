@@ -30,7 +30,10 @@ var Api = (function () {
     /* ── Auth ── */
     login:          function (email, password) { return req('POST', '/auth/login',          { email: email, password: password }); },
     register:       function (form)            { return req('POST', '/auth/register',        form); },
+    requestPasswordReset: function (body)       { return req('POST', '/auth/request-password-reset', body); },
+    resetPassword:  function (body)             { return req('POST', '/auth/reset-password', body); },
     changePassword: function (cur, nw)         { return req('PUT',  '/auth/change-password', { currentPassword: cur, newPassword: nw }); },
+    updatePhone:    function (phone)           { return req('PUT',  '/auth/phone', { phone: phone }); },
     seedAdmin:      function ()                { return req('POST', '/auth/seed-admin'); },
 
     /* ── Documents ── */
