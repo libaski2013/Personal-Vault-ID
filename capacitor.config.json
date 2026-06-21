@@ -1,9 +1,10 @@
 {
-  "appId": "com.trustid.realtime",
-  "appName": "TrustID Realtime",
+  "appId": "com.trustid.personalvault",
+  "appName": "TrustID Personal Vault",
   "webDir": "public/trustid",
   "server": {
-    "androidScheme": "https"
+    "url": "https://trustid-realtime.onrender.com",
+    "cleartext": false
   },
   "plugins": {
     "SplashScreen": {

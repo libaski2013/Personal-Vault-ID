@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>TrustID — Expenses</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <link rel="icon" href="./icon.svg">
+  <link rel="stylesheet" href="./css/styles.css">
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+</head>
+<body>
+<div id="app"></div>
+<script src="./js/auth.js"></script>
+<script>Auth.requireAuth();</script>
+<script src="./js/api.js"></script>
+<script src="./js/components.js"></script>
+<script>
+const { createElement: h, useState, useEffect, useCallback } = React;
+const CAT_ICONS  = { Food:'🍔', Entertainment:'🎬', Utilities:'⚡', Health:'💊', Transport:'🚗', Shopping:'🛍️', Other:'💸' };
+const CAT_COLORS = { Food:C.green, Entertainment:C.purple, Utilities:C.orange, Health:C.blue, Transport:C.red, Shopping:C.pink, Other:C[500] };
+
+function ExpensesPage() {
+  const [expenses, setExpenses] = useState([]);
+  const [loading,  setLoading]  = useState(true);
+  const [showAdd,  setShowAdd]  = useState(false);
+  const [form,     setForm]     = useState({ title:'', amount:'', category:'Food' });
+  const [saving,   setSaving]   = useState(false);
+  const toast = useToast();
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const r = await Api.getExpenses();
+    if (r.success) setExpenses(r.data);
+    setLoading(false);
+  }, []);
+  useEffect(() => { load(); }, [load]);
+
+  const add = async () => {
+    if (!form.title || !form.amount) return;
+    setSaving(true);
+    const r = await Api.addExpense({ title:form.title, amount:parseFloat(form.amount), category:form.category });
+    setSaving(false);
+    if (r.success) { setExpenses(p=>[r.data,...p]); setForm({title:'',amount:'',category:'Food'}); setShowAdd(false); toast({type:'success',msg:'Expense added!'}); }
+    else toast({type:'error', msg:r.message||'Failed'});
+  };
+
+  const del = async id => {
+    const r = await Api.deleteExpense(id);
+    if (r.success) { setExpenses(p=>p.filter(e=>e._id!==id)); toast({type:'info',msg:'Deleted'}); }
+  };
+
+  const total  = expenses.reduce((s,e)=>s+e.amount,0);
+  const bycat  = expenses.reduce((acc,e)=>{ acc[e.category]=(acc[e.category]||0)+e.amount; return acc; },{});
+  const topCat = Object.entries(bycat).sort((a,b)=>b[1]-a[1])[0]?.[0] || '—';
+
+  return h(AppLayout, { activePage:'expenses' },
+    h('div', null,
+      h(PH, { title:'Expenses', sub:'Track and manage your spending',
+        actions: h(Btn, { label:'Add Expense', icon:'➕', full:false, sm:true, onClick:()=>setShowAdd(true) }) }),
+
+      h('div', { style:{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:16,marginBottom:24} },
+        h(StatCard, { icon:'💰', label:'Total This Month',  value:`$${total.toFixed(2)}`,  color:C.purple }),
+        h(StatCard, { icon:'🧾', label:'Transactions',      value:expenses.length,          color:C.blue }),
+        h(StatCard, { icon:'📊', label:'Avg Transaction',   value:expenses.length>0?`$${(total/expenses.length).toFixed(2)}`:'$0', color:C.orange }),
+        h(StatCard, { icon:'🏆', label:'Top Category',      value:topCat,                   color:C.green })
+      ),
+
+      /* Spending by category (simple bars) */
+      h('div', { className:'card', style:{marginBottom:22} },
+        h('h3', { style:{fontSize:14,fontWeight:800,marginBottom:16} }, 'Spending by Category'),
+        h('div', { style:{display:'flex',flexDirection:'column',gap:10} },
+          Object.entries(bycat).sort((a,b)=>b[1]-a[1]).map(([cat,amt]) => {
+            const pct = total>0 ? (amt/total*100).toFixed(0) : 0;
+            return h('div', { key:cat },
+              h('div', { style:{display:'flex',justifyContent:'space-between',marginBottom:4,fontSize:13} },
+                h('span', null, CAT_ICONS[cat]||'💸', ' ', cat),
+                h('span', { style:{fontWeight:700} }, `$${amt.toFixed(2)} (${pct}%)`)
+              ),
+              h('div', { style:{height:6,background:C[100],borderRadius:3} },
+                h('div', { style:{height:'100%',borderRadius:3,background:CAT_COLORS[cat]||C[500],width:`${pct}%`} })
+              )
+            );
+          })
+        )
+      ),
+
+      /* Transactions list */
+      h('div', { className:'table-wrap' },
+        h('div', { style:{padding:'14px 20px',borderBottom:`1px solid ${C[100]}`} },
+          h('h3', { style:{margin:0,fontSize:14,fontWeight:800} }, 'All Transactions')
+        ),
+        loading ? h('div', { style:{padding:40,textAlign:'center'} }, h(Spin)) :
+        h('div', null,
+          expenses.map(e => {
+            const col = CAT_COLORS[e.category]||C[500];
+            return h('div', { key:e._id, style:{display:'flex',alignItems:'center',gap:15,padding:'13px 20px',borderBottom:`1px solid ${C[50]}`} },
+              h('div', { style:{width:44,height:44,borderRadius:12,background:col+'15',display:'flex',alignItems:'center',justifyContent:'center',fontSize:22,flexShrink:0} }, e.icon||CAT_ICONS[e.category]||'💸'),
+              h('div', { style:{flex:1} },
+                h('div', { style:{fontWeight:600,fontSize:14} }, e.title),
+                h('div', { style:{fontSize:12,color:C[500]} }, `${e.category} · ${fmtDate(e.date)}`)
+              ),
+              h('div', { style:{fontWeight:800,fontSize:15,color:col} }, `-$${parseFloat(e.amount).toFixed(2)}`),
+              h('button', { onClick:()=>del(e._id), style:{background:'none',border:'none',cursor:'pointer',color:C[300],fontSize:17,padding:'4px 6px'} }, '🗑')
+            );
+          })
+        )
+      ),
+
+      h(Modal, { open:showAdd, onClose:()=>setShowAdd(false), title:'Add Expense' },
+        h('div', { style:{display:'flex',flexDirection:'column',gap:15} },
+          h(Field, { label:'Title',     value:form.title,    onChange:v=>setForm(f=>({...f,title:v})),    placeholder:'e.g. Coffee', req:true }),
+          h(Field, { label:'Amount ($)',value:form.amount,   onChange:v=>setForm(f=>({...f,amount:v})),   type:'number', placeholder:'0.00', req:true }),
+          h(Sel,   { label:'Category',  value:form.category, onChange:v=>setForm(f=>({...f,category:v})), options:['Food','Entertainment','Utilities','Health','Transport','Shopping','Other'] }),
+          h(Btn, { label:'Add Expense', onClick:add, loading:saving, icon:'➕' })
+        )
+      )
+    )
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('app')).render(h(ExpensesPage));
+</script>
+</body>
+</html>

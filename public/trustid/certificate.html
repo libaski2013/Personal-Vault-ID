@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>TrustID — My TrustID</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <link rel="icon" href="./icon.svg">
+  <link rel="stylesheet" href="./css/styles.css">
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+</head>
+<body>
+<div id="app"></div>
+<script src="./js/auth.js"></script>
+<script>Auth.requireAuth();</script>
+<script src="./js/api.js"></script>
+<script src="./js/components.js"></script>
+<script>
+const { createElement: h } = React;
+
+function TrustIdPage() {
+  const user = Auth.getUser();
+  const tid  = user?.trustId;
+  const c    = tlC(tid?.level||1);
+  const bars = [['Identity Verification',85],['Document Authenticity',90],['Address Verification',70],['Financial Verification',60]];
+
+  return h(AppLayout, { activePage:'trustid' },
+    h('div', null,
+      h(PH, { title:'My TrustID', sub:'Your verified digital identity certificate',
+        actions: h('div', { style:{display:'flex',gap:10} },
+          h(Btn, { label:'Export PDF', icon:'📄', v:'ghost', full:false, sm:true }),
+          h(Btn, { label:'Share TrustID', icon:'🔗', full:false, sm:true })
+        )
+      }),
+      h('div', { style:{display:'grid',gridTemplateColumns:'1fr 360px',gap:24} },
+        h('div', { style:{display:'flex',flexDirection:'column',gap:20} },
+          /* Certificate card */
+          h('div', { style:{background:`linear-gradient(135deg,${C.navyD},#312E81,${C.purple})`,borderRadius:24,padding:32,position:'relative',overflow:'hidden',boxShadow:`0 20px 60px ${C.purple}45`} },
+            h('div', { style:{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:28} },
+              h('div', { style:{display:'flex',alignItems:'center',gap:10} },
+                h('span', { style:{fontSize:26} }, '🛡️'),
+                h('div', null,
+                  h('div', { style:{color:'rgba(255,255,255,0.45)',fontSize:9,fontWeight:700,letterSpacing:2.5} }, 'TRUSTID DIGITAL CERTIFICATE'),
+                  h('div', { style:{color:'#fff',fontSize:15,fontWeight:900} }, 'TrustID Platform')
+                )
+              ),
+              h(TBadge, { level:tid?.level||1 })
+            ),
+            h('div', null,
+              h('div', { style:{color:'rgba(255,255,255,0.4)',fontSize:10,fontWeight:700,letterSpacing:3,marginBottom:8} }, 'CERTIFICATE NUMBER'),
+              h('div', { style:{color:'#fff',fontSize:20,fontWeight:800,letterSpacing:4,marginBottom:22,fontFamily:'monospace'} }, tid?.id||'PENDING'),
+              h('div', { style:{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:18} },
+                [['Owner',`${user?.firstName} ${user?.lastName}`],['Issued',fmtDate(tid?.issuedAt)],['Status',(tid?.status||'pending').toUpperCase()]].map(([k,v]) =>
+                  h('div', { key:k },
+                    h('div', { style:{color:'rgba(255,255,255,0.4)',fontSize:9,fontWeight:700,letterSpacing:1.5,marginBottom:5} }, k),
+                    h('div', { style:{color:'#fff',fontSize:14,fontWeight:600} }, v)
+                  )
+                )
+              )
+            )
+          ),
+          /* Score Breakdown */
+          h('div', { className:'card' },
+            h('h3', { style:{fontSize:14,fontWeight:800,marginBottom:20} }, 'Trust Score Breakdown'),
+            h('div', { style:{display:'flex',alignItems:'center',gap:26,marginBottom:24} },
+              h(ScoreRing, { score:tid?.score||100, size:120 }),
+              h('div', null,
+                h('div', { style:{fontSize:36,fontWeight:900,color:c} }, tid?.score||100),
+                h('div', { style:{fontSize:13,color:C[500]} }, 'out of 1,000 points'),
+                h('div', { style:{marginTop:10} }, h(TBadge, { level:tid?.level||1 }))
+              )
+            ),
+            bars.map(([lb,pct]) => h('div', { key:lb, style:{marginBottom:13} },
+              h('div', { style:{display:'flex',justifyContent:'space-between',marginBottom:6,fontSize:13} },
+                h('span', { style:{color:C[700]} }, lb),
+                h('span', { style:{fontWeight:700} }, `${pct}%`)
+              ),
+              h('div', { style:{height:7,background:C[100],borderRadius:4} },
+                h('div', { style:{height:'100%',borderRadius:4,background:`linear-gradient(90deg,${C.purple},${C.purpleL})`,width:`${pct}%`} })
+              )
+            ))
+          )
+        ),
+        h('div', { style:{display:'flex',flexDirection:'column',gap:16} },
+          /* QR Code placeholder */
+          h('div', { className:'card', style:{textAlign:'center'} },
+            h('h3', { style:{fontSize:13,fontWeight:800,marginBottom:14} }, '📱 QR Code'),
+            h('div', { style:{width:150,height:150,margin:'0 auto 14px',background:C[50],borderRadius:12,display:'flex',alignItems:'center',justifyContent:'center',fontSize:48} }, '🔲'),
+            h('p', { style:{fontSize:12,color:C[500],marginBottom:12} }, 'Scan to verify this TrustID instantly'),
+            h(Btn, { label:'Download QR', v:'outline', icon:'📥', sm:true })
+          ),
+          /* Details */
+          h('div', { className:'card' },
+            h('h3', { style:{fontSize:13,fontWeight:800,marginBottom:14} }, 'Certificate Details'),
+            [['TrustID',tid?.id||'Pending'],['Level',`${tid?.level||1} — ${tlN(tid?.level||1)}`],['Score',`${tid?.score||100}/1000`],['Status',tid?.status||'Pending'],['Owner',`${user?.firstName} ${user?.lastName}`],['Email',user?.email],['Issued',fmtDate(tid?.issuedAt)]].map(([k,v]) =>
+              h('div', { key:k, style:{display:'flex',justifyContent:'space-between',padding:'8px 0',borderBottom:`1px solid ${C[50]}`,fontSize:12} },
+                h('span', { style:{color:C[500]} }, k),
+                h('span', { style:{fontWeight:600,color:C[900]} }, v)
+              )
+            )
+          )
+        )
+      )
+    )
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('app')).render(h(TrustIdPage));
+</script>
+</body>
+</html>

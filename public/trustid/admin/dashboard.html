@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>TrustID Admin — Overview</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <link rel="icon" href="../icon.svg">
+  <link rel="stylesheet" href="../css/styles.css">
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+</head>
+<body>
+<div id="app"></div>
+<script src="../js/auth.js"></script>
+<script>Auth.requireAdmin();</script>
+<script src="../js/api.js"></script>
+<script src="../js/components.js"></script>
+<script>
+const { createElement: h, useState, useEffect } = React;
+
+function AdminDashboard() {
+  const [stats,   setStats]   = useState(null);
+  const [docs,    setDocs]    = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([Api.getAdminStats(), Api.getAllDocs()]).then(([sr, dr]) => {
+      if (sr.success) setStats(sr.data);
+      if (dr.success) setDocs(dr.data);
+      setLoading(false);
+    });
+  }, []);
+
+  if (loading) return h(AppLayout, { activePage:'admin-dashboard' },
+    h('div', { style:{display:'flex',justifyContent:'center',padding:60} }, h(Spin, { sz:32 }))
+  );
+
+  return h(AppLayout, { activePage:'admin-dashboard' },
+    h('div', null,
+      h(PH, { title:'Platform Overview', sub:'Real-time analytics & insights' }),
+
+      /* Stat cards */
+      h('div', { style:{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:18,marginBottom:26} },
+        h(StatCard, { icon:'👥', label:'Total Users',     value:(stats.totalUsers||0).toLocaleString(),     color:C.blue,   delta:12 }),
+        h(StatCard, { icon:'🛡️', label:'Active TrustIDs', value:(stats.activeTrustIds||0).toLocaleString(), color:C.purple, delta:8  }),
+        h(StatCard, { icon:'✅', label:'Verified Docs',   value:(stats.verifiedDocs||0).toLocaleString(),   color:C.green,  delta:15 }),
+        h(StatCard, { icon:'⏳', label:'Pending Reviews', value:stats.pendingReviews||0,                    color:C.orange, delta:-5 })
+      ),
+
+      /* Growth chart (simple bar) */
+      h('div', { style:{display:'grid',gridTemplateColumns:'2fr 1fr',gap:22,marginBottom:22} },
+        h('div', { className:'card' },
+          h('h3', { style:{fontSize:14,fontWeight:800,marginBottom:18} }, 'Platform Growth'),
+          h('div', { style:{display:'flex',alignItems:'flex-end',gap:8,height:160,padding:'0 0 24px'} },
+            (stats.growth||[]).map(({ m, users, docs:d }) => {
+              const maxU = Math.max(...(stats.growth||[]).map(g=>g.users), 1);
+              return h('div', { key:m, style:{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:3,height:'100%',position:'relative'} },
+                h('div', { style:{flex:1,width:'100%',display:'flex',flexDirection:'column',justifyContent:'flex-end',gap:3} },
+                  h('div', { title:`Users: ${users}`, style:{height:`${(users/maxU*100)}%`,background:C.blue+'90',borderRadius:'3px 3px 0 0',minHeight:4,width:'45%',alignSelf:'flex-start'} }),
+                  h('div', { title:`Docs: ${d}`, style:{height:`${(d/maxU*100)}%`,background:C.purple+'90',borderRadius:'3px 3px 0 0',minHeight:4,width:'45%',alignSelf:'flex-end',marginTop:-d,position:'absolute',right:0,bottom:0} })
+                ),
+                h('span', { style:{position:'absolute',bottom:-18,fontSize:9,color:C[500]} }, m)
+              );
+            })
+          ),
+          h('div', { style:{display:'flex',gap:16,marginTop:8} },
+            h('span', { style:{display:'flex',alignItems:'center',gap:4,fontSize:12} }, h('span', { style:{width:10,height:10,borderRadius:2,background:C.blue+'90',display:'inline-block'} }), 'Users'),
+            h('span', { style:{display:'flex',alignItems:'center',gap:4,fontSize:12} }, h('span', { style:{width:10,height:10,borderRadius:2,background:C.purple+'90',display:'inline-block'} }), 'Docs')
+          )
+        ),
+        h('div', { className:'card' },
+          h('h3', { style:{fontSize:14,fontWeight:800,marginBottom:14} }, 'Document Status'),
+          (stats.docStatus||[]).map(d => h('div', { key:d.name, style:{marginBottom:12} },
+            h('div', { style:{display:'flex',justifyContent:'space-between',fontSize:13,marginBottom:4} },
+              h('span', null, d.name),
+              h('strong', null, d.value)
+            ),
+            h('div', { style:{height:6,background:C[100],borderRadius:3} },
+              h('div', { style:{height:'100%',borderRadius:3,background:d.color,width:`${Math.min(100,(d.value/((stats.verifiedDocs||1)+1))*100)}%`} })
+            )
+          ))
+        )
+      ),
+
+      /* By level + Recent submissions */
+      h('div', { style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:22} },
+        h('div', { className:'card' },
+          h('h3', { style:{fontSize:14,fontWeight:800,marginBottom:16} }, 'Users by Trust Level'),
+          (stats.byLevel||[]).map(({ l, v }) => {
+            const max = Math.max(...(stats.byLevel||[]).map(x=>x.v), 1);
+            return h('div', { key:l, style:{marginBottom:10} },
+              h('div', { style:{display:'flex',justifyContent:'space-between',fontSize:12,marginBottom:4} },
+                h('span', { style:{color:C[600]} }, l),
+                h('strong', null, v)
+              ),
+              h('div', { style:{height:6,background:C[100],borderRadius:3} },
+                h('div', { style:{height:'100%',borderRadius:3,background:C.purple,width:`${(v/max)*100}%`} })
+              )
+            );
+          })
+        ),
+        h('div', { className:'card' },
+          h('h3', { style:{fontSize:14,fontWeight:800,marginBottom:16} }, 'Recent Submissions'),
+          docs.slice(0,6).map(d => h('div', { key:d._id, style:{display:'flex',gap:12,alignItems:'center',padding:'8px 0',borderBottom:`1px solid ${C[50]}`} },
+            h('div', { style:{width:36,height:36,borderRadius:8,background:C[100],display:'flex',alignItems:'center',justifyContent:'center',fontSize:17,flexShrink:0} }, '📄'),
+            h('div', { style:{flex:1} },
+              h('div', { style:{fontWeight:600,fontSize:12} }, d.type),
+              h('div', { style:{fontSize:11,color:C[500]} }, `${d.user?.firstName||''} ${d.user?.lastName||''} · ${fmtShort(d.createdAt)}`)
+            ),
+            h(Badge, { status:d.status })
+          ))
+        )
+      )
+    )
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('app')).render(h(AdminDashboard));
+</script>
+</body>
+</html>

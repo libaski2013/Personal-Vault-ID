@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>TrustID — Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#1E1B4B">
+  <link rel="icon" href="./icon.svg">
+  <link rel="stylesheet" href="./css/styles.css">
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+</head>
+<body>
+<div id="app"></div>
+<script src="./js/auth.js"></script>
+<script>Auth.requireAuth();</script>
+<script src="./js/api.js"></script>
+<script src="./js/components.js"></script>
+<script>
+const { createElement: h, useState, useEffect } = React;
+
+function Dashboard() {
+  const user = Auth.getUser();
+  const tid  = user?.trustId;
+  const [docs, setDocs]         = useState([]);
+  const [reminders, setRem]     = useState([]);
+  const [todos, setTodos]       = useState([]);
+  const [expenses, setExpenses] = useState([]);
+
+  useEffect(() => {
+    Api.getDocs().then(r => r.success && setDocs(r.data));
+    Api.getReminders().then(r => r.success && setRem(r.data));
+    Api.getTodos().then(r => r.success && setTodos(r.data));
+    Api.getExpenses().then(r => r.success && setExpenses(r.data));
+  }, []);
+
+  const totalExp   = expenses.reduce((s, e) => s + e.amount, 0);
+  const verified   = docs.filter(d => d.status === 'verified').length;
+  const pcol       = { high:C.red, medium:C.orange, low:C.green };
+
+  return h(AppLayout, { activePage:'dashboard' },
+    h('div', null,
+      /* Greeting */
+      h('div', { style:{marginBottom:26} },
+        h('h1', { style:{fontSize:26,fontWeight:900,color:C[900],margin:0} }, `Good morning, ${user?.firstName || ''} 👋`),
+        h('p', { style:{color:C[500],margin:'5px 0 0',fontSize:13} }, new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'}))
+      ),
+
+      /* Stat cards */
+      h('div', { style:{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:18,marginBottom:24} },
+        h(StatCard, { icon:'🛡️', label:'Trust Score',      value:tid?.score||100,       color:C.purple }),
+        h(StatCard, { icon:'📄', label:'Documents',       value:docs.length,             color:C.blue }),
+        h(StatCard, { icon:'✅', label:'Verified',        value:verified,                color:C.green }),
+        h(StatCard, { icon:'💰', label:'Monthly Expenses', value:`$${totalExp.toFixed(0)}`, color:C.orange })
+      ),
+
+      h('div', { style:{display:'grid',gridTemplateColumns:'1fr 340px',gap:22} },
+        /* Left */
+        h('div', { style:{display:'flex',flexDirection:'column',gap:20} },
+          /* TrustID Card */
+          h('div', { style:{background:`linear-gradient(135deg,${C.navyD} 0%,#312E81 55%,${C.purple} 100%)`,borderRadius:22,padding:30,position:'relative',overflow:'hidden',boxShadow:`0 16px 48px ${C.purple}40`} },
+            h('div', { style:{display:'flex',alignItems:'flex-start',justifyContent:'space-between'} },
+              h('div', null,
+                h('div', { style:{display:'flex',alignItems:'center',gap:7,marginBottom:16} },
+                  h('span', { style:{fontSize:17} }, '🛡️'),
+                  h('span', { style:{color:'rgba(255,255,255,0.6)',fontSize:11,fontWeight:700,letterSpacing:2} }, 'TRUSTID ACTIVE')
+                ),
+                h('div', { style:{color:'#fff',fontSize:17,fontWeight:800,letterSpacing:2.5,marginBottom:8,fontFamily:'monospace'} }, tid?.id || 'Pending Issuance'),
+                h('div', { style:{color:'rgba(255,255,255,0.55)',fontSize:12,marginBottom:16} }, `Issued ${fmtDate(tid?.issuedAt)} · ${user?.firstName} ${user?.lastName}`),
+                h(TBadge, { level:tid?.level||1 })
+              ),
+              h(ScoreRing, { score:tid?.score||100, size:108 })
+            )
+          ),
+          /* Recent Docs */
+          h('div', { className:'card' },
+            h('div', { style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16} },
+              h('h3', { style:{fontSize:14,fontWeight:800,margin:0} }, 'Recent Documents'),
+              h('a', { href:'./documents.html', style:{fontSize:12,color:C.purple,fontWeight:600} }, 'View all →')
+            ),
+            docs.slice(0,4).map(doc => h('div', { key:doc._id, style:{display:'flex',alignItems:'center',gap:13,padding:'10px 0',borderBottom:`1px solid ${C[50]}`} },
+              h('div', { style:{width:40,height:40,borderRadius:10,background:C[100],display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,flexShrink:0} }, '📄'),
+              h('div', { style:{flex:1} },
+                h('div', { style:{fontWeight:600,fontSize:13} }, doc.name),
+                h('div', { style:{fontSize:11,color:C[500]} }, fmtDate(doc.createdAt))
+              ),
+              h(Badge, { status:doc.status })
+            ))
+          )
+        ),
+        /* Right */
+        h('div', { style:{display:'flex',flexDirection:'column',gap:16} },
+          h('div', { className:'card' },
+            h('h3', { style:{fontSize:13,fontWeight:800,marginBottom:13} }, '⏰ Upcoming Reminders'),
+            reminders.filter(r=>!r.done).slice(0,4).map(r => h('div', { key:r._id, style:{display:'flex',gap:10,padding:'8px 0',borderBottom:`1px solid ${C[50]}`} },
+              h('div', { style:{width:5,borderRadius:3,background:pcol[r.priority],flexShrink:0} }),
+              h('div', { style:{flex:1} },
+                h('div', { style:{fontSize:13,fontWeight:600} }, r.title),
+                h('div', { style:{fontSize:11,color:C[500]} }, `📅 ${fmtDate(r.dueDate)}`)
+              )
+            ))
+          ),
+          h('div', { className:'card' },
+            h('h3', { style:{fontSize:13,fontWeight:800,marginBottom:13} }, '✅ Pending Tasks'),
+            todos.filter(t=>!t.done).slice(0,4).map(t => h('div', { key:t._id, style:{display:'flex',alignItems:'center',gap:9,padding:'7px 0',borderBottom:`1px solid ${C[50]}`} },
+              h('div', { style:{width:17,height:17,borderRadius:'50%',border:`2px solid ${pcol[t.priority]}`,flexShrink:0} }),
+              h('span', { style:{fontSize:13,color:C[700]} }, t.title)
+            ))
+          ),
+          h('div', { style:{background:`linear-gradient(135deg,${C.purple},${C.purpleL})`,borderRadius:16,padding:20,color:'#fff'} },
+            h('div', { style:{fontSize:12,fontWeight:600,opacity:0.75,marginBottom:4} }, '💰 Total Expenses'),
+            h('div', { style:{fontSize:30,fontWeight:900} }, `$${totalExp.toFixed(2)}`),
+            h('div', { style:{fontSize:11,opacity:0.65,marginTop:4} }, `This month · ${expenses.length} transactions`)
+          )
+        )
+      )
+    )
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('app')).render(h(Dashboard));
+</script>
+</body>
+</html>

@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>TrustID — Create Account</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#1E1B4B">
+  <link rel="icon" href="./icon.svg">
+  <link rel="stylesheet" href="./css/styles.css">
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+</head>
+<body>
+<div id="app"></div>
+<script src="./js/auth.js"></script>
+<script>Auth.requireGuest();</script>
+<script src="./js/api.js"></script>
+<script src="./js/components.js"></script>
+<script>
+const { createElement: h, useState } = React;
+
+function RegisterPage() {
+  const [form, setForm]     = useState({ firstName:'', lastName:'', email:'', password:'', confirm:'' });
+  const [loading, setLoading] = useState(false);
+  const [done, setDone]     = useState(false);
+  const [err, setErr]       = useState('');
+  const set = k => v => setForm(f => ({ ...f, [k]:v }));
+
+  const submit = async () => {
+    if (!form.firstName || !form.email || !form.password) { setErr('Fill required fields.'); return; }
+    if (form.password !== form.confirm) { setErr('Passwords do not match.'); return; }
+    if (form.password.length < 8) { setErr('Password must be at least 8 characters.'); return; }
+    setErr(''); setLoading(true);
+    const r = await Api.register({ firstName:form.firstName, lastName:form.lastName, email:form.email, password:form.password });
+    setLoading(false);
+    if (r.success) { Auth.setSession(r.token, r.user); setDone(true); }
+    else setErr(r.message || 'Registration failed');
+  };
+
+  if (done) return h('div', { style:{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',background:C[50]} },
+    h('div', { style:{background:'#fff',borderRadius:24,padding:52,textAlign:'center',maxWidth:420,boxShadow:'0 8px 32px rgba(0,0,0,0.08)'} },
+      h('div', { style:{fontSize:60,marginBottom:18} }, '🎉'),
+      h('h2', { style:{fontSize:26,fontWeight:900,color:C[900],marginBottom:10} }, 'Account Created!'),
+      h('p', { style:{color:C[500],lineHeight:1.65,marginBottom:28} }, 'Welcome to TrustID. Your account is ready.'),
+      h(Btn, { label:'Go to Dashboard', onClick:()=>window.location.href='./dashboard.html' })
+    )
+  );
+
+  return h('div', { className:'auth-wrap' },
+    h('div', { className:'auth-left' },
+      h('div', { style:{maxWidth:380,color:'#fff'} },
+        h('div', { style:{display:'flex',alignItems:'center',gap:10,marginBottom:52} },
+          h('div', { style:{width:44,height:44,borderRadius:12,background:'rgba(255,255,255,0.15)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:22} }, '🛡️'),
+          h('span', { style:{fontSize:22,fontWeight:900} }, 'TrustID')
+        ),
+        h('h2', { style:{fontSize:30,fontWeight:900,marginBottom:12} }, 'Create your TrustID account'),
+        h('p', { style:{color:'rgba(255,255,255,0.65)',fontSize:15,lineHeight:1.75} }, 'Get verified and start building your trust score in minutes.')
+      )
+    ),
+    h('div', { className:'auth-right', style:{width:500,overflowY:'auto'} },
+      h('div', { style:{width:'100%',maxWidth:400} },
+        h('a', { href:'./login.html', style:{background:'none',border:'none',cursor:'pointer',color:C[500],fontSize:14,fontWeight:600,marginBottom:28,padding:0,display:'block'} }, '← Back to Sign In'),
+        h('h1', { style:{fontSize:25,fontWeight:900,color:C[900],marginBottom:6} }, 'Create Account'),
+        h('p', { style:{color:C[500],fontSize:13,marginBottom:24} }, 'Free forever. No credit card required.'),
+        err && h('div', { style:{padding:'10px 14px',borderRadius:10,background:C.red+'12',border:`1px solid ${C.red}30`,color:C.red,fontSize:13,marginBottom:14} }, err),
+        h('div', { style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14,marginBottom:14} },
+          h(Field, { label:'First name', value:form.firstName, onChange:set('firstName'), placeholder:'Jane', req:true }),
+          h(Field, { label:'Last name',  value:form.lastName,  onChange:set('lastName'),  placeholder:'Doe' })
+        ),
+        h('div', { style:{display:'flex',flexDirection:'column',gap:14} },
+          h(Field, { label:'Email',            value:form.email,    onChange:set('email'),    type:'email',    placeholder:'you@example.com', req:true }),
+          h(Field, { label:'Password',         value:form.password, onChange:set('password'), type:'password', placeholder:'Min 8 characters',    req:true }),
+          h(Field, { label:'Confirm password', value:form.confirm,  onChange:set('confirm'),  type:'password', req:true })
+        ),
+        h('div', { style:{marginTop:22} }, h(Btn, { label:'Create Account', onClick:submit, loading })),
+        h('p', { style:{textAlign:'center',marginTop:18,fontSize:13,color:C[500]} },
+          'Have an account? ',
+          h('a', { href:'./login.html', style:{color:C.purple,fontWeight:700} }, 'Sign in')
+        )
+      )
+    )
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('app')).render(h(RegisterPage));
+</script>
+</body>
+</html>

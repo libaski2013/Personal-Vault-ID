@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>TrustID — Profile</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <link rel="icon" href="./icon.svg">
+  <link rel="stylesheet" href="./css/styles.css">
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+</head>
+<body>
+<div id="app"></div>
+<script src="./js/auth.js"></script>
+<script>Auth.requireAuth();</script>
+<script src="./js/api.js"></script>
+<script src="./js/components.js"></script>
+<script>
+const { createElement: h, useState, useEffect } = React;
+
+function ProfilePage() {
+  const user = Auth.getUser();
+  const [docs, setDocs] = useState([]);
+  const toast = useToast();
+
+  useEffect(() => { Api.getDocs().then(r => r.success && setDocs(r.data)); }, []);
+
+  const ini = ((user?.firstName||'')[0]||'') + ((user?.lastName||'')[0]||'');
+  const tid = user?.trustId;
+
+  return h(AppLayout, { activePage:'profile' },
+    h('div', null,
+      h(PH, { title:'Profile', sub:'Manage your personal information' }),
+      h('div', { style:{display:'grid',gridTemplateColumns:'280px 1fr',gap:22} },
+
+        /* ── Left column ── */
+        h('div', { style:{display:'flex',flexDirection:'column',gap:16} },
+          h('div', { className:'card', style:{textAlign:'center'} },
+            h('div', { style:{width:78,height:78,borderRadius:'50%',background:`linear-gradient(135deg,${C.purple},${C.purpleL})`,margin:'0 auto 14px',display:'flex',alignItems:'center',justifyContent:'center',color:'#fff',fontWeight:700,fontSize:28} }, ini||'U'),
+            h('div', { style:{fontSize:17,fontWeight:800,color:C[900]} }, `${user?.firstName||''} ${user?.lastName||''}`),
+            h('div', { style:{fontSize:13,color:C[500],marginBottom:12} }, user?.email),
+            h(TBadge, { level:tid?.level||1 }),
+            h('div', { style:{marginTop:16} },
+              h('div', { style:{fontSize:12,color:C[500],marginBottom:3} }, 'Member since'),
+              h('div', { style:{fontSize:13,fontWeight:600} }, fmtDate(user?.joinedAt||new Date()))
+            )
+          ),
+          h('div', { className:'card' },
+            h('h3', { style:{fontSize:13,fontWeight:800,marginBottom:13} }, 'Document Summary'),
+            [['Total',docs.length],['Verified',docs.filter(d=>d.status==='verified').length],['Pending',docs.filter(d=>d.status==='pending').length],['Rejected',docs.filter(d=>d.status==='rejected').length]].map(([k,v]) =>
+              h('div', { key:k, style:{display:'flex',justifyContent:'space-between',padding:'7px 0',borderBottom:`1px solid ${C[50]}`,fontSize:13} },
+                h('span', { style:{color:C[500]} }, k),
+                h('span', { style:{fontWeight:700} }, v)
+              )
+            )
+          )
+        ),
+
+        /* ── Right column ── */
+        h('div', { style:{display:'flex',flexDirection:'column',gap:18} },
+          h('div', { className:'card' },
+            h('h3', { style:{fontSize:15,fontWeight:800,marginBottom:18} }, 'Personal Information'),
+            h('div', { style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16,marginBottom:18} },
+              h(Field, { label:'First name', value:user?.firstName||'', onChange:()=>{} }),
+              h(Field, { label:'Last name',  value:user?.lastName||'',  onChange:()=>{} }),
+              h(Field, { label:'Email',      value:user?.email||'',     onChange:()=>{}, type:'email' }),
+              h(Field, { label:'Role',       value:user?.role==='admin'?'Administrator':'User', onChange:()=>{} })
+            ),
+            h('div', { style:{padding:'11px 14px',borderRadius:10,background:C.blue+'10',border:`1px solid ${C.blue}25`,fontSize:12,color:C.blue} },
+              'ℹ️ Profile editing coming soon. Contact admin to update your details.'
+            )
+          ),
+          h('div', { className:'card' },
+            h('h3', { style:{fontSize:15,fontWeight:800,marginBottom:18} }, 'TrustID Certificate'),
+            [['TrustID Number',tid?.id||'Pending'],['Trust Level',`${tid?.level||1} — ${tlN(tid?.level||1)}`],['Trust Score',`${tid?.score||100}/1000`],['Status',tid?.status||'Pending'],['Issued',fmtDate(tid?.issuedAt)]].map(([k,v]) =>
+              h('div', { key:k, style:{display:'flex',justifyContent:'space-between',padding:'10px 0',borderBottom:`1px solid ${C[50]}`,fontSize:13} },
+                h('span', { style:{color:C[500]} }, k),
+                h('span', { style:{fontWeight:600} }, v)
+              )
+            ),
+            h('div', { style:{marginTop:16} },
+              h('a', { href:'./certificate.html', className:'btn btn-outline', style:{width:'auto',display:'inline-flex'} }, '🛡️ View Full Certificate')
+            )
+          )
+        )
+      )
+    )
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('app')).render(h(ProfilePage));
+</script>
+</body>
+</html>

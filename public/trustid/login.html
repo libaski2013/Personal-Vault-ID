@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>TrustID — Sign In</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#1E1B4B">
+  <link rel="icon" href="./icon.svg">
+  <link rel="stylesheet" href="./css/styles.css">
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+</head>
+<body>
+<div id="app"></div>
+<script src="./js/auth.js"></script>
+<script>Auth.requireGuest();</script>
+<script src="./js/api.js"></script>
+<script src="./js/components.js"></script>
+<script>
+const { createElement: h, useState } = React;
+
+function LoginPage() {
+  const [email,    setEmail]   = useState('');
+  const [pass,     setPass]    = useState('');
+  const [loading,  setLoading] = useState(false);
+  const [err,      setErr]     = useState('');
+
+  const submit = async () => {
+    if (!email || !pass) { setErr('Fill in all fields.'); return; }
+    setErr(''); setLoading(true);
+    const r = await Api.login(email, pass);
+    setLoading(false);
+    if (r.success) {
+      Auth.setSession(r.token, r.user);
+      window.location.href = r.user.role === 'admin' ? './admin/dashboard.html' : './dashboard.html';
+    } else {
+      setErr(r.message || 'Login failed');
+    }
+  };
+
+  const onKey = e => { if (e.key === 'Enter') submit(); };
+
+  return h('div', { className:'auth-wrap' },
+    h('div', { className:'auth-left' },
+      h('div', { style:{maxWidth:380,color:'#fff'} },
+        h('div', { style:{display:'flex',alignItems:'center',gap:10,marginBottom:52} },
+          h('div', { style:{width:44,height:44,borderRadius:12,background:'rgba(255,255,255,0.15)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:22} }, '🛡️'),
+          h('span', { style:{fontSize:22,fontWeight:900} }, 'TrustID')
+        ),
+        h('h2', { style:{fontSize:30,fontWeight:900,marginBottom:14,lineHeight:1.2} }, 'Your trusted digital identity platform'),
+        h('p', { style:{color:'rgba(255,255,255,0.6)',lineHeight:1.75,fontSize:15} }, 'Secure your identity, track your documents, and build your trust score.'),
+        h('div', { style:{marginTop:36,display:'flex',flexDirection:'column',gap:12} },
+          ['✅ AI-powered document verification','🔒 Bank-grade encryption & MFA','📊 Dynamic real-time trust scoring'].map(f =>
+            h('div', { key:f, style:{fontSize:14,color:'rgba(255,255,255,0.7)'} }, f)
+          )
+        )
+      )
+    ),
+    h('div', { className:'auth-right' },
+      h('div', { style:{width:'100%',maxWidth:360} },
+        h('button', { onClick:()=>window.location.href='./index.html', style:{background:'none',border:'none',cursor:'pointer',color:C[500],fontSize:14,fontWeight:600,marginBottom:32,padding:0} }, '← Back to home'),
+        h('h1', { style:{fontSize:27,fontWeight:900,color:C[900],marginBottom:6} }, 'Welcome back'),
+        h('p', { style:{color:C[500],fontSize:14,marginBottom:28} }, 'Sign in to your TrustID account'),
+        err && h('div', { style:{padding:'11px 14px',borderRadius:10,background:C.red+'12',border:`1px solid ${C.red}30`,color:C.red,fontSize:13,marginBottom:16} }, err),
+        h('div', { style:{display:'flex',flexDirection:'column',gap:14} },
+          h(Field, { label:'Email', value:email, onChange:setEmail, type:'email', icon:'📧', placeholder:'you@example.com' }),
+          h(Field, { label:'Password', value:pass, onChange:setPass, type:'password', icon:'🔒', placeholder:'Password', onKey })
+        ),
+        h('div', { style:{textAlign:'right',margin:'10px 0 22px'} },
+          h('span', { style:{color:C.purple,fontSize:13,fontWeight:600,cursor:'pointer'} }, 'Forgot password?')
+        ),
+        h(Btn, { label:'Sign In', onClick:submit, loading }),
+        h('div', { style:{textAlign:'center',marginTop:24,fontSize:14,color:C[500]} },
+          "No account? ",
+          h('a', { href:'./register.html', style:{color:C.purple,fontWeight:700} }, 'Create one free →')
+        )
+      )
+    )
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('app')).render(h(LoginPage));
+</script>
+</body>
+</html>

@@ -1,48 +1,86 @@
-const http = require('http');
-const express = require('express');
-const cors = require('cors');
+require('dotenv').config();
 const path = require('path');
-const mongoose = require('mongoose');
-const { Server } = require('socket.io');
+const Fastify = require('fastify');
 const connectDB = require('./db/mongoose');
-const { PORT, FRONTEND_URL, NODE_ENV } = require('./config/env');
-const trustidRoutes = require('./routes/trustidRoutes');
 
-const app = express();
-const server = http.createServer(app);
-const corsOrigins = FRONTEND_URL === '*' ? '*' : FRONTEND_URL.split(',').map(u => u.trim());
-const io = new Server(server, {
-  cors: { origin: corsOrigins, methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'], credentials: true },
-  transports: ['websocket', 'polling'],
+const PORT = parseInt(process.env.PORT || '5000', 10);
+const NODE_ENV = process.env.NODE_ENV || 'development';
+const JWT_SECRET = process.env.JWT_SECRET || 'trustid-dev-secret-change-in-production';
+const FRONTEND_URL = process.env.FRONTEND_URL || '*';
+
+const fastify = Fastify({ logger: NODE_ENV === 'development' });
+
+/* ── CORS ── */
+fastify.register(require('@fastify/cors'), {
+  origin: FRONTEND_URL === '*' ? true : FRONTEND_URL.split(',').map(u => u.trim()),
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true,
 });
 
-app.set('io', io);
-io.on('connection', socket => console.log('[socket] connected', socket.id));
+/* ── JWT ── */
+fastify.register(require('@fastify/jwt'), { secret: JWT_SECRET });
 
-connectDB().catch(err => {
-  console.error('MongoDB connection error:', err.message);
+fastify.decorate('authenticate', async function (request, reply) {
+  try {
+    await request.jwtVerify();
+  } catch {
+    reply.code(401).send({ success: false, message: 'Unauthorized' });
+  }
 });
 
-app.use(cors({ origin: corsOrigins, methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'], allowedHeaders: ['Content-Type', 'Authorization'], credentials: true }));
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, '../public')));
-
-app.get('/health', (_req, res) => {
-  const dbState = ['disconnected', 'connected', 'connecting', 'disconnecting'];
-  res.json({ status: 'ok', app: 'trustid', uptime: process.uptime(), db: dbState[mongoose.connection.readyState] || 'unknown' });
+fastify.decorate('requireAdmin', async function (request, reply) {
+  try {
+    await request.jwtVerify();
+    if (request.user.role !== 'admin') {
+      reply.code(403).send({ success: false, message: 'Admin access required' });
+    }
+  } catch {
+    reply.code(401).send({ success: false, message: 'Unauthorized' });
+  }
 });
 
-app.get('/', (_req, res) => res.redirect('/trustid/'));
-app.use('/api/trustid', trustidRoutes);
-
-app.use('/api', (req, res) => res.status(404).json({ success: false, message: `Route ${req.originalUrl} not found.` }));
-app.use((req, res) => res.sendFile(path.join(__dirname, '../public/trustid/index.html')));
-app.use((err, _req, res, _next) => {
-  console.error(err);
-  res.status(err.status || 500).json({ success: false, message: err.message || 'Internal server error.' });
+/* ── Static files ── */
+fastify.register(require('@fastify/static'), {
+  root: path.join(__dirname, '../public'),
+  prefix: '/',
+  index: false,
 });
 
-server.listen(PORT, () => console.log(`TrustID app running on port ${PORT} [${NODE_ENV}]`));
+/* ── Health ── */
+fastify.get('/health', async () => ({
+  status: 'ok', app: 'trustid', uptime: process.uptime(), env: NODE_ENV,
+}));
 
-module.exports = app;
+/* ── Root redirect ── */
+fastify.get('/', async (req, reply) => reply.redirect('/trustid/'));
+
+/* ── API routes ── */
+fastify.register(require('./routes/auth'),      { prefix: '/api/trustid/auth' });
+fastify.register(require('./routes/documents'), { prefix: '/api/trustid/documents' });
+fastify.register(require('./routes/expenses'),  { prefix: '/api/trustid/expenses' });
+fastify.register(require('./routes/reminders'), { prefix: '/api/trustid/reminders' });
+fastify.register(require('./routes/todos'),     { prefix: '/api/trustid/todos' });
+fastify.register(require('./routes/admin'),     { prefix: '/api/trustid/admin' });
+
+/* ── Fallback: serve trustid HTML pages ── */
+fastify.setNotFoundHandler(async (request, reply) => {
+  if (request.url.startsWith('/trustid')) {
+    return reply.sendFile('trustid/index.html');
+  }
+  reply.code(404).send({ success: false, message: `Route ${request.url} not found` });
+});
+
+/* ── Start ── */
+const start = async () => {
+  try {
+    await connectDB();
+    await fastify.listen({ port: PORT, host: '0.0.0.0' });
+    console.log(`TrustID running on port ${PORT} [${NODE_ENV}]`);
+  } catch (err) {
+    fastify.log.error(err);
+    process.exit(1);
+  }
+};
+
+start();

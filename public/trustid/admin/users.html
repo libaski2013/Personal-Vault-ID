@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>TrustID Admin — Users</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <link rel="icon" href="../icon.svg">
+  <link rel="stylesheet" href="../css/styles.css">
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+</head>
+<body>
+<div id="app"></div>
+<script src="../js/auth.js"></script>
+<script>Auth.requireAdmin();</script>
+<script src="../js/api.js"></script>
+<script src="../js/components.js"></script>
+<script>
+const { createElement: h, useState, useEffect } = React;
+
+function AdminUsers() {
+  const [users,   setUsers]   = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search,  setSearch]  = useState('');
+
+  useEffect(() => {
+    Api.getAdminUsers().then(r => { if (r.success) setUsers(r.data); setLoading(false); });
+  }, []);
+
+  const filtered = users.filter(u =>
+    `${u.firstName} ${u.lastName} ${u.email}`.toLowerCase().includes(search.toLowerCase())
+  );
+
+  return h(AppLayout, { activePage:'admin-users' },
+    h('div', null,
+      h(PH, { title:'User Management', sub:`${users.length} total users`,
+        actions: h(Btn, { label:'Export', v:'ghost', icon:'📤', full:false, sm:true }) }),
+
+      h('div', { className:'table-wrap' },
+        h('div', { style:{padding:'14px 20px',borderBottom:`1px solid ${C[100]}`} },
+          h(Field, { value:search, onChange:setSearch, placeholder:'🔍 Search by name or email…' })
+        ),
+        loading
+          ? h('div', { style:{padding:40,textAlign:'center'} }, h(Spin))
+          : h('table', null,
+              h('thead', null,
+                h('tr', null,
+                  ['User','Email','Trust Level','Score','Docs','Status','Joined',''].map(hd =>
+                    h('th', { key:hd }, hd)
+                  )
+                )
+              ),
+              h('tbody', null,
+                filtered.map(u =>
+                  h('tr', { key:u._id },
+                    h('td', null,
+                      h('div', { style:{display:'flex',alignItems:'center',gap:10} },
+                        h('div', { style:{width:38,height:38,borderRadius:'50%',background:`linear-gradient(135deg,${C.purple},${C.purpleL})`,display:'flex',alignItems:'center',justifyContent:'center',color:'#fff',fontWeight:700,fontSize:13,flexShrink:0} },
+                          (u.firstName[0]||'') + (u.lastName[0]||'')
+                        ),
+                        h('span', { style:{fontWeight:600} }, `${u.firstName} ${u.lastName}`)
+                      )
+                    ),
+                    h('td', { style:{color:C[600]} }, u.email),
+                    h('td', null, h(TBadge, { level:u.trustId?.level||1 })),
+                    h('td', { style:{fontWeight:700,color:tlC(u.trustId?.level||1)} }, u.trustId?.score||0),
+                    h('td', { style:{color:C[600]} }, u.docsCount||0),
+                    h('td', null, h(Badge, { status:u.status })),
+                    h('td', { style:{fontSize:12,color:C[500]} }, fmtShort(u.joinedAt)),
+                    h('td', null,
+                      h('button', { style:{padding:'4px 10px',borderRadius:7,background:C[100],border:'none',cursor:'pointer',fontSize:11,color:C[600]} }, 'View')
+                    )
+                  )
+                )
+              )
+            )
+      )
+    )
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('app')).render(h(AdminUsers));
+</script>
+</body>
+</html>

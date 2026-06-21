@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>TrustID Admin — Registry</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <link rel="icon" href="../icon.svg">
+  <link rel="stylesheet" href="../css/styles.css">
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+</head>
+<body>
+<div id="app"></div>
+<script src="../js/auth.js"></script>
+<script>Auth.requireAdmin();</script>
+<script src="../js/api.js"></script>
+<script src="../js/components.js"></script>
+<script>
+const { createElement: h, useState, useEffect } = React;
+
+function AdminTrustIds() {
+  const [users,   setUsers]   = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search,  setSearch]  = useState('');
+
+  useEffect(() => {
+    Api.getAdminUsers().then(r => { if (r.success) setUsers(r.data); setLoading(false); });
+  }, []);
+
+  const filtered = users.filter(u =>
+    `${u.firstName} ${u.lastName} ${u.email}`.toLowerCase().includes(search.toLowerCase())
+  );
+
+  return h(AppLayout, { activePage:'admin-trustids' },
+    h('div', null,
+      h(PH, { title:'TrustID Registry', sub:'All issued TrustID certificates',
+        actions: h(Btn, { label:'Export Registry', v:'ghost', icon:'📤', full:false, sm:true }) }),
+
+      h('div', { className:'table-wrap' },
+        h('div', { style:{padding:'14px 20px',borderBottom:`1px solid ${C[100]}`} },
+          h(Field, { value:search, onChange:setSearch, placeholder:'🔍 Search users…' })
+        ),
+        loading
+          ? h('div', { style:{padding:40,textAlign:'center'} }, h(Spin))
+          : h('table', null,
+              h('thead', null,
+                h('tr', null,
+                  ['User','Trust Level','Score','Documents','Status','Actions'].map(hd =>
+                    h('th', { key:hd }, hd)
+                  )
+                )
+              ),
+              h('tbody', null,
+                filtered.map(u => {
+                  const lc = tlC(u.trustId?.level||1);
+                  return h('tr', { key:u._id },
+                    h('td', null,
+                      h('div', { style:{display:'flex',alignItems:'center',gap:12} },
+                        h('div', { style:{width:42,height:42,borderRadius:'50%',background:lc+'20',display:'flex',alignItems:'center',justifyContent:'center',color:lc,fontWeight:800,fontSize:15,flexShrink:0,border:`2px solid ${lc}30`} },
+                          u.firstName[0]||'U'
+                        ),
+                        h('div', null,
+                          h('div', { style:{fontWeight:700,fontSize:13} }, `${u.firstName} ${u.lastName}`),
+                          h('div', { style:{fontSize:11,color:C[500]} }, u.email)
+                        )
+                      )
+                    ),
+                    h('td', null, h(TBadge, { level:u.trustId?.level||1 })),
+                    h('td', null,
+                      h('div', { style:{display:'flex',alignItems:'center',gap:10} },
+                        h('div', { style:{flex:1,height:6,background:C[100],borderRadius:3,maxWidth:80} },
+                          h('div', { style:{height:'100%',borderRadius:3,background:lc,width:`${((u.trustId?.score||0)/1000)*100}%`} })
+                        ),
+                        h('span', { style:{fontSize:13,fontWeight:700,color:lc} }, u.trustId?.score||0)
+                      )
+                    ),
+                    h('td', { style:{color:C[600]} }, `${u.docsCount||0} docs`),
+                    h('td', null, h(Badge, { status:u.status })),
+                    h('td', null,
+                      h('button', { style:{padding:'5px 12px',borderRadius:8,background:C[100],border:'none',cursor:'pointer',fontSize:12,color:C[600]} }, 'View')
+                    )
+                  );
+                })
+              )
+            )
+      )
+    )
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('app')).render(h(AdminTrustIds));
+</script>
+</body>
+</html>
