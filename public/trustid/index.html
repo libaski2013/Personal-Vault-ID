@@ -3,144 +3,203 @@
 <head>
   <meta charset="utf-8">
   <title>TrustID — Your Digital Identity Platform</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#1E1B4B">
-  <meta name="description" content="Manage, verify, and share your identity documents with AI-powered scanning and real-time trust scoring.">
-  <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./icon.svg">
-  <link rel="stylesheet" href="./css/styles.css">
-  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-</head>
-<body>
-<div id="app"></div>
-<script src="./js/auth.js"></script>
-<script>
-/* Redirect logged-in users */
-Auth.requireGuest();
-</script>
-<script src="./js/api.js"></script>
-<script src="./js/components.js"></script>
-<script>
-const { createElement: h, useState } = React;
+  <link rel="manifest" href="./manifest.webmanifest">
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:Inter,system-ui,-apple-system,sans-serif;background:#fff;color:#0F172A}
+    a{color:inherit;text-decoration:none}
+    button{font:inherit;cursor:pointer}
 
-const feats = [
-  ['🛡️','Digital Identity','Secure, government-grade identity certificates stored on a trusted platform.'],
-  ['📊','Trust Score','Dynamic 0–1000 score that grows as you verify more documents.'],
-  ['🤖','AI Doc Scanning','AI-powered document enhancement and authenticity verification.'],
-  ['📱','QR Verification','Instantly share your TrustID with QR codes for real-time verification.'],
-  ['💰','Expense Tracker','Built-in financial tracker to manage documents and spending together.'],
-  ['🔒','Bank-grade Security','End-to-end encryption, MFA, and zero-knowledge proofs.'],
-];
+    /* Nav */
+    .nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.95);backdrop-filter:blur(12px);border-bottom:1px solid #F1F5F9;height:66px;display:flex;align-items:center}
+    .nav-inner{max-width:1140px;margin:0 auto;padding:0 24px;width:100%;display:flex;align-items:center;justify-content:space-between}
+    .logo{display:flex;align-items:center;gap:10px}
+    .logo-icon{width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,#1E1B4B,#7C3AED);display:flex;align-items:center;justify-content:center;font-size:18px}
+    .logo-name{font-size:20px;font-weight:900;color:#0F172A}
+    .nav-btns{display:flex;gap:10px}
+    .btn-outline{padding:8px 20px;border-radius:10px;background:transparent;border:1.5px solid #7C3AED;color:#7C3AED;font-weight:700;font-size:14px}
+    .btn-primary{padding:8px 20px;border-radius:10px;background:linear-gradient(135deg,#7C3AED,#8B5CF6);border:none;color:#fff;font-weight:700;font-size:14px}
+    .btn-outline:hover{background:#7C3AED12}
+    .btn-primary:hover{opacity:0.9}
 
-function Landing() {
-  const go = p => window.location.href = p;
-  return h('div', { style:{fontFamily:'Inter,system-ui,sans-serif',background:'#fff',overflowX:'hidden'} },
+    /* Hero */
+    .hero{background:linear-gradient(155deg,#0F0E2A 0%,#1E1B4B 45%,#312E81 75%,#7C3AED 100%);padding:80px 24px 90px;text-align:center;overflow:hidden}
+    .hero-badge{display:inline-flex;align-items:center;gap:8px;padding:6px 16px;border-radius:100px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);margin-bottom:28px}
+    .hero-dot{width:8px;height:8px;border-radius:50%;background:#22C55E;display:inline-block}
+    .hero-badge-text{color:rgba(255,255,255,0.8);font-size:13px;font-weight:600}
+    .hero-title{font-size:clamp(36px,5.5vw,64px);font-weight:900;color:#fff;line-height:1.1;margin-bottom:20px;letter-spacing:-1.5px}
+    .hero-gradient{background:linear-gradient(90deg,#A78BFA,#60A5FA);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+    .hero-sub{font-size:17px;color:rgba(255,255,255,0.65);max-width:560px;margin:0 auto 42px;line-height:1.75}
+    .hero-btns{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
+    .hero-btn-white{padding:15px 34px;border-radius:14px;background:#fff;border:none;color:#7C3AED;font-weight:800;font-size:16px;box-shadow:0 8px 32px rgba(0,0,0,0.25)}
+    .hero-btn-ghost{padding:15px 34px;border-radius:14px;background:rgba(255,255,255,0.1);border:1.5px solid rgba(255,255,255,0.3);color:#fff;font-weight:700;font-size:16px}
+    .hero-btn-white:hover{transform:translateY(-1px)}
+    .hero-btn-ghost:hover{background:rgba(255,255,255,0.15)}
 
-    /* NAV */
-    h('nav', { style:{position:'sticky',top:0,zIndex:100,background:'rgba(255,255,255,0.95)',backdropFilter:'blur(12px)',borderBottom:`1px solid ${C[100]}`,height:66,display:'flex',alignItems:'center'} },
-      h('div', { style:{maxWidth:1140,margin:'0 auto',padding:'0 24px',width:'100%',display:'flex',alignItems:'center',justifyContent:'space-between'} },
-        h('div', { style:{display:'flex',alignItems:'center',gap:10} },
-          h('div', { style:{width:38,height:38,borderRadius:10,background:`linear-gradient(135deg,${C.navy},${C.purple})`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:18} }, '🛡️'),
-          h('span', { style:{fontSize:20,fontWeight:900,color:C[900]} }, 'TrustID')
-        ),
-        h('div', { style:{display:'flex',alignItems:'center',gap:10} },
-          h('button', { onClick:()=>go('./login.html'), className:'btn btn-outline btn-sm', style:{width:'auto'} }, 'Sign In'),
-          h('button', { onClick:()=>go('./register.html'), className:'btn btn-primary btn-sm', style:{width:'auto'} }, 'Get Started →')
-        )
-      )
-    ),
+    /* Stats bar */
+    .stats{background:#0F172A;padding:40px 24px}
+    .stats-grid{max-width:1140px;margin:0 auto;display:grid;grid-template-columns:repeat(4,1fr);gap:24px;text-align:center}
+    .stat-val{font-size:34px;font-weight:900;color:#fff}
+    .stat-lbl{font-size:13px;color:#94A3B8;margin-top:5px}
 
-    /* HERO */
-    h('div', { className:'hero', style:{position:'relative',overflow:'hidden'} },
-      h('div', { style:{maxWidth:720,margin:'0 auto',position:'relative',textAlign:'center'} },
-        h('div', { style:{display:'inline-flex',alignItems:'center',gap:8,padding:'6px 16px',borderRadius:100,background:'rgba(255,255,255,0.1)',border:'1px solid rgba(255,255,255,0.2)',marginBottom:28} },
-          h('span', { style:{width:8,height:8,borderRadius:'50%',background:C.green,display:'inline-block'} }),
-          h('span', { style:{color:'rgba(255,255,255,0.8)',fontSize:13,fontWeight:600} }, 'Secure · Verified · Trusted')
-        ),
-        h('h1', { style:{fontSize:'clamp(36px,5.5vw,64px)',fontWeight:900,color:'#fff',lineHeight:1.1,marginBottom:20,letterSpacing:-1.5} },
-          'Your Digital Identity,',
-          h('br'),
-          h('span', { style:{background:'linear-gradient(90deg,#A78BFA,#60A5FA)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'} }, 'Verified & Trusted')
-        ),
-        h('p', { style:{fontSize:17,color:'rgba(255,255,255,0.65)',maxWidth:560,margin:'0 auto 42px',lineHeight:1.75} },
-          'The all-in-one platform to manage, verify, and share your identity documents — with AI-powered scanning and real-time trust scoring.'
-        ),
-        h('div', { style:{display:'flex',gap:14,justifyContent:'center',flexWrap:'wrap'} },
-          h('button', { onClick:()=>go('./register.html'), style:{padding:'15px 34px',borderRadius:14,background:'#fff',border:'none',color:C.purple,fontWeight:800,fontSize:16,cursor:'pointer',boxShadow:'0 8px 32px rgba(0,0,0,0.25)'} }, 'Create Free Account'),
-          h('button', { onClick:()=>go('./login.html'), style:{padding:'15px 34px',borderRadius:14,background:'rgba(255,255,255,0.1)',border:'1.5px solid rgba(255,255,255,0.3)',color:'#fff',fontWeight:700,fontSize:16,cursor:'pointer'} }, 'Sign In →')
-        )
-      )
-    ),
+    /* Features */
+    .section{padding:80px 24px}
+    .section-bg{background:#F8FAFC}
+    .container{max-width:1140px;margin:0 auto}
+    .section-tag{display:inline-block;padding:5px 14px;border-radius:100px;background:#7C3AED12;color:#7C3AED;font-size:12px;font-weight:700;margin-bottom:14px}
+    .section-title{font-size:38px;font-weight:900;color:#0F172A;letter-spacing:-1px;margin-bottom:14px}
+    .section-sub{font-size:16px;color:#64748B;max-width:480px;margin:0 auto}
+    .grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;margin-top:54px}
+    .feat-card{background:#fff;border-radius:20px;padding:26px;border:1px solid #F1F5F9}
+    .feat-icon{font-size:34px;margin-bottom:14px}
+    .feat-title{font-size:16px;font-weight:800;color:#0F172A;margin-bottom:8px}
+    .feat-desc{font-size:14px;color:#64748B;line-height:1.65}
 
-    /* STATS */
-    h('div', { style:{background:C[900],padding:'40px 24px'} },
-      h('div', { style:{maxWidth:1140,margin:'0 auto',display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:24,textAlign:'center'} },
-        [['1,284+','Verified Users'],['4,521','Documents Verified'],['987','Active TrustIDs'],['99.9%','Uptime SLA']].map(([v,l]) =>
-          h('div', { key:l },
-            h('div', { style:{fontSize:34,fontWeight:900,color:'#fff'} }, v),
-            h('div', { style:{fontSize:13,color:C[400],marginTop:5} }, l)
-          )
-        )
-      )
-    ),
-
-    /* FEATURES */
-    h('div', { className:'section', style:{background:C[50]} },
-      h('div', { className:'container' },
-        h('div', { style:{textAlign:'center',marginBottom:54} },
-          h('div', { style:{display:'inline-block',padding:'5px 14px',borderRadius:100,background:C.purple+'12',color:C.purple,fontSize:12,fontWeight:700,marginBottom:14} }, 'PLATFORM FEATURES'),
-          h('h2', { style:{fontSize:38,fontWeight:900,color:C[900],letterSpacing:-1,marginBottom:14} }, 'Everything you need'),
-          h('p', { style:{fontSize:16,color:C[500],maxWidth:480,margin:'0 auto'} }, 'Manage your entire digital identity lifecycle from one powerful platform.')
-        ),
-        h('div', { className:'grid-3' },
-          feats.map(([icon,title,desc]) =>
-            h('div', { key:title, className:'card', style:{borderRadius:20,padding:26} },
-              h('div', { style:{fontSize:34,marginBottom:14} }, icon),
-              h('h3', { style:{fontSize:16,fontWeight:800,color:C[900],marginBottom:8} }, title),
-              h('p', { style:{fontSize:14,color:C[500],lineHeight:1.65,margin:0} }, desc)
-            )
-          )
-        )
-      )
-    ),
-
-    /* HOW IT WORKS */
-    h('div', { className:'section', style:{background:'#fff'} },
-      h('div', { style:{maxWidth:900,margin:'0 auto',textAlign:'center'} },
-        h('h2', { style:{fontSize:36,fontWeight:900,color:C[900],marginBottom:14,letterSpacing:-0.8} }, 'How TrustID works'),
-        h('p', { style:{color:C[500],fontSize:16,marginBottom:54} }, 'Three simple steps to a verified digital identity.'),
-        h('div', { className:'grid-3' },
-          [['1','Create Account','Sign up free. No credit card required.',C.blue],['2','Verify Documents','Upload your ID documents. Our AI verifies them.',C.purple],['3','Get Your TrustID','Receive your certificate with a trust score.',C.green]].map(([n,t,d,col]) =>
-            h('div', { key:n, style:{display:'flex',flexDirection:'column',alignItems:'center',gap:14} },
-              h('div', { style:{width:60,height:60,borderRadius:'50%',background:`linear-gradient(135deg,${col},${col}90)`,display:'flex',alignItems:'center',justifyContent:'center',color:'#fff',fontWeight:900,fontSize:22,boxShadow:`0 8px 24px ${col}40`} }, n),
-              h('h3', { style:{fontSize:17,fontWeight:800,color:C[900]} }, t),
-              h('p', { style:{fontSize:14,color:C[500],lineHeight:1.65,textAlign:'center'} }, d)
-            )
-          )
-        )
-      )
-    ),
+    /* How it works */
+    .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:36px;margin-top:54px;text-align:center}
+    .step-num{width:60px;height:60px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:900;font-size:22px;margin:0 auto 14px}
+    .step-title{font-size:17px;font-weight:800;color:#0F172A;margin-bottom:8px}
+    .step-desc{font-size:14px;color:#64748B;line-height:1.65}
 
     /* CTA */
-    h('div', { style:{background:`linear-gradient(135deg,${C.navy},${C.purple})`,padding:'80px 24px',textAlign:'center'} },
-      h('div', { style:{maxWidth:600,margin:'0 auto'} },
-        h('h2', { style:{fontSize:36,fontWeight:900,color:'#fff',marginBottom:16,letterSpacing:-0.5} }, "Ready to get your TrustID?"),
-        h('p', { style:{fontSize:16,color:'rgba(255,255,255,0.7)',marginBottom:36,lineHeight:1.7} }, "Join thousands of users who trust us with their digital identity. It's free forever."),
-        h('div', { style:{display:'flex',gap:14,justifyContent:'center'} },
-          h('button', { onClick:()=>go('./register.html'), style:{padding:'14px 34px',borderRadius:14,background:'#fff',border:'none',color:C.purple,fontWeight:800,fontSize:15,cursor:'pointer'} }, 'Create Free Account'),
-          h('button', { onClick:()=>go('./login.html'), style:{padding:'14px 34px',borderRadius:14,background:'transparent',border:'1.5px solid rgba(255,255,255,0.4)',color:'#fff',fontWeight:700,fontSize:15,cursor:'pointer'} }, 'Sign In')
-        )
-      )
-    ),
+    .cta{background:linear-gradient(135deg,#1E1B4B,#7C3AED);padding:80px 24px;text-align:center}
+    .cta-title{font-size:36px;font-weight:900;color:#fff;margin-bottom:16px;letter-spacing:-0.5px}
+    .cta-sub{font-size:16px;color:rgba(255,255,255,0.7);margin-bottom:36px;line-height:1.7;max-width:540px;margin-left:auto;margin-right:auto}
+    .cta-btns{display:flex;gap:14px;justify-content:center}
+    .cta-btn-white{padding:14px 34px;border-radius:14px;background:#fff;border:none;color:#7C3AED;font-weight:800;font-size:15px}
+    .cta-btn-ghost{padding:14px 34px;border-radius:14px;background:transparent;border:1.5px solid rgba(255,255,255,0.4);color:#fff;font-weight:700;font-size:15px}
 
-    h('div', { style:{background:C[900],padding:'24px',textAlign:'center',color:C[500],fontSize:13} },
-      '© 2024 TrustID Platform · Secure Digital Identity'
-    )
-  );
-}
+    /* Footer */
+    .footer{background:#0F172A;padding:24px;text-align:center;color:#64748B;font-size:13px}
 
-ReactDOM.createRoot(document.getElementById('app')).render(h(Landing));
+    /* Responsive */
+    @media(max-width:768px){
+      .grid-3,.steps,.stats-grid{grid-template-columns:1fr}
+      .hero{padding:48px 16px 56px}
+      .nav-btns .btn-outline{display:none}
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="nav">
+  <div class="nav-inner">
+    <div class="logo">
+      <div class="logo-icon">🛡️</div>
+      <span class="logo-name">TrustID</span>
+    </div>
+    <div class="nav-btns">
+      <button class="btn-outline" onclick="location.href='./login.html'">Sign In</button>
+      <button class="btn-primary" onclick="location.href='./register.html'">Get Started →</button>
+    </div>
+  </div>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-badge">
+    <span class="hero-dot"></span>
+    <span class="hero-badge-text">Secure · Verified · Trusted</span>
+  </div>
+  <h1 class="hero-title">
+    Your Digital Identity,<br>
+    <span class="hero-gradient">Verified &amp; Trusted</span>
+  </h1>
+  <p class="hero-sub">
+    The all-in-one platform to manage, verify, and share your identity documents —
+    with AI-powered scanning and real-time trust scoring.
+  </p>
+  <div class="hero-btns">
+    <button class="hero-btn-white" onclick="location.href='./register.html'">Create Free Account</button>
+    <button class="hero-btn-ghost" onclick="location.href='./login.html'">Sign In →</button>
+  </div>
+</div>
+
+<!-- STATS -->
+<div class="stats">
+  <div class="stats-grid">
+    <div><div class="stat-val">1,284+</div><div class="stat-lbl">Verified Users</div></div>
+    <div><div class="stat-val">4,521</div><div class="stat-lbl">Documents Verified</div></div>
+    <div><div class="stat-val">987</div><div class="stat-lbl">Active TrustIDs</div></div>
+    <div><div class="stat-val">99.9%</div><div class="stat-lbl">Uptime SLA</div></div>
+  </div>
+</div>
+
+<!-- FEATURES -->
+<div class="section section-bg">
+  <div class="container" style="text-align:center">
+    <span class="section-tag">PLATFORM FEATURES</span>
+    <h2 class="section-title">Everything you need</h2>
+    <p class="section-sub">Manage your entire digital identity lifecycle from one powerful platform.</p>
+    <div class="grid-3">
+      <div class="feat-card"><div class="feat-icon">🛡️</div><h3 class="feat-title">Digital Identity</h3><p class="feat-desc">Secure, government-grade identity certificates stored on a trusted platform.</p></div>
+      <div class="feat-card"><div class="feat-icon">📊</div><h3 class="feat-title">Trust Score</h3><p class="feat-desc">Dynamic 0–1000 score that grows as you verify more documents.</p></div>
+      <div class="feat-card"><div class="feat-icon">🤖</div><h3 class="feat-title">AI Doc Scanning</h3><p class="feat-desc">AI-powered document enhancement and authenticity verification.</p></div>
+      <div class="feat-card"><div class="feat-icon">📱</div><h3 class="feat-title">QR Verification</h3><p class="feat-desc">Instantly share your TrustID with QR codes for real-time verification.</p></div>
+      <div class="feat-card"><div class="feat-icon">💰</div><h3 class="feat-title">Expense Tracker</h3><p class="feat-desc">Built-in financial tracker to manage documents and spending together.</p></div>
+      <div class="feat-card"><div class="feat-icon">🔒</div><h3 class="feat-title">Bank-grade Security</h3><p class="feat-desc">End-to-end encryption, MFA, and zero-knowledge proofs.</p></div>
+    </div>
+  </div>
+</div>
+
+<!-- HOW IT WORKS -->
+<div class="section">
+  <div class="container" style="text-align:center">
+    <h2 class="section-title">How TrustID works</h2>
+    <p class="section-sub">Three simple steps to a verified digital identity.</p>
+    <div class="steps">
+      <div>
+        <div class="step-num" style="background:linear-gradient(135deg,#3B82F6,#3B82F690)">1</div>
+        <h3 class="step-title">Create Account</h3>
+        <p class="step-desc">Sign up free. No credit card required. Set up your profile in under 2 minutes.</p>
+      </div>
+      <div>
+        <div class="step-num" style="background:linear-gradient(135deg,#7C3AED,#7C3AED90)">2</div>
+        <h3 class="step-title">Verify Documents</h3>
+        <p class="step-desc">Upload your ID documents. Our AI scans and verifies them automatically.</p>
+      </div>
+      <div>
+        <div class="step-num" style="background:linear-gradient(135deg,#22C55E,#22C55E90)">3</div>
+        <h3 class="step-title">Get Your TrustID</h3>
+        <p class="step-desc">Receive your verified TrustID certificate with a trust score. Share anywhere.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CTA -->
+<div class="cta">
+  <h2 class="cta-title">Ready to get your TrustID?</h2>
+  <p class="cta-sub">Join thousands of users who trust us with their digital identity. It's free forever.</p>
+  <div class="cta-btns">
+    <button class="cta-btn-white" onclick="location.href='./register.html'">Create Free Account</button>
+    <button class="cta-btn-ghost" onclick="location.href='./login.html'">Sign In</button>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<div class="footer">© 2024 TrustID Platform · Secure Digital Identity</div>
+
+<script>
+  /* Redirect already-logged-in users to their dashboard */
+  (function () {
+    try {
+      var token = localStorage.getItem('tid_token');
+      if (token) {
+        var user = JSON.parse(localStorage.getItem('tid_user') || 'null');
+        window.location.replace(
+          user && user.role === 'admin'
+            ? './admin/dashboard.html'
+            : './dashboard.html'
+        );
+      }
+    } catch (e) { /* ignore */ }
+  })();
 </script>
+
 </body>
 </html>
