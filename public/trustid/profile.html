@@ -2,17 +2,23 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>TrustID — Profile</title>
+  <title>TrustID - Profile</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <link rel="icon" href="./icon.svg">
   <link rel="stylesheet" href="./css/styles.css">
+  <style>
+    .photo-lg{width:108px;height:108px;border-radius:50%;object-fit:cover;background:linear-gradient(135deg,#7C3AED,#8B5CF6);display:flex;align-items:center;justify-content:center;color:#fff;font-size:34px;font-weight:900;border:4px solid #fff;box-shadow:0 10px 28px rgba(15,23,42,.16)}
+    .handle-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+    textarea.input{height:auto;min-height:88px;padding:12px;resize:vertical}
+    @media(max-width:760px){.profile-grid,.handle-grid{grid-template-columns:1fr!important}}
+  </style>
 </head>
 <body>
 <div class="app-shell">
   <div id="sidebar"></div>
   <div id="main">
     <div id="topbar"></div>
-    <div class="page-content" id="content"><div id="loading"></div></div>
+    <div class="page-content" id="content"></div>
   </div>
 </div>
 <script src="./js/auth.js"></script>
@@ -21,103 +27,106 @@
 <script src="./js/layout.js"></script>
 <script>
 Layout.init('profile');
-document.getElementById('loading').innerHTML = Layout.spinner();
-
 var user = Auth.getUser() || {};
-var tid  = user.trustId  || {};
-var ini  = ((user.firstName||'')[0]||'').toUpperCase() + ((user.lastName||'')[0]||'').toUpperCase();
+var social = user.socialHandles || {};
 
-function field(label, value) {
-  return '<div>'
-    + '<label class="label">' + label + '</label>'
-    + '<input class="input" value="' + (value||'') + '" readonly style="background:#F8FAFC;color:#334155;cursor:default">'
-    + '</div>';
+function initials() {
+  return (((user.firstName||'')[0]||'') + ((user.lastName||'')[0]||'')).toUpperCase() || 'U';
 }
 
-Api.getDocs().then(function(res) {
-  var docs     = res.success ? res.data : [];
-  var verified = docs.filter(function(d){ return d.status==='verified'; }).length;
-  var pending  = docs.filter(function(d){ return d.status==='pending'; }).length;
-  var rejected = docs.filter(function(d){ return d.status==='rejected'; }).length;
+function esc(v) {
+  return String(v || '').replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; });
+}
 
-  var level  = tid.level || 1;
-  var col    = Layout.tlColor(level);
+function photoHtml() {
+  if (user.profilePhoto) return '<img class="photo-lg" src="'+user.profilePhoto+'" alt="Profile picture">';
+  return '<div class="photo-lg">'+initials()+'</div>';
+}
 
+function render() {
+  var tid = user.trustId || {};
   document.getElementById('content').innerHTML =
     '<div class="page-header">'
-    + '<div><h1 class="page-title">Profile</h1><p class="page-sub">Your personal information</p></div>'
+    + '<div><h1 class="page-title">Profile</h1><p class="page-sub">Manage your public identity, profile picture and social handles</p></div>'
     + '</div>'
-
-    + '<div style="display:grid;grid-template-columns:280px 1fr;gap:22px">'
-
-    /* ── Left column ── */
-    + '<div style="display:flex;flex-direction:column;gap:16px">'
-
-    + '<div class="card" style="text-align:center">'
-    +   '<div style="width:78px;height:78px;border-radius:50%;background:linear-gradient(135deg,#7C3AED,#8B5CF6);margin:0 auto 14px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:28px">' + (ini||'U') + '</div>'
-    +   '<div style="font-size:17px;font-weight:800;color:#0F172A">' + (user.firstName||'') + ' ' + (user.lastName||'') + '</div>'
-    +   '<div style="font-size:13px;color:#64748B;margin-bottom:12px">' + (user.email||'') + '</div>'
-    +   '<span style="display:inline-flex;align-items:center;gap:5px;padding:5px 14px;border-radius:100px;background:' + col + '18;border:1px solid ' + col + '40;color:' + col + ';font-size:12px;font-weight:700">🛡 L' + level + ' · ' + Layout.tlN(level) + '</span>'
-    +   '<div style="margin-top:16px;padding-top:14px;border-top:1px solid #F1F5F9">'
-    +     '<div style="font-size:12px;color:#64748B;margin-bottom:3px">Member since</div>'
-    +     '<div style="font-size:13px;font-weight:600;color:#334155">' + Layout.fmtDate(user.joinedAt || new Date()) + '</div>'
-    +   '</div>'
-    + '</div>'
-
-    + '<div class="card">'
-    +   '<h3 style="font-size:13px;font-weight:800;margin-bottom:13px">Document Summary</h3>'
-    +   [['Total', docs.length],['Verified', verified],['Pending', pending],['Rejected', rejected]].map(function(row) {
-         return '<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #F8FAFC;font-size:13px">'
-           + '<span style="color:#64748B">' + row[0] + '</span>'
-           + '<span style="font-weight:700;color:#0F172A">' + row[1] + '</span>'
-           + '</div>';
-       }).join('')
-    + '</div>'
-
-    + '</div>'
-
-    /* ── Right column ── */
+    + '<div class="profile-grid" style="display:grid;grid-template-columns:320px 1fr;gap:22px;align-items:start">'
     + '<div style="display:flex;flex-direction:column;gap:18px">'
-
+    + '<div class="card" style="text-align:center">'
+    + photoHtml()
+    + '<div style="font-size:18px;font-weight:900;margin-top:14px">'+esc(user.firstName)+' '+esc(user.lastName)+'</div>'
+    + '<div style="font-size:13px;color:#64748B;margin-top:4px">'+esc(user.email)+'</div>'
+    + '<label class="btn btn-ghost btn-full" style="margin-top:16px;cursor:pointer">Upload Photo<input id="photoInput" type="file" accept="image/*" style="display:none"></label>'
+    + '<div style="font-size:12px;color:#64748B;line-height:1.55;margin-top:10px">Profile pictures are stored as a small image on your profile and can be shared only when you include Identity in a QR card.</div>'
+    + '</div>'
     + '<div class="card">'
-    +   '<h3 style="font-size:15px;font-weight:800;margin-bottom:18px">Personal Information</h3>'
-    +   '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:18px">'
-    +     field('First Name',   user.firstName   || '')
-    +     field('Middle Name',  user.middleName   || '')
-    +     field('Last Name',    user.lastName     || '')
-    +     field('Email',        user.email        || '')
-    +     field('Role',         user.role === 'admin' ? 'Administrator' : 'User')
-    +   '</div>'
-    +   '<div style="padding:11px 14px;border-radius:10px;background:#3B82F610;border:1px solid #3B82F625;font-size:12px;color:#3B82F6">'
-    +     'ℹ️ Profile is read-only. Contact admin to update your details.'
-    +   '</div>'
+    + '<h3 style="font-size:14px;font-weight:800;margin-bottom:12px">Trust Summary</h3>'
+    + [['TrustID',tid.id||'Pending'],['Level','L'+(tid.level||1)+' '+Layout.tlN(tid.level||1)],['Score',(tid.score||100)+'/1000'],['Member since',Layout.fmtDate(user.joinedAt)]].map(function(r){return '<div style="display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid #F8FAFC;font-size:13px"><span style="color:#64748B">'+r[0]+'</span><strong>'+r[1]+'</strong></div>';}).join('')
     + '</div>'
-
+    + '</div>'
+    + '<div style="display:flex;flex-direction:column;gap:18px">'
     + '<div class="card">'
-    +   '<h3 style="font-size:15px;font-weight:800;margin-bottom:18px">TrustID Certificate</h3>'
-    +   [
-         ['TrustID Number', tid.id || 'Pending'],
-         ['Trust Level',    level + ' — ' + Layout.tlN(level)],
-         ['Trust Score',    (tid.score||100) + '/1000'],
-         ['Status',         (tid.status||'pending').charAt(0).toUpperCase() + (tid.status||'pending').slice(1)],
-         ['Issued',         Layout.fmtDate(tid.issuedAt)]
-       ].map(function(row) {
-         return '<div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #F8FAFC;font-size:13px">'
-           + '<span style="color:#64748B">' + row[0] + '</span>'
-           + '<span style="font-weight:600;color:#0F172A">' + row[1] + '</span>'
-           + '</div>';
-       }).join('')
-    +   '<div style="margin-top:16px">'
-    +     '<a href="./certificate.html" class="btn btn-outline" style="display:inline-flex;width:auto">🛡️ View Full Certificate</a>'
-    +   '</div>'
+    + '<h3 style="font-size:15px;font-weight:800;margin-bottom:16px">Personal Information</h3>'
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">'
+    + field('First Name','firstName',user.firstName) + field('Middle Name','middleName',user.middleName)
+    + field('Last Name','lastName',user.lastName) + field('Phone','phone',user.phone,'tel')
     + '</div>'
-
+    + '<label class="label">Bio / Portfolio Summary</label><textarea id="bio" class="input" placeholder="A short summary of your personality, portfolio, skills or story">'+esc(user.bio)+'</textarea>'
     + '</div>'
-    + '</div>';
+    + '<div class="card">'
+    + '<h3 style="font-size:15px;font-weight:800;margin-bottom:16px">Social Media Handles</h3>'
+    + '<div class="handle-grid">'
+    + field('WhatsApp','whatsapp',social.whatsapp) + field('Facebook','facebook',social.facebook)
+    + field('Instagram','instagram',social.instagram) + field('X / Twitter','x',social.x)
+    + field('LinkedIn','linkedin',social.linkedin) + field('TikTok','tiktok',social.tiktok)
+    + field('Snapchat','snapchat',social.snapchat) + field('Website','website',social.website,'url')
+    + '</div>'
+    + '</div>'
+    + '<button id="saveBtn" onclick="saveProfile()" class="btn btn-primary btn-full" style="height:50px">Save Profile</button>'
+    + '</div></div>';
+  document.getElementById('photoInput').addEventListener('change', readPhoto);
+}
 
-}).catch(function() {
-  document.getElementById('content').innerHTML = '<div class="empty">Failed to load profile data. Please refresh.</div>';
-});
+function field(label, id, value, type) {
+  return '<div><label class="label">'+label+'</label><input id="'+id+'" class="input" type="'+(type||'text')+'" value="'+esc(value)+'"></div>';
+}
+
+function readPhoto(e) {
+  var file = e.target.files && e.target.files[0];
+  if (!file) return;
+  if (file.size > 700000) { Layout.toast('Choose an image under 700 KB.', 'error'); return; }
+  var reader = new FileReader();
+  reader.onload = function(){ user.profilePhoto = reader.result; render(); };
+  reader.readAsDataURL(file);
+}
+
+function saveProfile() {
+  var body = {
+    firstName:document.getElementById('firstName').value.trim(),
+    middleName:document.getElementById('middleName').value.trim(),
+    lastName:document.getElementById('lastName').value.trim(),
+    phone:document.getElementById('phone').value.trim(),
+    bio:document.getElementById('bio').value.trim(),
+    profilePhoto:user.profilePhoto || '',
+    socialHandles:{
+      whatsapp:val('whatsapp'), facebook:val('facebook'), instagram:val('instagram'), x:val('x'),
+      linkedin:val('linkedin'), tiktok:val('tiktok'), snapchat:val('snapchat'), website:val('website')
+    }
+  };
+  var btn = document.getElementById('saveBtn');
+  btn.disabled = true; btn.textContent = 'Saving...';
+  Api.updateProfile(body).then(function(res){
+    btn.disabled = false; btn.textContent = 'Save Profile';
+    if (res.success && res.user) {
+      user = res.user; social = user.socialHandles || {};
+      Auth.setSession(Auth.getToken(), user);
+      Layout.toast('Profile saved.');
+      render();
+    } else Layout.toast(res.message || 'Could not save profile.', 'error');
+  });
+}
+
+function val(id){ return document.getElementById(id).value.trim(); }
+render();
 </script>
 </body>
 </html>

@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Personal Vault - Social Network</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="icon" href="./icon.svg">
+  <link rel="stylesheet" href="./css/styles.css">
+  <style>
+    .social-grid{display:grid;grid-template-columns:340px 1fr;gap:22px;align-items:start}
+    .token-card{border:1px solid #E8ECF4;border-radius:14px;padding:14px;background:#fff;margin-bottom:10px;display:flex;justify-content:space-between;gap:12px;align-items:center}
+    .chat-box{height:360px;overflow:auto;background:#F8FAFC;border:1px solid #E2E8F0;border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:10px}
+    .msg{max-width:78%;padding:10px 12px;border-radius:12px;font-size:13px;line-height:1.45}
+    .mine{align-self:flex-end;background:#7C3AED;color:#fff}
+    .theirs{align-self:flex-start;background:#fff;border:1px solid #E2E8F0;color:#334155}
+    .privacy-note{background:#EEF2FF;border:1px solid #C7D2FE;color:#3730A3;border-radius:14px;padding:14px;font-size:13px;line-height:1.6}
+    @media(max-width:900px){.social-grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+<div class="app-shell">
+  <div id="sidebar"></div>
+  <div id="main">
+    <div id="topbar"></div>
+    <div class="page-content" id="content"></div>
+  </div>
+</div>
+<script src="./js/auth.js"></script>
+<script>if(!Auth.requireAuth()) throw '';</script>
+<script src="./js/api.js"></script>
+<script src="./js/layout.js"></script>
+<script>
+Layout.init('social');
+var zone = 'nearby', session = null, nearby = [], chats = [], activeChat = null;
+document.getElementById('content').innerHTML = Layout.spinner();
+loadAll();
+setInterval(function(){ if(session) loadNearby(); if(activeChat) loadChats(false); }, 10000);
+
+function me(){ return (Auth.getUser()||{})._id; }
+function esc(v){ return String(v||'').replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+
+function loadAll(){ Promise.all([loadNearby(false), loadChats(false)]).then(render); }
+function loadNearby(draw){
+  return Api.socialNearby(zone).then(function(r){ nearby=r.data||[]; if(!r.discoverable) session=null; if(draw!==false) render(); });
+}
+function loadChats(draw){
+  return Api.socialChats().then(function(r){ chats=r.data||[]; if(activeChat){ activeChat=chats.find(function(c){return c._id===activeChat._id;})||activeChat; } if(draw!==false) render(); });
+}
+
+function render(){
+  document.getElementById('content').innerHTML =
+    '<div class="page-header"><div><h1 class="page-title">Social Network</h1><p class="page-sub">Anonymous nearby discovery and 24-hour temporary chats</p></div></div>'
+    + '<div class="social-grid">'
+    + '<div style="display:flex;flex-direction:column;gap:16px">'
+    + '<div class="card"><h3 style="font-size:15px;font-weight:800;margin-bottom:12px">Nearby Discovery</h3>'
+    + '<div class="privacy-note">Strictly opt-in. Your real name, email, phone and exact location are hidden. This web version uses a temporary server token by zone; native Wi-Fi/Bluetooth discovery can be added in the mobile shell later.</div>'
+    + '<label class="label" style="margin-top:14px">Discovery Zone</label><input id="zone" class="input" value="'+esc(zone)+'" placeholder="nearby, campus, event-name">'
+    + (session?'<div style="margin-top:14px;padding:12px;border-radius:12px;background:#22C55E12;color:#15803D;font-size:13px"><strong>'+esc(session.alias)+'</strong><br>'+esc(session.token)+'</div><button onclick="turnOff()" class="btn btn-danger btn-full" style="margin-top:12px">Turn Off Discovery</button>':'<button onclick="turnOn()" class="btn btn-primary btn-full" style="margin-top:14px">Turn On Discovery</button>')
+    + '</div>'
+    + '<div class="card"><h3 style="font-size:15px;font-weight:800;margin-bottom:12px">Nearby Anonymous Profiles</h3>'
+    + (nearby.length?nearby.map(function(n){return '<div class="token-card"><div><strong>'+esc(n.alias)+'</strong><div style="font-size:12px;color:#64748B">'+esc(n.token)+'</div></div><div style="display:flex;gap:6px"><button class="btn btn-primary btn-sm" onclick="startChat(\''+n.token+'\')">Chat</button><button class="btn btn-ghost btn-sm" onclick="blockToken(\''+n.token+'\')">Block</button></div></div>';}).join(''):'<div class="empty" style="padding:30px">No nearby anonymous users yet.</div>')
+    + '</div></div>'
+    + '<div style="display:flex;flex-direction:column;gap:16px">'
+    + '<div class="card"><h3 style="font-size:15px;font-weight:800;margin-bottom:12px">Temporary Chats</h3>'
+    + (chats.length?'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">'+chats.map(function(c,i){return '<button class="btn '+(activeChat&&activeChat._id===c._id?'btn-primary':'btn-ghost')+' btn-sm" onclick="selectChat(\''+c._id+'\')">Chat '+(i+1)+'</button>';}).join('')+'</div>':'<div class="empty" style="padding:26px">Start a chat from a nearby token.</div>')
+    + (activeChat?chatPanel(activeChat):'')
+    + '</div></div></div>';
+}
+
+function chatPanel(c){
+  var uid = me();
+  return '<div class="chat-box" id="chatBox">'+(c.messages||[]).map(function(m){return '<div class="msg '+(String(m.senderId)===String(uid)?'mine':'theirs')+'">'+esc(m.text)+'<div style="font-size:10px;opacity:.65;margin-top:4px">'+new Date(m.createdAt).toLocaleTimeString()+'</div></div>';}).join('')+'</div>'
+    + '<div style="display:flex;gap:8px;margin-top:12px"><input id="msgText" class="input" placeholder="Write anonymously..."><button class="btn btn-primary" onclick="sendMsg()">Send</button></div>'
+    + '<div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap"><button class="btn btn-ghost btn-sm" onclick="shareMyQr()">Share My QR</button><button class="btn btn-ghost btn-sm" onclick="disconnect()">Disconnect</button><button class="btn btn-danger btn-sm" onclick="reportChat()">Report</button></div>'
+    + '<div style="font-size:12px;color:#64748B;margin-top:10px">This chat expires and is deleted after 24 hours.</div>';
+}
+
+function turnOn(){ zone=document.getElementById('zone').value.trim()||'nearby'; Api.socialOn(zone).then(function(r){ if(r.success){ session=r.data; Layout.toast('Anonymous discovery is on.'); loadAll(); } }); }
+function turnOff(){ Api.socialOff().then(function(){ session=null; nearby=[]; Layout.toast('Discovery turned off.','info'); render(); }); }
+function startChat(t){ Api.socialStart(t).then(function(r){ if(r.success){ activeChat=r.data; loadChats(); } else Layout.toast(r.message||'Could not start chat','error'); }); }
+function selectChat(id){ activeChat=chats.find(function(c){return c._id===id;}); render(); setTimeout(function(){var b=document.getElementById('chatBox'); if(b)b.scrollTop=b.scrollHeight;},0); }
+function sendMsg(){ var el=document.getElementById('msgText'), text=el.value.trim(); if(!text||!activeChat)return; Api.socialSend(activeChat._id,text).then(function(r){ if(r.success){ activeChat=r.data; el.value=''; loadChats(); } }); }
+function disconnect(){ if(!activeChat)return; Api.socialDisconnect(activeChat._id).then(function(){ activeChat=null; loadChats(); }); }
+function reportChat(){ var reason=prompt('Report reason:','Unsafe or unwanted message'); if(!reason||!activeChat)return; Api.socialReport(activeChat._id,reason).then(function(){ activeChat=null; Layout.toast('Reported and disconnected.','warning'); loadChats(); }); }
+function blockToken(t){ Api.socialBlock(t).then(function(){ nearby=nearby.filter(function(n){return n.token!==t;}); Layout.toast('Anonymous token blocked.'); render(); }); }
+function shareMyQr(){ location.href='./share.html'; }
+</script>
+</body>
+</html>

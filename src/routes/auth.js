@@ -107,6 +107,33 @@ module.exports = async function authRoutes(fastify) {
     return { success:true, message:'Phone number saved', user:user.safeUser() };
   });
 
+  /* PUT /api/trustid/auth/profile */
+  fastify.put('/profile', { onRequest:[fastify.authenticate] }, async (req, reply) => {
+    const body = req.body || {};
+    const user = await User.findById(req.user.userId);
+    if (!user) return reply.code(404).send({ success:false, message:'User not found' });
+
+    ['firstName','middleName','lastName','bio','phone','profilePhoto'].forEach(k => {
+      if (body[k] !== undefined) user[k] = String(body[k] || '').trim();
+    });
+
+    if (body.socialHandles && typeof body.socialHandles === 'object') {
+      user.socialHandles = {
+        whatsapp: body.socialHandles.whatsapp || '',
+        facebook: body.socialHandles.facebook || '',
+        instagram: body.socialHandles.instagram || '',
+        x: body.socialHandles.x || '',
+        linkedin: body.socialHandles.linkedin || '',
+        tiktok: body.socialHandles.tiktok || '',
+        snapchat: body.socialHandles.snapchat || '',
+        website: body.socialHandles.website || '',
+      };
+    }
+
+    await user.save();
+    return { success:true, message:'Profile updated', user:user.safeUser() };
+  });
+
   /* POST /api/trustid/auth/request-password-reset */
   fastify.post('/request-password-reset', async (req, reply) => {
     const { channel, email: addr, phone } = req.body || {};
