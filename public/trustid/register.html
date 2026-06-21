@@ -3,86 +3,187 @@
 <head>
   <meta charset="utf-8">
   <title>TrustID — Create Account</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#1E1B4B">
   <link rel="icon" href="./icon.svg">
-  <link rel="stylesheet" href="./css/styles.css">
-  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:Inter,system-ui,-apple-system,sans-serif;min-height:100vh;display:flex}
+    input,button{font:inherit}
+
+    .left{flex:1;background:linear-gradient(155deg,#0F0E2A,#1E1B4B,#312E81);display:flex;align-items:center;justify-content:center;padding:60px}
+    .left-inner{max-width:380px;color:#fff}
+    .brand{display:flex;align-items:center;gap:10px;margin-bottom:52px}
+    .brand-icon{width:44px;height:44px;border-radius:12px;background:rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;font-size:22px}
+    .brand-name{font-size:22px;font-weight:900}
+    .left h2{font-size:30px;font-weight:900;margin-bottom:12px}
+    .left p{color:rgba(255,255,255,0.65);font-size:15px;line-height:1.75}
+
+    .right{width:500px;display:flex;align-items:center;justify-content:center;padding:52px;background:#fff;overflow-y:auto}
+    .form-box{width:100%;max-width:400px}
+    .back-link{display:block;color:#64748B;font-size:14px;font-weight:600;margin-bottom:28px;text-decoration:none}
+    .back-link:hover{color:#7C3AED}
+    .form-box h1{font-size:25px;font-weight:900;color:#0F172A;margin-bottom:6px}
+    .form-box .sub{color:#64748B;font-size:13px;margin-bottom:24px}
+    .error-box{padding:10px 14px;border-radius:10px;background:#EF444412;border:1px solid #EF444430;color:#EF4444;font-size:13px;margin-bottom:14px;display:none}
+    .success-box{padding:10px 14px;border-radius:10px;background:#22C55E12;border:1px solid #22C55E30;color:#22C55E;font-size:13px;margin-bottom:14px;display:none}
+    .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+    .field{margin-bottom:0}
+    .field-full{margin-bottom:14px}
+    .field label,.field-full label{display:block;font-weight:600;font-size:13px;color:#334155;margin-bottom:6px}
+    .field input,.field-full input{width:100%;height:43px;padding:0 12px;border-radius:10px;border:1.5px solid #E2E8F0;font-size:14px;color:#0F172A;outline:none;transition:border-color 0.15s}
+    .field input:focus,.field-full input:focus{border-color:#7C3AED}
+    .req{color:#EF4444;margin-left:3px}
+    .btn-submit{width:100%;height:44px;border-radius:10px;background:linear-gradient(135deg,#7C3AED,#8B5CF6);border:none;color:#fff;font-weight:700;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-top:22px;transition:opacity 0.15s}
+    .btn-submit:hover{opacity:0.9}
+    .btn-submit:disabled{opacity:0.6;cursor:not-allowed}
+    .spinner{width:16px;height:16px;border-radius:50%;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;animation:spin 0.8s linear infinite;display:none}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .login-link{text-align:center;margin-top:18px;font-size:13px;color:#64748B}
+    .login-link a{color:#7C3AED;font-weight:700;text-decoration:none}
+
+    /* Success screen */
+    .success-screen{display:none;text-align:center;padding:20px 0}
+    .success-screen .big-icon{font-size:60px;margin-bottom:18px}
+    .success-screen h2{font-size:26px;font-weight:900;color:#0F172A;margin-bottom:10px}
+    .success-screen p{color:#64748B;line-height:1.65;margin-bottom:28px}
+    .btn-go{width:100%;height:44px;border-radius:10px;background:linear-gradient(135deg,#7C3AED,#8B5CF6);border:none;color:#fff;font-weight:700;font-size:14px;cursor:pointer}
+
+    @media(max-width:640px){
+      body{flex-direction:column}
+      .left{display:none}
+      .right{width:100%;padding:32px 24px}
+      .grid-2{grid-template-columns:1fr}
+    }
+  </style>
 </head>
 <body>
-<div id="app"></div>
-<script src="./js/auth.js"></script>
-<script>Auth.requireGuest();</script>
-<script src="./js/api.js"></script>
-<script src="./js/components.js"></script>
+
+<div class="left">
+  <div class="left-inner">
+    <div class="brand">
+      <div class="brand-icon">🛡️</div>
+      <span class="brand-name">TrustID</span>
+    </div>
+    <h2>Create your TrustID account</h2>
+    <p>Get verified and start building your trust score in minutes.</p>
+  </div>
+</div>
+
+<div class="right">
+  <div class="form-box">
+
+    <!-- Registration form -->
+    <div id="formSection">
+      <a href="./login.html" class="back-link">← Back to Sign In</a>
+      <h1>Create Account</h1>
+      <p class="sub">Free forever. No credit card required.</p>
+
+      <div class="error-box" id="err"></div>
+
+      <div class="grid-2">
+        <div class="field">
+          <label>First name <span class="req">*</span></label>
+          <input type="text" id="firstName" placeholder="Jane" autocomplete="given-name">
+        </div>
+        <div class="field">
+          <label>Last name</label>
+          <input type="text" id="lastName" placeholder="Doe" autocomplete="family-name">
+        </div>
+      </div>
+
+      <div class="field-full">
+        <label>Email <span class="req">*</span></label>
+        <input type="email" id="email" placeholder="you@example.com" autocomplete="email">
+      </div>
+      <div class="field-full">
+        <label>Password <span class="req">*</span></label>
+        <input type="password" id="password" placeholder="Min 8 characters" autocomplete="new-password">
+      </div>
+      <div class="field-full">
+        <label>Confirm password <span class="req">*</span></label>
+        <input type="password" id="confirm" placeholder="Repeat password" autocomplete="new-password">
+      </div>
+
+      <button class="btn-submit" id="submitBtn" onclick="doRegister()">
+        <div class="spinner" id="spinner"></div>
+        <span id="btnText">Create Account</span>
+      </button>
+
+      <div class="login-link">Have an account? <a href="./login.html">Sign in</a></div>
+    </div>
+
+    <!-- Success screen -->
+    <div class="success-screen" id="successSection">
+      <div class="big-icon">🎉</div>
+      <h2>Account Created!</h2>
+      <p>Welcome to TrustID. Your account is ready and you're now logged in.</p>
+      <button class="btn-go" onclick="location.href='./dashboard.html'">Go to Dashboard →</button>
+    </div>
+
+  </div>
+</div>
+
 <script>
-const { createElement: h, useState } = React;
+  /* Redirect logged-in users */
+  (function () {
+    try {
+      if (localStorage.getItem('tid_token')) {
+        var u = JSON.parse(localStorage.getItem('tid_user') || 'null');
+        location.replace(u && u.role === 'admin' ? './admin/dashboard.html' : './dashboard.html');
+      }
+    } catch(e){}
+  })();
 
-function RegisterPage() {
-  const [form, setForm]     = useState({ firstName:'', lastName:'', email:'', password:'', confirm:'' });
-  const [loading, setLoading] = useState(false);
-  const [done, setDone]     = useState(false);
-  const [err, setErr]       = useState('');
-  const set = k => v => setForm(f => ({ ...f, [k]:v }));
+  async function doRegister() {
+    var firstName = document.getElementById('firstName').value.trim();
+    var lastName  = document.getElementById('lastName').value.trim();
+    var email     = document.getElementById('email').value.trim();
+    var password  = document.getElementById('password').value;
+    var confirm   = document.getElementById('confirm').value;
+    var btn       = document.getElementById('submitBtn');
+    var spinner   = document.getElementById('spinner');
+    var btnText   = document.getElementById('btnText');
 
-  const submit = async () => {
-    if (!form.firstName || !form.email || !form.password) { setErr('Fill required fields.'); return; }
-    if (form.password !== form.confirm) { setErr('Passwords do not match.'); return; }
-    if (form.password.length < 8) { setErr('Password must be at least 8 characters.'); return; }
-    setErr(''); setLoading(true);
-    const r = await Api.register({ firstName:form.firstName, lastName:form.lastName, email:form.email, password:form.password });
-    setLoading(false);
-    if (r.success) { Auth.setSession(r.token, r.user); setDone(true); }
-    else setErr(r.message || 'Registration failed');
-  };
+    if (!firstName || !email || !password) { showErr('Please fill in all required fields.'); return; }
+    if (password !== confirm)              { showErr('Passwords do not match.');            return; }
+    if (password.length < 8)              { showErr('Password must be at least 8 characters.'); return; }
 
-  if (done) return h('div', { style:{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',background:C[50]} },
-    h('div', { style:{background:'#fff',borderRadius:24,padding:52,textAlign:'center',maxWidth:420,boxShadow:'0 8px 32px rgba(0,0,0,0.08)'} },
-      h('div', { style:{fontSize:60,marginBottom:18} }, '🎉'),
-      h('h2', { style:{fontSize:26,fontWeight:900,color:C[900],marginBottom:10} }, 'Account Created!'),
-      h('p', { style:{color:C[500],lineHeight:1.65,marginBottom:28} }, 'Welcome to TrustID. Your account is ready.'),
-      h(Btn, { label:'Go to Dashboard', onClick:()=>window.location.href='./dashboard.html' })
-    )
-  );
+    btn.disabled          = true;
+    spinner.style.display = 'block';
+    btnText.textContent   = 'Creating…';
+    document.getElementById('err').style.display = 'none';
 
-  return h('div', { className:'auth-wrap' },
-    h('div', { className:'auth-left' },
-      h('div', { style:{maxWidth:380,color:'#fff'} },
-        h('div', { style:{display:'flex',alignItems:'center',gap:10,marginBottom:52} },
-          h('div', { style:{width:44,height:44,borderRadius:12,background:'rgba(255,255,255,0.15)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:22} }, '🛡️'),
-          h('span', { style:{fontSize:22,fontWeight:900} }, 'TrustID')
-        ),
-        h('h2', { style:{fontSize:30,fontWeight:900,marginBottom:12} }, 'Create your TrustID account'),
-        h('p', { style:{color:'rgba(255,255,255,0.65)',fontSize:15,lineHeight:1.75} }, 'Get verified and start building your trust score in minutes.')
-      )
-    ),
-    h('div', { className:'auth-right', style:{width:500,overflowY:'auto'} },
-      h('div', { style:{width:'100%',maxWidth:400} },
-        h('a', { href:'./login.html', style:{background:'none',border:'none',cursor:'pointer',color:C[500],fontSize:14,fontWeight:600,marginBottom:28,padding:0,display:'block'} }, '← Back to Sign In'),
-        h('h1', { style:{fontSize:25,fontWeight:900,color:C[900],marginBottom:6} }, 'Create Account'),
-        h('p', { style:{color:C[500],fontSize:13,marginBottom:24} }, 'Free forever. No credit card required.'),
-        err && h('div', { style:{padding:'10px 14px',borderRadius:10,background:C.red+'12',border:`1px solid ${C.red}30`,color:C.red,fontSize:13,marginBottom:14} }, err),
-        h('div', { style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14,marginBottom:14} },
-          h(Field, { label:'First name', value:form.firstName, onChange:set('firstName'), placeholder:'Jane', req:true }),
-          h(Field, { label:'Last name',  value:form.lastName,  onChange:set('lastName'),  placeholder:'Doe' })
-        ),
-        h('div', { style:{display:'flex',flexDirection:'column',gap:14} },
-          h(Field, { label:'Email',            value:form.email,    onChange:set('email'),    type:'email',    placeholder:'you@example.com', req:true }),
-          h(Field, { label:'Password',         value:form.password, onChange:set('password'), type:'password', placeholder:'Min 8 characters',    req:true }),
-          h(Field, { label:'Confirm password', value:form.confirm,  onChange:set('confirm'),  type:'password', req:true })
-        ),
-        h('div', { style:{marginTop:22} }, h(Btn, { label:'Create Account', onClick:submit, loading })),
-        h('p', { style:{textAlign:'center',marginTop:18,fontSize:13,color:C[500]} },
-          'Have an account? ',
-          h('a', { href:'./login.html', style:{color:C.purple,fontWeight:700} }, 'Sign in')
-        )
-      )
-    )
-  );
-}
+    try {
+      var res  = await fetch('/api/trustid/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ firstName: firstName, lastName: lastName, email: email, password: password })
+      });
+      var data = await res.json();
 
-ReactDOM.createRoot(document.getElementById('app')).render(h(RegisterPage));
+      if (data.success && data.token) {
+        localStorage.setItem('tid_token', data.token);
+        localStorage.setItem('tid_user',  JSON.stringify(data.user));
+        document.getElementById('formSection').style.display    = 'none';
+        document.getElementById('successSection').style.display = 'block';
+      } else {
+        showErr(data.message || 'Registration failed. Please try again.');
+      }
+    } catch(e) {
+      showErr('Network error. Please try again.');
+    }
+
+    btn.disabled          = false;
+    spinner.style.display = 'none';
+    btnText.textContent   = 'Create Account';
+  }
+
+  function showErr(msg) {
+    var el = document.getElementById('err');
+    el.textContent   = msg;
+    el.style.display = 'block';
+  }
 </script>
 </body>
 </html>

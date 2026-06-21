@@ -73,14 +73,15 @@ fastify.setNotFoundHandler(async (request, reply) => {
 
 /* ── Start ── */
 const start = async () => {
-  try {
-    await connectDB();
-    await fastify.listen({ port: PORT, host: '0.0.0.0' });
-    console.log(`TrustID running on port ${PORT} [${NODE_ENV}]`);
-  } catch (err) {
-    fastify.log.error(err);
-    process.exit(1);
-  }
+  /* Start HTTP server first — static files work even without DB */
+  await fastify.listen({ port: PORT, host: '0.0.0.0' });
+  console.log(`TrustID running on port ${PORT} [${NODE_ENV}]`);
+
+  /* Connect DB separately — API routes fail gracefully if DB is down */
+  connectDB().catch(err => {
+    console.error('MongoDB connection failed:', err.message);
+    console.error('Static pages still work. Fix MONGODB_URI to enable API.');
+  });
 };
 
 start();

@@ -3,83 +3,167 @@
 <head>
   <meta charset="utf-8">
   <title>TrustID — Sign In</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#1E1B4B">
   <link rel="icon" href="./icon.svg">
-  <link rel="stylesheet" href="./css/styles.css">
-  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:Inter,system-ui,-apple-system,sans-serif;min-height:100vh;display:flex}
+    input,button{font:inherit}
+
+    .left{flex:1;background:linear-gradient(155deg,#0F0E2A,#1E1B4B,#312E81);display:flex;align-items:center;justify-content:center;padding:60px}
+    .left-inner{max-width:380px;color:#fff}
+    .brand{display:flex;align-items:center;gap:10px;margin-bottom:52px}
+    .brand-icon{width:44px;height:44px;border-radius:12px;background:rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;font-size:22px}
+    .brand-name{font-size:22px;font-weight:900}
+    .left h2{font-size:30px;font-weight:900;margin-bottom:14px;line-height:1.2}
+    .left p{color:rgba(255,255,255,0.6);line-height:1.75;font-size:15px}
+    .perks{margin-top:36px;display:flex;flex-direction:column;gap:12px}
+    .perk{font-size:14px;color:rgba(255,255,255,0.7)}
+
+    .right{width:460px;display:flex;align-items:center;justify-content:center;padding:52px;background:#fff}
+    .form-box{width:100%;max-width:360px}
+    .back-link{display:block;color:#64748B;font-size:14px;font-weight:600;margin-bottom:32px;text-decoration:none}
+    .back-link:hover{color:#7C3AED}
+    .form-box h1{font-size:27px;font-weight:900;color:#0F172A;margin-bottom:6px}
+    .form-box .sub{color:#64748B;font-size:14px;margin-bottom:28px}
+    .error-box{padding:11px 14px;border-radius:10px;background:#EF444412;border:1px solid #EF444430;color:#EF4444;font-size:13px;margin-bottom:16px;display:none}
+    .field{margin-bottom:14px}
+    .field label{display:block;font-weight:600;font-size:13px;color:#334155;margin-bottom:6px}
+    .field-wrap{position:relative}
+    .field-icon{position:absolute;left:11px;top:50%;transform:translateY(-50%);font-size:15px;pointer-events:none}
+    .field input{width:100%;height:43px;padding:0 12px 0 36px;border-radius:10px;border:1.5px solid #E2E8F0;font-size:14px;color:#0F172A;outline:none;transition:border-color 0.15s}
+    .field input:focus{border-color:#7C3AED}
+    .forgot{text-align:right;margin:10px 0 22px}
+    .forgot a{color:#7C3AED;font-size:13px;font-weight:600;text-decoration:none}
+    .btn-submit{width:100%;height:44px;border-radius:10px;background:linear-gradient(135deg,#7C3AED,#8B5CF6);border:none;color:#fff;font-weight:700;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:opacity 0.15s}
+    .btn-submit:hover{opacity:0.9}
+    .btn-submit:disabled{opacity:0.6;cursor:not-allowed}
+    .spinner{width:16px;height:16px;border-radius:50%;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;animation:spin 0.8s linear infinite;display:none}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .register-link{text-align:center;margin-top:24px;font-size:14px;color:#64748B}
+    .register-link a{color:#7C3AED;font-weight:700;text-decoration:none}
+
+    @media(max-width:640px){
+      body{flex-direction:column}
+      .left{display:none}
+      .right{width:100%;padding:32px 24px}
+    }
+  </style>
 </head>
 <body>
-<div id="app"></div>
-<script src="./js/auth.js"></script>
-<script>Auth.requireGuest();</script>
-<script src="./js/api.js"></script>
-<script src="./js/components.js"></script>
+
+<div class="left">
+  <div class="left-inner">
+    <div class="brand">
+      <div class="brand-icon">🛡️</div>
+      <span class="brand-name">TrustID</span>
+    </div>
+    <h2>Your trusted digital identity platform</h2>
+    <p>Secure your identity, track your documents, and build your trust score.</p>
+    <div class="perks">
+      <div class="perk">✅ AI-powered document verification</div>
+      <div class="perk">🔒 Bank-grade encryption &amp; MFA</div>
+      <div class="perk">📊 Dynamic real-time trust scoring</div>
+    </div>
+  </div>
+</div>
+
+<div class="right">
+  <div class="form-box">
+    <a href="./index.html" class="back-link">← Back to home</a>
+    <h1>Welcome back</h1>
+    <p class="sub">Sign in to your TrustID account</p>
+
+    <div class="error-box" id="err"></div>
+
+    <div class="field">
+      <label>Email</label>
+      <div class="field-wrap">
+        <span class="field-icon">📧</span>
+        <input type="email" id="email" placeholder="you@example.com" autocomplete="email">
+      </div>
+    </div>
+    <div class="field">
+      <label>Password</label>
+      <div class="field-wrap">
+        <span class="field-icon">🔒</span>
+        <input type="password" id="password" placeholder="Password" autocomplete="current-password">
+      </div>
+    </div>
+
+    <div class="forgot"><a href="#">Forgot password?</a></div>
+
+    <button class="btn-submit" id="submitBtn" onclick="doLogin()">
+      <div class="spinner" id="spinner"></div>
+      <span id="btnText">Sign In</span>
+    </button>
+
+    <div class="register-link">
+      No account? <a href="./register.html">Create one free →</a>
+    </div>
+  </div>
+</div>
+
 <script>
-const { createElement: h, useState } = React;
+  /* Redirect logged-in users */
+  (function () {
+    try {
+      if (localStorage.getItem('tid_token')) {
+        var u = JSON.parse(localStorage.getItem('tid_user') || 'null');
+        location.replace(u && u.role === 'admin' ? './admin/dashboard.html' : './dashboard.html');
+      }
+    } catch(e){}
+  })();
 
-function LoginPage() {
-  const [email,    setEmail]   = useState('');
-  const [pass,     setPass]    = useState('');
-  const [loading,  setLoading] = useState(false);
-  const [err,      setErr]     = useState('');
+  document.getElementById('password').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') doLogin();
+  });
 
-  const submit = async () => {
-    if (!email || !pass) { setErr('Fill in all fields.'); return; }
-    setErr(''); setLoading(true);
-    const r = await Api.login(email, pass);
-    setLoading(false);
-    if (r.success) {
-      Auth.setSession(r.token, r.user);
-      window.location.href = r.user.role === 'admin' ? './admin/dashboard.html' : './dashboard.html';
-    } else {
-      setErr(r.message || 'Login failed');
+  async function doLogin() {
+    var email    = document.getElementById('email').value.trim();
+    var password = document.getElementById('password').value;
+    var errBox   = document.getElementById('err');
+    var btn      = document.getElementById('submitBtn');
+    var spinner  = document.getElementById('spinner');
+    var btnText  = document.getElementById('btnText');
+
+    if (!email || !password) { showErr('Please fill in all fields.'); return; }
+
+    btn.disabled    = true;
+    spinner.style.display = 'block';
+    btnText.textContent   = 'Signing in…';
+    errBox.style.display  = 'none';
+
+    try {
+      var res  = await fetch('/api/trustid/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email, password: password })
+      });
+      var data = await res.json();
+
+      if (data.success && data.token) {
+        localStorage.setItem('tid_token', data.token);
+        localStorage.setItem('tid_user',  JSON.stringify(data.user));
+        location.href = data.user.role === 'admin' ? './admin/dashboard.html' : './dashboard.html';
+      } else {
+        showErr(data.message || 'Invalid email or password.');
+      }
+    } catch(e) {
+      showErr('Network error. Please try again.');
     }
-  };
 
-  const onKey = e => { if (e.key === 'Enter') submit(); };
+    btn.disabled          = false;
+    spinner.style.display = 'none';
+    btnText.textContent   = 'Sign In';
+  }
 
-  return h('div', { className:'auth-wrap' },
-    h('div', { className:'auth-left' },
-      h('div', { style:{maxWidth:380,color:'#fff'} },
-        h('div', { style:{display:'flex',alignItems:'center',gap:10,marginBottom:52} },
-          h('div', { style:{width:44,height:44,borderRadius:12,background:'rgba(255,255,255,0.15)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:22} }, '🛡️'),
-          h('span', { style:{fontSize:22,fontWeight:900} }, 'TrustID')
-        ),
-        h('h2', { style:{fontSize:30,fontWeight:900,marginBottom:14,lineHeight:1.2} }, 'Your trusted digital identity platform'),
-        h('p', { style:{color:'rgba(255,255,255,0.6)',lineHeight:1.75,fontSize:15} }, 'Secure your identity, track your documents, and build your trust score.'),
-        h('div', { style:{marginTop:36,display:'flex',flexDirection:'column',gap:12} },
-          ['✅ AI-powered document verification','🔒 Bank-grade encryption & MFA','📊 Dynamic real-time trust scoring'].map(f =>
-            h('div', { key:f, style:{fontSize:14,color:'rgba(255,255,255,0.7)'} }, f)
-          )
-        )
-      )
-    ),
-    h('div', { className:'auth-right' },
-      h('div', { style:{width:'100%',maxWidth:360} },
-        h('button', { onClick:()=>window.location.href='./index.html', style:{background:'none',border:'none',cursor:'pointer',color:C[500],fontSize:14,fontWeight:600,marginBottom:32,padding:0} }, '← Back to home'),
-        h('h1', { style:{fontSize:27,fontWeight:900,color:C[900],marginBottom:6} }, 'Welcome back'),
-        h('p', { style:{color:C[500],fontSize:14,marginBottom:28} }, 'Sign in to your TrustID account'),
-        err && h('div', { style:{padding:'11px 14px',borderRadius:10,background:C.red+'12',border:`1px solid ${C.red}30`,color:C.red,fontSize:13,marginBottom:16} }, err),
-        h('div', { style:{display:'flex',flexDirection:'column',gap:14} },
-          h(Field, { label:'Email', value:email, onChange:setEmail, type:'email', icon:'📧', placeholder:'you@example.com' }),
-          h(Field, { label:'Password', value:pass, onChange:setPass, type:'password', icon:'🔒', placeholder:'Password', onKey })
-        ),
-        h('div', { style:{textAlign:'right',margin:'10px 0 22px'} },
-          h('span', { style:{color:C.purple,fontSize:13,fontWeight:600,cursor:'pointer'} }, 'Forgot password?')
-        ),
-        h(Btn, { label:'Sign In', onClick:submit, loading }),
-        h('div', { style:{textAlign:'center',marginTop:24,fontSize:14,color:C[500]} },
-          "No account? ",
-          h('a', { href:'./register.html', style:{color:C.purple,fontWeight:700} }, 'Create one free →')
-        )
-      )
-    )
-  );
-}
-
-ReactDOM.createRoot(document.getElementById('app')).render(h(LoginPage));
+  function showErr(msg) {
+    var el = document.getElementById('err');
+    el.textContent    = msg;
+    el.style.display  = 'block';
+  }
 </script>
 </body>
 </html>

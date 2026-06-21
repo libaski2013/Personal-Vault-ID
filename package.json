@@ -4,7 +4,7 @@
   "description": "TrustID Personal Vault — multi-page web app with Fastify backend",
   "main": "src/server.js",
   "scripts": {
-    "start": "node src/server.js",
+    "start": "node scripts/build.js && node src/server.js",
     "dev": "nodemon src/server.js",
     "android:add": "npx cap add android",
     "android:sync": "npx cap sync android",
@@ -18,7 +18,9 @@
     "bcryptjs": "^2.4.3",
     "dotenv": "^16.4.5",
     "fastify": "^4.28.1",
-    "mongoose": "^8.3.2"
+    "mongoose": "^8.3.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
   },
   "devDependencies": {
     "@capacitor/android": "^7.4.3",
