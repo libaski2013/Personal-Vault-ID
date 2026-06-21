@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Personal Vault — Secret Vault</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="icon" href="./icon.svg">
+  <link rel="stylesheet" href="./css/styles.css">
+  <style>
+    .pin-gate { max-width:380px;margin:60px auto;text-align:center;padding:40px;background:#fff;border-radius:24px;box-shadow:0 16px 48px rgba(0,0,0,0.08);border:1px solid #E8ECF4; }
+    .pin-icon { font-size:56px;margin-bottom:16px; }
+    .pin-gate h2 { font-size:22px;font-weight:900;color:#0F172A;margin-bottom:8px; }
+    .pin-gate p  { font-size:14px;color:#64748B;margin-bottom:24px;line-height:1.6; }
+    .pin-row { display:flex;gap:10px;justify-content:center;margin:20px 0; }
+    .pin-digit { width:54px;height:60px;border-radius:14px;border:2px solid #E2E8F0;font-size:28px;font-weight:700;text-align:center;outline:none;transition:border-color 0.15s,box-shadow 0.15s;color:#0F172A; }
+    .pin-digit:focus { border-color:#7C3AED;box-shadow:0 0 0 3px #7C3AED20; }
+    .pin-digit.error { border-color:#EF4444;animation:shake 0.3s; }
+    @keyframes shake { 0%,100%{transform:translateX(0)} 20%,60%{transform:translateX(-6px)} 40%,80%{transform:translateX(6px)} }
+    .vault-type-btn { display:flex;flex-direction:column;align-items:center;gap:6px;padding:16px 12px;border-radius:14px;border:2px solid #E2E8F0;background:#fff;cursor:pointer;transition:all 0.15s;min-width:90px; }
+    .vault-type-btn:hover,.vault-type-btn.sel { border-color:#7C3AED;background:#7C3AED08; }
+    .vault-type-btn .vt-icon { font-size:28px; }
+    .vault-type-btn .vt-lbl { font-size:12px;font-weight:600;color:#64748B; }
+    .vault-type-btn.sel .vt-lbl { color:#7C3AED; }
+    .item-card { background:#fff;border-radius:14px;border:1px solid #E8ECF4;padding:16px;position:relative;transition:box-shadow 0.15s; }
+    .item-card:hover { box-shadow:0 4px 16px rgba(0,0,0,0.06); }
+    .item-card.note  { border-left:4px solid #7C3AED; }
+    .item-card.photo { border-left:4px solid #3B82F6; }
+    .item-card.video { border-left:4px solid #EF4444; }
+    .type-pill { display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:100px;font-size:10px;font-weight:700; }
+    .type-pill.note  { background:#7C3AED18;color:#7C3AED; }
+    .type-pill.photo { background:#3B82F618;color:#1D4ED8; }
+    .type-pill.video { background:#EF444418;color:#B91C1C; }
+  </style>
+</head>
+<body>
+<div class="app-shell">
+  <div id="sidebar"></div>
+  <div id="main">
+    <div id="topbar"></div>
+    <div class="page-content" id="content"></div>
+  </div>
+</div>
+
+<!-- Add item modal -->
+<div id="addModal" class="modal-backdrop" style="display:none" onclick="closeAdd()">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <span class="modal-title">Add to Secret Vault</span>
+      <button onclick="closeAdd()" style="background:#F1F5F9;border:none;cursor:pointer;width:32px;height:32px;border-radius:8px;font-size:18px;color:#64748B">×</button>
+    </div>
+    <div style="display:flex;gap:10px;margin-bottom:16px;justify-content:center">
+      <button class="vault-type-btn sel" id="btnNote"  onclick="setType('note')"><span class="vt-icon">📝</span><span class="vt-lbl">Note</span></button>
+      <button class="vault-type-btn"     id="btnPhoto" onclick="setType('photo')"><span class="vt-icon">📷</span><span class="vt-lbl">Photo</span></button>
+      <button class="vault-type-btn"     id="btnVideo" onclick="setType('video')"><span class="vt-icon">🎬</span><span class="vt-lbl">Video</span></button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div class="field"><label class="label">Title <span style="color:#EF4444">*</span></label>
+        <input id="vf-title" class="input" placeholder="Give it a name"></div>
+      <div class="field" id="noteField"><label class="label">Content / Notes</label>
+        <textarea id="vf-content" class="input" rows="4" style="height:auto;resize:vertical;padding:10px" placeholder="Write your private note here…"></textarea></div>
+      <div class="field" id="fileField" style="display:none">
+        <label class="label">Description</label>
+        <textarea id="vf-filedesc" class="input" rows="2" style="height:auto;resize:vertical;padding:10px" placeholder="Describe this photo/video…"></textarea>
+        <div style="margin-top:10px;border:2px dashed #E2E8F0;border-radius:12px;padding:24px;text-align:center;background:#F8FAFC">
+          <div style="font-size:32px;margin-bottom:8px" id="fileIcon">📷</div>
+          <div style="font-size:13px;color:#64748B;margin-bottom:4px">File upload (coming soon)</div>
+          <div style="font-size:12px;color:#94A3B8">Store notes and descriptions now. File upload in next update.</div>
+        </div>
+      </div>
+      <div class="field"><label class="label">Tags (comma separated)</label>
+        <input id="vf-tags" class="input" placeholder="family, 2024, private"></div>
+      <button onclick="saveItem()" class="btn btn-primary btn-full" id="vSaveBtn">Save to Vault 🔐</button>
+    </div>
+  </div>
+</div>
+
+<script src="./js/auth.js"></script>
+<script>if(!Auth.requireAuth()) throw '';</script>
+<script src="./js/api.js"></script>
+<script src="./js/layout.js"></script>
+<script>
+Layout.init('vault');
+
+var UNLOCKED = sessionStorage.getItem('pv_vault_unlocked') === 'true';
+var vaultItems = [], vaultFilter = 'all', vType = 'note';
+
+function renderGate(isFirstTime) {
+  document.getElementById('content').innerHTML =
+    '<div class="pin-gate">'
+    + '<div class="pin-icon">🔐</div>'
+    + '<h2>'+(isFirstTime?'Set Up Your Vault PIN':'Enter Your Vault PIN')+'</h2>'
+    + '<p>'+(isFirstTime?'Choose a 4-digit PIN to protect your secret vault. This PIN is separate from your account password.':'Enter your secret PIN to access your private vault.')+'</p>'
+    + '<div class="pin-row" id="pinRow">'
+    + '<input class="pin-digit" maxlength="1" type="password" inputmode="numeric" pattern="[0-9]">'
+    + '<input class="pin-digit" maxlength="1" type="password" inputmode="numeric" pattern="[0-9]">'
+    + '<input class="pin-digit" maxlength="1" type="password" inputmode="numeric" pattern="[0-9]">'
+    + '<input class="pin-digit" maxlength="1" type="password" inputmode="numeric" pattern="[0-9]">'
+    + '</div>'
+    + (isFirstTime?
+      '<div id="confirmRow" style="display:none">'
+      +'<p style="font-size:13px;color:#64748B;margin-bottom:12px">Confirm your PIN:</p>'
+      +'<div class="pin-row">'
+      +'<input class="pin-digit conf" maxlength="1" type="password" inputmode="numeric" pattern="[0-9]">'
+      +'<input class="pin-digit conf" maxlength="1" type="password" inputmode="numeric" pattern="[0-9]">'
+      +'<input class="pin-digit conf" maxlength="1" type="password" inputmode="numeric" pattern="[0-9]">'
+      +'<input class="pin-digit conf" maxlength="1" type="password" inputmode="numeric" pattern="[0-9]">'
+      +'</div></div>'
+      :'')
+    + '<button onclick="submitPin('+(isFirstTime?'true':'false')+')" class="btn btn-primary btn-full" style="margin-top:16px">'+(isFirstTime?'Set PIN 🔐':'Unlock Vault 🔓')+'</button>'
+    + '<p style="font-size:12px;color:#94A3B8;margin-top:14px">Your vault is end-to-end protected. We never see your PIN.</p>'
+    + '</div>';
+
+  setupPinInputs();
+}
+
+function setupPinInputs() {
+  var digits = document.querySelectorAll('.pin-digit');
+  digits.forEach(function(d, i) {
+    d.addEventListener('input', function() {
+      if (d.value && i < digits.length-1) digits[i+1].focus();
+    });
+    d.addEventListener('keydown', function(e) {
+      if (e.key==='Backspace' && !d.value && i > 0) { digits[i-1].focus(); digits[i-1].value=''; }
+      if (e.key==='Enter') submitPin(false);
+    });
+  });
+  if (digits.length) digits[0].focus();
+}
+
+async function submitPin(isFirstTime) {
+  var mainDigits = Array.from(document.querySelectorAll('.pin-digit:not(.conf)')).map(function(d){ return d.value; });
+  var pin = mainDigits.join('');
+  if (pin.length < 4) { shakePin(); return; }
+
+  if (isFirstTime) {
+    var mainPinRow = document.getElementById('confirmRow');
+    if (mainPinRow.style.display === 'none') {
+      mainPinRow.style.display = 'block';
+      document.querySelectorAll('.pin-digit.conf')[0].focus();
+      return;
+    }
+    var confDigits = Array.from(document.querySelectorAll('.pin-digit.conf')).map(function(d){ return d.value; });
+    var confPin = confDigits.join('');
+    if (pin !== confPin) { Layout.toast("PINs don't match. Try again.", 'error'); shakePin(); return; }
+    var r = await fetch('/api/trustid/vault/setup-pin', { method:'POST', headers:{'Content-Type':'application/json',Authorization:'Bearer '+Auth.getToken()}, body:JSON.stringify({pin}) }).then(function(x){return x.json();});
+    if (r.success) { sessionStorage.setItem('pv_vault_unlocked','true'); UNLOCKED=true; loadVault(); }
+    else Layout.toast(r.message||'Error','error');
+    return;
+  }
+
+  var r = await fetch('/api/trustid/vault/verify-pin', { method:'POST', headers:{'Content-Type':'application/json',Authorization:'Bearer '+Auth.getToken()}, body:JSON.stringify({pin}) }).then(function(x){return x.json();});
+  if (r.success) {
+    if (r.firstTime) { renderGate(true); return; }
+    sessionStorage.setItem('pv_vault_unlocked','true'); UNLOCKED=true; loadVault();
+  } else { shakePin(); Layout.toast('Incorrect PIN','error'); }
+}
+
+function shakePin() {
+  document.querySelectorAll('.pin-digit').forEach(function(d){ d.classList.add('error'); d.value=''; setTimeout(function(){ d.classList.remove('error'); }, 500); });
+  document.querySelectorAll('.pin-digit')[0].focus();
+}
+
+async function loadVault() {
+  document.getElementById('content').innerHTML = Layout.spinner();
+  var r = await fetch('/api/trustid/vault/items', { headers:{Authorization:'Bearer '+Auth.getToken()} }).then(function(x){return x.json();});
+  vaultItems = r.success ? r.data : [];
+  renderVault();
+}
+
+function renderVault() {
+  var filtered = vaultFilter==='all' ? vaultItems : vaultItems.filter(function(i){return i.type===vaultFilter;});
+  var html =
+    '<div class="page-header">'
+    +'<div><h1 class="page-title">🔐 Secret Vault</h1><p class="page-sub">Your most private memories, notes and files — protected by your PIN</p></div>'
+    +'<div style="display:flex;gap:10px">'
+    +'<button onclick="sessionStorage.removeItem(\'pv_vault_unlocked\');location.reload()" class="btn btn-ghost" style="width:auto">🔒 Lock</button>'
+    +'<button onclick="openAdd()" class="btn btn-primary" style="width:auto">+ Add Secret</button>'
+    +'</div></div>'
+    +'<div class="tabs" style="margin-bottom:20px">'
+    +['all','note','photo','video'].map(function(t){
+        var icons={all:'🗂',note:'📝',photo:'📷',video:'🎬'};
+        var cnt=t==='all'?vaultItems.length:vaultItems.filter(function(i){return i.type===t;}).length;
+        return '<button class="tab'+(vaultFilter===t?' active':'')+'" onclick="setVFilter(\''+t+'\')">'+icons[t]+' '+(t.charAt(0).toUpperCase()+t.slice(1))+'s ('+cnt+')</button>';
+      }).join('')
+    +'</div>';
+
+  if (filtered.length === 0) {
+    html += '<div class="empty" style="padding:80px 20px"><div style="font-size:48px;margin-bottom:16px">🔐</div><div style="font-size:15px;font-weight:600;margin-bottom:8px">Nothing here yet</div><div>Add private notes, photo descriptions or video memories</div></div>';
+  } else {
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px">';
+    filtered.forEach(function(item) {
+      var icons={note:'📝',photo:'📷',video:'🎬'};
+      html +=
+        '<div class="item-card '+item.type+'">'
+        +'<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">'
+        +'<span class="type-pill '+item.type+'">'+icons[item.type]+' '+item.type.charAt(0).toUpperCase()+item.type.slice(1)+'</span>'
+        +'<button onclick="deleteItem(\''+item._id+'\')" style="background:none;border:none;cursor:pointer;color:#94A3B8;font-size:14px">🗑</button>'
+        +'</div>'
+        +'<h3 style="font-size:14px;font-weight:700;color:#0F172A;margin-bottom:6px">'+item.title+'</h3>'
+        +(item.content?'<p style="font-size:13px;color:#64748B;line-height:1.55;margin-bottom:8px">'+item.content.slice(0,120)+(item.content.length>120?'…':'')+'</p>':'')
+        +(item.tags&&item.tags.length?'<div style="display:flex;flex-wrap:wrap;gap:4px">'+item.tags.map(function(t){return '<span style="font-size:10px;background:#F1F5F9;color:#64748B;padding:2px 8px;border-radius:100px">#'+t+'</span>';}).join('')+'</div>':'')
+        +'<div style="font-size:11px;color:#94A3B8;margin-top:10px">'+Layout.fmtDate(item.createdAt)+'</div>'
+        +'</div>';
+    });
+    html += '</div>';
+  }
+  document.getElementById('content').innerHTML = html;
+}
+
+function setVFilter(f) { vaultFilter=f; renderVault(); }
+
+function setType(t) {
+  vType=t;
+  ['note','photo','video'].forEach(function(x){ document.getElementById('btn'+x.charAt(0).toUpperCase()+x.slice(1)).classList.toggle('sel',x===t); });
+  document.getElementById('noteField').style.display = t==='note'?'block':'none';
+  document.getElementById('fileField').style.display = t!=='note'?'block':'none';
+  document.getElementById('fileIcon').textContent = t==='photo'?'📷':'🎬';
+}
+
+function openAdd() { document.getElementById('addModal').style.display='flex'; document.getElementById('vf-title').focus(); }
+function closeAdd() { document.getElementById('addModal').style.display='none'; }
+
+async function saveItem() {
+  var title = document.getElementById('vf-title').value.trim();
+  if (!title) { Layout.toast('Title required','error'); return; }
+  var content = vType==='note' ? document.getElementById('vf-content').value.trim() : document.getElementById('vf-filedesc').value.trim();
+  var tags = document.getElementById('vf-tags').value.split(',').map(function(t){return t.trim();}).filter(Boolean);
+  document.getElementById('vSaveBtn').textContent='Saving…';
+  var r = await fetch('/api/trustid/vault/items', { method:'POST', headers:{'Content-Type':'application/json',Authorization:'Bearer '+Auth.getToken()}, body:JSON.stringify({title,type:vType,content,tags}) }).then(function(x){return x.json();});
+  document.getElementById('vSaveBtn').textContent='Save to Vault 🔐';
+  if (r.success) { vaultItems.unshift(r.data); closeAdd(); renderVault(); Layout.toast('Saved to vault 🔐','success'); }
+  else Layout.toast(r.message||'Error','error');
+}
+
+async function deleteItem(id) {
+  if (!confirm('Permanently delete this secret?')) return;
+  var r = await fetch('/api/trustid/vault/items/'+id, { method:'DELETE', headers:{Authorization:'Bearer '+Auth.getToken()} }).then(function(x){return x.json();});
+  if (r.success) { vaultItems=vaultItems.filter(function(i){return i._id!==id;}); renderVault(); Layout.toast('Deleted','info'); }
+}
+
+/* ── Boot ── */
+if (UNLOCKED) { loadVault(); }
+else {
+  fetch('/api/trustid/vault/verify-pin', { method:'POST', headers:{'Content-Type':'application/json',Authorization:'Bearer '+Auth.getToken()}, body:JSON.stringify({pin:''}) })
+    .then(function(x){return x.json();})
+    .then(function(r){ renderGate(r.firstTime||false); })
+    .catch(function(){ renderGate(false); });
+}
+</script>
+</body>
+</html>

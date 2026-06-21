@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Personal Vault — My Address</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="icon" href="./icon.svg">
+  <link rel="stylesheet" href="./css/styles.css">
+  <style>
+    .map-frame { width:100%;height:320px;border-radius:16px;border:1px solid #E2E8F0;overflow:hidden;background:#F8FAFC;display:flex;align-items:center;justify-content:center; }
+    .map-frame iframe { width:100%;height:100%;border:none; }
+    .share-card { background:linear-gradient(135deg,#0F0E2A,#1E1B4B);border-radius:20px;padding:28px;color:#fff; }
+    .addr-line  { display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid #F1F5F9;font-size:14px;color:#334155; }
+    .addr-icon  { font-size:18px;width:28px;text-align:center;flex-shrink:0; }
+    .addr-val   { font-weight:600;color:#0F172A; }
+    .qr-wrap    { background:#fff;border-radius:16px;padding:20px;text-align:center;border:1px solid #E8ECF4; }
+    .btn-share  { display:inline-flex;align-items:center;gap:6px;padding:10px 20px;border-radius:10px;background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);color:#fff;font-size:13px;font-weight:600;cursor:pointer;transition:background 0.15s; }
+    .btn-share:hover { background:rgba(255,255,255,0.25); }
+  </style>
+</head>
+<body>
+<div class="app-shell">
+  <div id="sidebar"></div>
+  <div id="main">
+    <div id="topbar"></div>
+    <div class="page-content" id="content"></div>
+  </div>
+</div>
+<script src="./js/auth.js"></script>
+<script>if(!Auth.requireAuth()) throw '';</script>
+<script src="./js/api.js"></script>
+<script src="./js/layout.js"></script>
+<script>
+Layout.init('address');
+var addr = {}, editing = false;
+document.getElementById('content').innerHTML = Layout.spinner();
+
+fetch('/api/trustid/vault/address', { headers:{Authorization:'Bearer '+Auth.getToken()} })
+  .then(function(r){return r.json();})
+  .then(function(r){ addr = r.success ? (r.data||{}) : {}; render(); });
+
+function addrText() {
+  return [addr.street, addr.city, addr.state, addr.postalCode, addr.country].filter(Boolean).join(', ');
+}
+
+function mapUrl() {
+  var text = addrText();
+  if (!text) return '';
+  return 'https://www.openstreetmap.org/export/embed.html?bbox=-0.1,51.4,0.1,51.6&layer=mapnik&marker=51.5,0&query='+encodeURIComponent(text);
+}
+function mapsLink() {
+  return 'https://www.google.com/maps/search/'+encodeURIComponent(addrText());
+}
+
+function render() {
+  var hasAddr = !!(addr.street || addr.city);
+  var txt = addrText();
+
+  var html =
+    '<div class="page-header">'
+    +'<div><h1 class="page-title">🏠 My Address</h1><p class="page-sub">Store and share your home address with a QR code</p></div>'
+    +(hasAddr && !editing ? '<button onclick="startEdit()" class="btn btn-ghost" style="width:auto">✏️ Edit Address</button>' : '')
+    +'</div>';
+
+  /* Edit form */
+  if (editing || !hasAddr) {
+    html +=
+      '<div class="card" style="max-width:600px;margin-bottom:24px">'
+      +'<h3 style="font-size:15px;font-weight:800;margin-bottom:18px">'+(hasAddr?'Edit':'Set Up')+'Your Address</h3>'
+      +'<div style="display:flex;flex-direction:column;gap:14px">'
+      +'<div class="field"><label class="label">Street Address</label>'
+      +'<input id="f-street" class="input" value="'+(addr.street||'')+'" placeholder="12 Kwame Nkrumah Avenue"></div>'
+      +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">'
+      +'<div class="field"><label class="label">City</label><input id="f-city" class="input" value="'+(addr.city||'')+'" placeholder="Accra"></div>'
+      +'<div class="field"><label class="label">State / Region</label><input id="f-state" class="input" value="'+(addr.state||'')+'" placeholder="Greater Accra"></div>'
+      +'</div>'
+      +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">'
+      +'<div class="field"><label class="label">Country</label><input id="f-country" class="input" value="'+(addr.country||'')+'" placeholder="Ghana"></div>'
+      +'<div class="field"><label class="label">Postal / ZIP Code</label><input id="f-postal" class="input" value="'+(addr.postalCode||'')+'" placeholder="GA-123-4567"></div>'
+      +'</div>'
+      +'<div style="display:flex;gap:10px;margin-top:4px">'
+      +'<button onclick="saveAddress()" class="btn btn-primary" style="flex:1">Save Address 📍</button>'
+      +(hasAddr?'<button onclick="cancelEdit()" class="btn btn-ghost" style="width:auto">Cancel</button>':'')
+      +'</div></div></div>';
+  }
+
+  if (hasAddr && !editing) {
+    html +=
+      '<div style="display:grid;grid-template-columns:1fr 320px;gap:20px;align-items:start">'
+
+      /* Left */
+      +'<div style="display:flex;flex-direction:column;gap:18px">'
+
+      /* Address card */
+      +'<div class="card">'
+      +'<h3 style="font-size:14px;font-weight:800;margin-bottom:14px">📍 Current Address</h3>'
+      +(addr.street   ? '<div class="addr-line"><span class="addr-icon">🏠</span><div><div style="font-size:11px;color:#94A3B8;margin-bottom:2px">STREET</div><div class="addr-val">'+addr.street+'</div></div></div>' : '')
+      +(addr.city     ? '<div class="addr-line"><span class="addr-icon">🏙️</span><div><div style="font-size:11px;color:#94A3B8;margin-bottom:2px">CITY</div><div class="addr-val">'+addr.city+'</div></div></div>' : '')
+      +(addr.state    ? '<div class="addr-line"><span class="addr-icon">🗺️</span><div><div style="font-size:11px;color:#94A3B8;margin-bottom:2px">STATE / REGION</div><div class="addr-val">'+addr.state+'</div></div></div>' : '')
+      +(addr.country  ? '<div class="addr-line"><span class="addr-icon">🌍</span><div><div style="font-size:11px;color:#94A3B8;margin-bottom:2px">COUNTRY</div><div class="addr-val">'+addr.country+'</div></div></div>' : '')
+      +(addr.postalCode?'<div class="addr-line"><span class="addr-icon">📮</span><div><div style="font-size:11px;color:#94A3B8;margin-bottom:2px">POSTAL CODE</div><div class="addr-val">'+addr.postalCode+'</div></div></div>' : '')
+      +'</div>'
+
+      /* Map */
+      +'<div class="card" style="padding:0;overflow:hidden">'
+      +'<div class="map-frame">'
+      +'<iframe src="https://maps.google.com/maps?q='+encodeURIComponent(txt)+'&output=embed&z=15" allowfullscreen loading="lazy"></iframe>'
+      +'</div>'
+      +'<div style="padding:14px;display:flex;gap:10px">'
+      +'<a href="'+mapsLink()+'" target="_blank" class="btn btn-ghost" style="flex:1;text-align:center">🗺️ Open in Google Maps</a>'
+      +'<button onclick="copyAddress()" class="btn btn-ghost" style="width:auto">📋 Copy</button>'
+      +'</div></div>'
+
+      +'</div>'
+
+      /* Right — QR + Share */
+      +'<div style="display:flex;flex-direction:column;gap:16px">'
+
+      /* QR Code */
+      +'<div class="qr-wrap">'
+      +'<h3 style="font-size:13px;font-weight:800;margin-bottom:14px">📲 Share via QR Code</h3>'
+      + Layout.qrImg(txt, 180)
+      +'<p style="font-size:12px;color:#64748B;margin-top:10px;line-height:1.5">Anyone who scans this QR code will see your address</p>'
+      +'<button onclick="downloadQR()" class="btn btn-outline btn-sm btn-full" style="margin-top:12px">⬇️ Download QR</button>'
+      +'</div>'
+
+      /* Share card */
+      +'<div class="share-card">'
+      +'<div style="font-size:11px;font-weight:700;letter-spacing:1.5px;color:rgba(255,255,255,0.4);margin-bottom:8px">MY ADDRESS</div>'
+      +'<div style="font-size:15px;font-weight:700;margin-bottom:16px;line-height:1.5">'+txt+'</div>'
+      +'<div style="display:flex;flex-wrap:wrap;gap:8px">'
+      +'<button onclick="shareAddress()" class="btn-share">📤 Share</button>'
+      +'<button onclick="copyAddress()" class="btn-share">📋 Copy</button>'
+      +'</div>'
+      +'</div>'
+
+      +'</div></div>';
+  }
+
+  document.getElementById('content').innerHTML = html;
+}
+
+function startEdit()  { editing=true; render(); }
+function cancelEdit() { editing=false; render(); }
+
+async function saveAddress() {
+  var body = {
+    street:document.getElementById('f-street').value.trim(),
+    city:document.getElementById('f-city').value.trim(),
+    state:document.getElementById('f-state').value.trim(),
+    country:document.getElementById('f-country').value.trim(),
+    postalCode:document.getElementById('f-postal').value.trim(),
+  };
+  var r = await fetch('/api/trustid/vault/address', { method:'PUT', headers:{'Content-Type':'application/json',Authorization:'Bearer '+Auth.getToken()}, body:JSON.stringify(body) }).then(function(x){return x.json();});
+  if (r.success) { addr=body; editing=false; render(); Layout.toast('Address saved! 📍','success'); }
+  else Layout.toast(r.message||'Error','error');
+}
+
+function copyAddress() {
+  var txt = addrText();
+  if (navigator.clipboard) navigator.clipboard.writeText(txt).then(function(){ Layout.toast('Address copied!','success'); });
+  else { var el=document.createElement('textarea'); el.value=txt; document.body.appendChild(el); el.select(); document.execCommand('copy'); document.body.removeChild(el); Layout.toast('Copied!','success'); }
+}
+
+function shareAddress() {
+  var txt = addrText();
+  if (navigator.share) { navigator.share({ title:'My Address', text:txt }); }
+  else { copyAddress(); }
+}
+
+function downloadQR() {
+  var link = document.createElement('a');
+  link.href = 'https://api.qrserver.com/v1/create-qr-code/?size=400x400&data='+encodeURIComponent(addrText());
+  link.download = 'my-address-qr.png'; link.target = '_blank';
+  link.click();
+}
+</script>
+</body>
+</html>

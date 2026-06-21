@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Personal Vault — Academics</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="icon" href="./icon.svg">
+  <link rel="stylesheet" href="./css/styles.css">
+</head>
+<body>
+<div class="app-shell">
+  <div id="sidebar"></div>
+  <div id="main">
+    <div id="topbar"></div>
+    <div class="page-content" id="content"></div>
+  </div>
+</div>
+<!-- Modal -->
+<div id="modal" class="modal-backdrop" style="display:none" onclick="closeModal()">
+  <div class="modal" style="max-width:520px" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <span class="modal-title" id="modalTitle">Add Academic Record</span>
+      <button onclick="closeModal()" style="background:#F1F5F9;border:none;cursor:pointer;width:32px;height:32px;border-radius:8px;font-size:18px;color:#64748B">×</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div class="field"><label class="label">Title <span style="color:#EF4444">*</span></label>
+        <input id="f-title" class="input" placeholder="e.g. BSc Computer Science"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="field"><label class="label">Type</label>
+          <select id="f-type" class="input">
+            <option value="degree">🎓 Degree</option>
+            <option value="certificate" selected>📜 Certificate</option>
+            <option value="diploma">🏛️ Diploma</option>
+            <option value="transcript">📋 Transcript</option>
+            <option value="award">🏆 Award</option>
+            <option value="course">📚 Course</option>
+            <option value="other">📄 Other</option>
+          </select></div>
+        <div class="field"><label class="label">Year</label>
+          <input id="f-year" class="input" type="number" placeholder="2024" min="1900" max="2099"></div>
+      </div>
+      <div class="field"><label class="label">Institution</label>
+        <input id="f-institution" class="input" placeholder="e.g. University of Ghana"></div>
+      <div class="field"><label class="label">Grade / Score</label>
+        <input id="f-grade" class="input" placeholder="e.g. First Class / 3.9 GPA"></div>
+      <div class="field"><label class="label">Description</label>
+        <textarea id="f-desc" class="input" rows="3" style="height:auto;resize:vertical;padding:10px" placeholder="Add notes about this qualification…"></textarea></div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <input type="checkbox" id="f-public" style="width:16px;height:16px;accent-color:#7C3AED">
+        <label for="f-public" style="font-size:13px;color:#334155;cursor:pointer">Make public on my profile</label>
+      </div>
+      <button onclick="saveRecord()" class="btn btn-primary btn-full" id="saveBtn">Save Record</button>
+    </div>
+  </div>
+</div>
+<script src="./js/auth.js"></script>
+<script>if(!Auth.requireAuth()) throw '';</script>
+<script src="./js/api.js"></script>
+<script src="./js/layout.js"></script>
+<script>
+Layout.init('academics');
+
+var items = [], editId = null;
+var TYPES = { degree:'🎓 Degree', certificate:'📜 Certificate', diploma:'🏛️ Diploma', transcript:'📋 Transcript', award:'🏆 Award', course:'📚 Course', other:'📄 Other' };
+var TYPE_CSS = { certificate:'acad-certificate', degree:'acad-degree', award:'acad-award', transcript:'acad-transcript', diploma:'acad-diploma', course:'acad-course', other:'acad-other' };
+var activTab = 'all';
+
+document.getElementById('content').innerHTML = Layout.spinner();
+
+fetch('/api/trustid/academics', { headers:{ Authorization:'Bearer '+Auth.getToken() } })
+  .then(function(r){ return r.json(); })
+  .then(function(r){ items = r.success ? r.data : []; render(); })
+  .catch(function(){ items = []; render(); });
+
+function render() {
+  var tabs = ['all','degree','certificate','diploma','transcript','award','course'];
+  var filtered = activTab==='all' ? items : items.filter(function(i){ return i.type===activTab; });
+  var html =
+    '<div class="page-header">'
+    + '<div><h1 class="page-title">🎓 Academics & Awards</h1><p class="page-sub">Certificates, degrees, transcripts and awards</p></div>'
+    + '<button onclick="openAdd()" class="btn btn-primary" style="width:auto">+ Add Record</button>'
+    + '</div>'
+    + '<div class="tabs" style="margin-bottom:20px">'
+    + tabs.map(function(t){
+        var lbl = t==='all' ? 'All ('+items.length+')' : (TYPES[t]||t);
+        var cnt = t==='all' ? '' : ' ('+items.filter(function(i){return i.type===t;}).length+')';
+        return '<button class="tab'+(activTab===t?' active':'')+'" onclick="setTab(\''+t+'\')">'+lbl+cnt+'</button>';
+      }).join('')
+    + '</div>';
+
+  if (filtered.length === 0) {
+    html += '<div class="empty" style="padding:80px 20px"><div style="font-size:48px;margin-bottom:16px">🎓</div><div style="font-size:16px;font-weight:600;color:#334155;margin-bottom:8px">No records yet</div><div style="margin-bottom:24px">Add your first academic certificate, degree or award</div><button onclick="openAdd()" class="btn btn-primary" style="width:auto">+ Add First Record</button></div>';
+  } else {
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px">';
+    filtered.forEach(function(item) {
+      html +=
+        '<div class="card" style="cursor:default;transition:box-shadow 0.15s" onmouseenter="this.style.boxShadow=\'0 8px 24px rgba(0,0,0,0.08)\'" onmouseleave="this.style.boxShadow=\'\'">'
+        + '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">'
+        +   '<span class="acad-type '+(TYPE_CSS[item.type]||'acad-other')+'">'+( TYPES[item.type]||item.type)+'</span>'
+        +   '<div style="display:flex;gap:6px">'
+        +     (item.isPublic ? '<span style="font-size:10px;background:#22C55E18;color:#15803D;padding:3px 8px;border-radius:100px;font-weight:700">🌍 Public</span>' : '<span style="font-size:10px;background:#F1F5F9;color:#64748B;padding:3px 8px;border-radius:100px;font-weight:700">🔒 Private</span>')
+        +     '<button onclick="deleteRecord(\''+item._id+'\')" title="Delete" style="background:none;border:none;cursor:pointer;color:#94A3B8;font-size:15px;padding:0">🗑</button>'
+        +   '</div>'
+        + '</div>'
+        + '<h3 style="font-size:15px;font-weight:800;color:#0F172A;margin-bottom:6px">'+item.title+'</h3>'
+        + (item.institution ? '<div style="font-size:13px;color:#64748B;margin-bottom:4px">🏛 '+item.institution+'</div>' : '')
+        + '<div style="display:flex;gap:12px;margin-top:8px">'
+        + (item.year ? '<span style="font-size:12px;color:#7C3AED;font-weight:700">📅 '+item.year+'</span>' : '')
+        + (item.grade ? '<span style="font-size:12px;color:#22C55E;font-weight:700">⭐ '+item.grade+'</span>' : '')
+        + '</div>'
+        + (item.description ? '<div style="font-size:12px;color:#64748B;margin-top:10px;line-height:1.55;border-top:1px solid #F1F5F9;padding-top:10px">'+item.description+'</div>' : '')
+        + '</div>';
+    });
+    html += '</div>';
+  }
+
+  /* Stats summary */
+  var stats = '<div class="grid-4" style="margin-top:28px">';
+  ['degree','certificate','award','other'].forEach(function(t){
+    var cnt = items.filter(function(i){ return t==='other' ? !['degree','certificate','award'].includes(i.type) : i.type===t; }).length;
+    var icons = { degree:'🎓', certificate:'📜', award:'🏆', other:'📚' };
+    stats += Layout.statCard(icons[t], (t.charAt(0).toUpperCase()+t.slice(1))+'s', cnt, t==='degree'?'#3B82F6':t==='award'?'#EAB308':'#7C3AED');
+  });
+  stats += '</div>';
+  html += stats;
+
+  document.getElementById('content').innerHTML = html;
+}
+
+function setTab(t) { activTab=t; render(); }
+
+function openAdd() {
+  editId=null;
+  document.getElementById('modalTitle').textContent='Add Academic Record';
+  ['title','institution','grade','desc'].forEach(function(f){ document.getElementById('f-'+f).value=''; });
+  document.getElementById('f-type').value='certificate';
+  document.getElementById('f-year').value='';
+  document.getElementById('f-public').checked=false;
+  document.getElementById('modal').style.display='flex';
+  document.getElementById('f-title').focus();
+}
+
+function closeModal() { document.getElementById('modal').style.display='none'; }
+
+async function saveRecord() {
+  var title = document.getElementById('f-title').value.trim();
+  if (!title) { Layout.toast('Title is required','error'); return; }
+  var body = {
+    title, type:document.getElementById('f-type').value,
+    institution:document.getElementById('f-institution').value.trim(),
+    year:parseInt(document.getElementById('f-year').value)||null,
+    grade:document.getElementById('f-grade').value.trim(),
+    description:document.getElementById('f-desc').value.trim(),
+    isPublic:document.getElementById('f-public').checked
+  };
+  document.getElementById('saveBtn').textContent='Saving…';
+  var r = await fetch('/api/trustid/academics', { method:'POST', headers:{ 'Content-Type':'application/json', Authorization:'Bearer '+Auth.getToken() }, body:JSON.stringify(body) }).then(function(x){return x.json();});
+  document.getElementById('saveBtn').textContent='Save Record';
+  if (r.success) { items.unshift(r.data); closeModal(); render(); Layout.toast('Record saved! 🎓','success'); }
+  else Layout.toast(r.message||'Failed to save','error');
+}
+
+async function deleteRecord(id) {
+  if (!confirm('Delete this record?')) return;
+  var r = await fetch('/api/trustid/academics/'+id, { method:'DELETE', headers:{ Authorization:'Bearer '+Auth.getToken() } }).then(function(x){return x.json();});
+  if (r.success) { items=items.filter(function(i){return i._id!==id;}); render(); Layout.toast('Deleted','info'); }
+}
+</script>
+</body>
+</html>

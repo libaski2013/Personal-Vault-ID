@@ -49,19 +49,36 @@ fastify.register(require('@fastify/static'), {
 
 /* ── Health ── */
 fastify.get('/health', async () => ({
-  status: 'ok', app: 'trustid', uptime: process.uptime(), env: NODE_ENV,
+  status: 'ok', app: 'personal-vault', uptime: process.uptime(), env: NODE_ENV,
 }));
 
 /* ── Root redirect ── */
 fastify.get('/', async (req, reply) => reply.redirect('/trustid/'));
 
 /* ── API routes ── */
-fastify.register(require('./routes/auth'),      { prefix: '/api/trustid/auth' });
-fastify.register(require('./routes/documents'), { prefix: '/api/trustid/documents' });
-fastify.register(require('./routes/expenses'),  { prefix: '/api/trustid/expenses' });
-fastify.register(require('./routes/reminders'), { prefix: '/api/trustid/reminders' });
-fastify.register(require('./routes/todos'),     { prefix: '/api/trustid/todos' });
-fastify.register(require('./routes/admin'),     { prefix: '/api/trustid/admin' });
+fastify.register(require('./routes/auth'),       { prefix: '/api/trustid/auth' });
+fastify.register(require('./routes/documents'),  { prefix: '/api/trustid/documents' });
+fastify.register(require('./routes/expenses'),   { prefix: '/api/trustid/expenses' });
+fastify.register(require('./routes/reminders'),  { prefix: '/api/trustid/reminders' });
+fastify.register(require('./routes/todos'),      { prefix: '/api/trustid/todos' });
+fastify.register(require('./routes/admin'),      { prefix: '/api/trustid/admin' });
+fastify.register(require('./routes/academics'),  { prefix: '/api/trustid/academics' });
+fastify.register(require('./routes/vault'),      { prefix: '/api/trustid/vault' });
+fastify.register(require('./routes/lifestory'),  { prefix: '/api/trustid/life' });
+fastify.register(require('./routes/legacy'),     { prefix: '/api/trustid/legacy' });
+
+/* ── Track user activity on every authenticated API call ── */
+fastify.addHook('onRequest', async (request) => {
+  try {
+    if (request.url.startsWith('/api/') && request.headers.authorization) {
+      const payload = fastify.jwt.decode(request.headers.authorization.replace('Bearer ',''));
+      if (payload && payload.userId) {
+        const { User } = require('./db/models');
+        User.findByIdAndUpdate(payload.userId, { lastActivity: new Date() }).catch(()=>{});
+      }
+    }
+  } catch {}
+});
 
 /* ── Fallback: serve trustid HTML pages ── */
 fastify.setNotFoundHandler(async (request, reply) => {

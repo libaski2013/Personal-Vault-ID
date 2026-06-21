@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Personal Vault — Life Story</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="icon" href="./icon.svg">
+  <link rel="stylesheet" href="./css/styles.css">
+  <style>
+    .life-card { background:#fff;border-radius:16px;border:1px solid #E8ECF4;padding:20px;position:relative;transition:box-shadow 0.15s; }
+    .life-card:hover { box-shadow:0 6px 20px rgba(0,0,0,0.07); }
+    .life-dot { width:14px;height:14px;border-radius:50%;flex-shrink:0;margin-top:4px; }
+    .life-timeline { position:relative;padding-left:30px; }
+    .life-timeline::before { content:'';position:absolute;left:6px;top:0;bottom:0;width:2px;background:#E2E8F0; }
+    .life-timeline-item { position:relative;margin-bottom:20px; }
+    .life-timeline-item::before { content:'';position:absolute;left:-25px;top:6px;width:12px;height:12px;border-radius:50%;background:#7C3AED;border:3px solid #fff;box-shadow:0 0 0 2px #7C3AED40; }
+    .life-category-pill { display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:100px;font-size:11px;font-weight:700; }
+    .privacy-toggle { display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:10px;border:1.5px solid #E2E8F0;cursor:pointer;font-size:13px;font-weight:600;transition:all 0.15s;background:#fff; }
+    .privacy-toggle.public { border-color:#22C55E;background:#22C55E08;color:#15803D; }
+    .privacy-toggle.private { border-color:#94A3B8;color:#64748B; }
+  </style>
+</head>
+<body>
+<div class="app-shell">
+  <div id="sidebar"></div>
+  <div id="main">
+    <div id="topbar"></div>
+    <div class="page-content" id="content"></div>
+  </div>
+</div>
+<!-- Modal -->
+<div id="modal" class="modal-backdrop" style="display:none" onclick="closeModal()">
+  <div class="modal" style="max-width:540px" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <span class="modal-title" id="modalTitle">Add Life Entry</span>
+      <button onclick="closeModal()" style="background:#F1F5F9;border:none;cursor:pointer;width:32px;height:32px;border-radius:8px;font-size:18px;color:#64748B">×</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div class="field"><label class="label">Title <span style="color:#EF4444">*</span></label>
+        <input id="f-title" class="input" placeholder="e.g. Graduated from University"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="field"><label class="label">Category</label>
+          <select id="f-cat" class="input">
+            <option value="education">🎓 Education</option>
+            <option value="career">💼 Career</option>
+            <option value="family">👨‍👩‍👧 Family</option>
+            <option value="health">❤️ Health</option>
+            <option value="travel">✈️ Travel</option>
+            <option value="hobby">🎨 Hobby</option>
+            <option value="achievement">🏆 Achievement</option>
+            <option value="milestone" selected>⭐ Milestone</option>
+            <option value="other">📌 Other</option>
+          </select></div>
+        <div class="field"><label class="label">Date</label>
+          <input id="f-date" class="input" type="date"></div>
+      </div>
+      <div class="field"><label class="label">Story / Details</label>
+        <textarea id="f-content" class="input" rows="4" style="height:auto;resize:vertical;padding:10px" placeholder="Tell your story in detail… where it happened, who was there, how it changed you…"></textarea></div>
+      <div class="field"><label class="label">Tags</label>
+        <input id="f-tags" class="input" placeholder="graduation, 2023, milestone (comma separated)"></div>
+      <div style="display:flex;gap:10px">
+        <button id="privBtn" class="privacy-toggle private" onclick="togglePrivacy()">🔒 Private — Only me</button>
+        <div style="flex:1"></div>
+      </div>
+      <input type="hidden" id="f-public" value="false">
+      <button onclick="saveEntry()" class="btn btn-primary btn-full" id="saveBtn">Save Entry</button>
+    </div>
+  </div>
+</div>
+
+<script src="./js/auth.js"></script>
+<script>if(!Auth.requireAuth()) throw '';</script>
+<script src="./js/api.js"></script>
+<script src="./js/layout.js"></script>
+<script>
+Layout.init('lifestory');
+var entries = [], editId = null, viewMode = 'cards', filterCat = 'all';
+var user = Auth.getUser()||{};
+
+var CAT_META = {
+  education:  { icon:'🎓', label:'Education',   cls:'life-education' },
+  career:     { icon:'💼', label:'Career',       cls:'life-career' },
+  family:     { icon:'👨‍👩‍👧', label:'Family',    cls:'life-family' },
+  health:     { icon:'❤️', label:'Health',       cls:'life-health' },
+  travel:     { icon:'✈️', label:'Travel',       cls:'life-travel' },
+  hobby:      { icon:'🎨', label:'Hobby',        cls:'life-hobby' },
+  achievement:{ icon:'🏆', label:'Achievement',  cls:'life-achievement' },
+  milestone:  { icon:'⭐', label:'Milestone',    cls:'life-milestone' },
+  other:      { icon:'📌', label:'Other',        cls:'life-other' },
+};
+
+document.getElementById('content').innerHTML = Layout.spinner();
+
+fetch('/api/trustid/life', { headers:{Authorization:'Bearer '+Auth.getToken()} })
+  .then(function(r){return r.json();})
+  .then(function(r){ entries = r.success?r.data:[]; render(); });
+
+function render() {
+  var filtered = filterCat==='all' ? entries : entries.filter(function(e){return e.category===filterCat;});
+  var cats = Object.keys(CAT_META);
+  var publicCount = entries.filter(function(e){return e.isPublic;}).length;
+  var profileUrl = window.location.origin+'/api/trustid/life/public/'+user._id;
+
+  var html =
+    '<div class="page-header">'
+    +'<div><h1 class="page-title">📖 My Life Story</h1><p class="page-sub">Document every chapter of your life — share what you choose</p></div>'
+    +'<div style="display:flex;gap:10px">'
+    +(publicCount>0?'<button onclick="shareProfile(\''+profileUrl+'\')" class="btn btn-ghost" style="width:auto">🔗 Share Profile ('+publicCount+' public)</button>':'')
+    +'<button onclick="openAdd()" class="btn btn-primary" style="width:auto">+ Add Entry</button>'
+    +'</div></div>'
+
+    /* Stats */
+    +'<div class="grid-4" style="margin-bottom:24px">'
+    +Layout.statCard('📖','Total Entries',entries.length,'#7C3AED')
+    +Layout.statCard('🌍','Public',publicCount,'#22C55E')
+    +Layout.statCard('🔒','Private',entries.length-publicCount,'#64748B')
+    +Layout.statCard('📅','Years Covered',uniqueYears(),'#3B82F6')
+    +'</div>'
+
+    /* Filters + View toggle */
+    +'<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:20px">'
+    +'<div class="tabs">'
+    +'<button class="tab'+(filterCat==='all'?' active':'')+'" onclick="setFilter(\'all\')">All ('+entries.length+')</button>'
+    +cats.filter(function(c){return entries.some(function(e){return e.category===c;});}).map(function(c){
+        var m=CAT_META[c], cnt=entries.filter(function(e){return e.category===c;}).length;
+        return '<button class="tab'+(filterCat===c?' active':'')+'" onclick="setFilter(\''+c+'\')">'+m.icon+' '+m.label+' ('+cnt+')</button>';
+      }).join('')
+    +'</div>'
+    +'<div style="display:flex;gap:6px">'
+    +'<button onclick="setView(\'cards\')" style="padding:6px 12px;border-radius:8px;border:1px solid #E2E8F0;background:'+(viewMode==='cards'?'#7C3AED':'#fff')+';color:'+(viewMode==='cards'?'#fff':'#64748B')+';cursor:pointer;font-size:12px;font-weight:600">⊞ Cards</button>'
+    +'<button onclick="setView(\'timeline\')" style="padding:6px 12px;border-radius:8px;border:1px solid #E2E8F0;background:'+(viewMode==='timeline'?'#7C3AED':'#fff')+';color:'+(viewMode==='timeline'?'#fff':'#64748B')+';cursor:pointer;font-size:12px;font-weight:600">📅 Timeline</button>'
+    +'</div></div>';
+
+  if (filtered.length===0) {
+    html += '<div class="empty" style="padding:80px 20px"><div style="font-size:48px;margin-bottom:16px">📖</div><div style="font-size:16px;font-weight:600;margin-bottom:8px">Your story starts here</div><div>Document your education, career, family, travels and every milestone</div></div>';
+  } else if (viewMode==='timeline') {
+    html += '<div class="life-timeline">';
+    filtered.forEach(function(e) {
+      var m = CAT_META[e.category]||CAT_META.other;
+      html +=
+        '<div class="life-timeline-item">'
+        +'<div style="display:flex;align-items:flex-start;gap:14px">'
+        +'<div style="flex:1">'
+        +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">'
+        +'<span class="life-category-pill '+m.cls+'">'+m.icon+' '+m.label+'</span>'
+        +'<span style="font-size:12px;color:#94A3B8">'+Layout.fmtDate(e.date)+'</span>'
+        +(e.isPublic?'<span style="font-size:10px;background:#22C55E18;color:#15803D;padding:2px 7px;border-radius:100px;font-weight:700">🌍 Public</span>':'')
+        +'</div>'
+        +'<h3 style="font-size:15px;font-weight:800;color:#0F172A;margin-bottom:6px">'+e.title+'</h3>'
+        +(e.content?'<p style="font-size:13px;color:#64748B;line-height:1.6;margin-bottom:8px">'+e.content+'</p>':'')
+        +(e.tags&&e.tags.length?'<div style="display:flex;flex-wrap:wrap;gap:4px">'+e.tags.map(function(t){return '<span style="font-size:10px;background:#F1F5F9;color:#64748B;padding:2px 8px;border-radius:100px">#'+t+'</span>';}).join('')+'</div>':'')
+        +'</div>'
+        +'<div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0">'
+        +'<button onclick="togglePublic(\''+e._id+'\','+e.isPublic+')" title="'+(e.isPublic?'Make private':'Make public')+'" style="background:none;border:none;cursor:pointer;font-size:16px">'+(e.isPublic?'🌍':'🔒')+'</button>'
+        +'<button onclick="deleteEntry(\''+e._id+'\')" style="background:none;border:none;cursor:pointer;color:#94A3B8;font-size:14px">🗑</button>'
+        +'</div></div></div>';
+    });
+    html += '</div>';
+  } else {
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px">';
+    filtered.forEach(function(e) {
+      var m = CAT_META[e.category]||CAT_META.other;
+      html +=
+        '<div class="life-card">'
+        +'<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">'
+        +'<span class="life-category-pill '+m.cls+'">'+m.icon+' '+m.label+'</span>'
+        +'<div style="display:flex;gap:6px;align-items:center">'
+        +(e.isPublic?'<span style="font-size:10px;background:#22C55E18;color:#15803D;padding:2px 7px;border-radius:100px;font-weight:700">🌍</span>':'<span style="font-size:10px;color:#94A3B8">🔒</span>')
+        +'<button onclick="togglePublic(\''+e._id+'\','+e.isPublic+')" title="Toggle privacy" style="background:none;border:none;cursor:pointer;font-size:13px;color:#94A3B8;padding:2px 4px">⇄</button>'
+        +'<button onclick="deleteEntry(\''+e._id+'\')" style="background:none;border:none;cursor:pointer;color:#94A3B8;font-size:14px">🗑</button>'
+        +'</div></div>'
+        +'<h3 style="font-size:15px;font-weight:800;color:#0F172A;margin-bottom:6px">'+e.title+'</h3>'
+        +'<div style="font-size:12px;color:#94A3B8;margin-bottom:8px">📅 '+Layout.fmtDate(e.date)+'</div>'
+        +(e.content?'<p style="font-size:13px;color:#64748B;line-height:1.55;margin-bottom:10px">'+e.content.slice(0,140)+(e.content.length>140?'…':'')+'</p>':'')
+        +(e.tags&&e.tags.length?'<div style="display:flex;flex-wrap:wrap;gap:4px">'+e.tags.map(function(t){return '<span style="font-size:10px;background:#F1F5F9;color:#64748B;padding:2px 8px;border-radius:100px">#'+t+'</span>';}).join('')+'</div>':'')
+        +'</div>';
+    });
+    html += '</div>';
+  }
+
+  document.getElementById('content').innerHTML = html;
+}
+
+function uniqueYears() {
+  var yrs = {};
+  entries.forEach(function(e){ if(e.date){ var y=new Date(e.date).getFullYear(); yrs[y]=1; } });
+  return Object.keys(yrs).length || '—';
+}
+function setFilter(c) { filterCat=c; render(); }
+function setView(v) { viewMode=v; render(); }
+
+function openAdd() {
+  editId=null;
+  document.getElementById('modalTitle').textContent='Add Life Entry';
+  document.getElementById('f-title').value='';
+  document.getElementById('f-cat').value='milestone';
+  document.getElementById('f-date').value=new Date().toISOString().slice(0,10);
+  document.getElementById('f-content').value='';
+  document.getElementById('f-tags').value='';
+  document.getElementById('f-public').value='false';
+  document.getElementById('privBtn').className='privacy-toggle private';
+  document.getElementById('privBtn').innerHTML='🔒 Private — Only me';
+  document.getElementById('modal').style.display='flex';
+  document.getElementById('f-title').focus();
+}
+function closeModal() { document.getElementById('modal').style.display='none'; }
+
+function togglePrivacy() {
+  var isPublic = document.getElementById('f-public').value==='true';
+  isPublic = !isPublic;
+  document.getElementById('f-public').value=String(isPublic);
+  var btn = document.getElementById('privBtn');
+  btn.className='privacy-toggle '+(isPublic?'public':'private');
+  btn.innerHTML=isPublic?'🌍 Public — Visible on profile':'🔒 Private — Only me';
+}
+
+async function saveEntry() {
+  var title = document.getElementById('f-title').value.trim();
+  if (!title) { Layout.toast('Title required','error'); return; }
+  var body = {
+    title, category:document.getElementById('f-cat').value,
+    date:document.getElementById('f-date').value,
+    content:document.getElementById('f-content').value.trim(),
+    tags:document.getElementById('f-tags').value.split(',').map(function(t){return t.trim();}).filter(Boolean),
+    isPublic:document.getElementById('f-public').value==='true',
+  };
+  document.getElementById('saveBtn').textContent='Saving…';
+  var r = await fetch('/api/trustid/life', { method:'POST', headers:{'Content-Type':'application/json',Authorization:'Bearer '+Auth.getToken()}, body:JSON.stringify(body) }).then(function(x){return x.json();});
+  document.getElementById('saveBtn').textContent='Save Entry';
+  if (r.success) { entries.unshift(r.data); closeModal(); render(); Layout.toast('Life entry saved! 📖','success'); }
+  else Layout.toast(r.message||'Error','error');
+}
+
+async function togglePublic(id, current) {
+  var r = await fetch('/api/trustid/life/'+id, { method:'PUT', headers:{'Content-Type':'application/json',Authorization:'Bearer '+Auth.getToken()}, body:JSON.stringify({isPublic:!current}) }).then(function(x){return x.json();});
+  if (r.success) { entries=entries.map(function(e){return e._id===id?Object.assign({},e,{isPublic:!current}):e;}); render(); Layout.toast(current?'Made private 🔒':'Made public 🌍','success'); }
+}
+
+async function deleteEntry(id) {
+  if (!confirm('Delete this life entry?')) return;
+  var r = await fetch('/api/trustid/life/'+id, { method:'DELETE', headers:{Authorization:'Bearer '+Auth.getToken()} }).then(function(x){return x.json();});
+  if (r.success) { entries=entries.filter(function(e){return e._id!==id;}); render(); Layout.toast('Deleted','info'); }
+}
+
+function shareProfile(url) {
+  if (navigator.share) navigator.share({ title:'My Life Story', url });
+  else { navigator.clipboard&&navigator.clipboard.writeText(url); Layout.toast('Profile link copied!','success'); }
+}
+</script>
+</body>
+</html>

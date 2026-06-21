@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Personal Vault — Digital Legacy</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="icon" href="./icon.svg">
+  <link rel="stylesheet" href="./css/styles.css">
+  <style>
+    /* ── Legacy warning card ── */
+    .legacy-banner { background:linear-gradient(135deg,#1E1B4B,#312E81);border-radius:20px;padding:28px 32px;color:#fff;margin-bottom:24px; }
+    .legacy-status-active    { background:linear-gradient(135deg,#064E3B,#065F46); }
+    .legacy-status-prompted  { background:linear-gradient(135deg,#78350F,#92400E); }
+    .legacy-status-admin     { background:linear-gradient(135deg,#7F1D1D,#991B1B); }
+
+    /* ── Inactivity countdown ring ── */
+    .countdown-ring { position:relative;width:120px;height:120px;flex-shrink:0 }
+    .countdown-ring svg { transform:rotate(-90deg) }
+    .countdown-inner { position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center }
+
+    /* ── Secret message area ── */
+    .msg-envelope { background:#F8FAFC;border:2px dashed #E2E8F0;border-radius:16px;padding:24px;text-align:center;cursor:pointer;transition:all 0.2s }
+    .msg-envelope:hover { border-color:#7C3AED;background:#7C3AED06 }
+    .msg-open { background:#fff;border:1.5px solid #E8ECF4;border-radius:16px;padding:24px }
+
+    /* ── Contact cards ── */
+    .contact-slot { background:#F8FAFC;border:1.5px dashed #E2E8F0;border-radius:14px;padding:18px;transition:border-color 0.15s }
+    .contact-slot.filled { background:#fff;border-style:solid;border-color:#E8ECF4 }
+    .contact-slot.priority-1 { border-left:4px solid #22C55E }
+    .contact-slot.priority-2 { border-left:4px solid #F97316 }
+    .contact-slot.priority-3 { border-left:4px solid #7C3AED }
+
+    /* ── Timeline ── */
+    .timeline { position:relative;padding-left:24px }
+    .timeline::before { content:'';position:absolute;left:8px;top:0;bottom:0;width:2px;background:#E2E8F0 }
+    .tl-item { position:relative;padding:0 0 20px 16px }
+    .tl-dot { position:absolute;left:-20px;top:4px;width:12px;height:12px;border-radius:50%;border:3px solid #fff }
+    .tl-dot.green  { background:#22C55E;box-shadow:0 0 0 2px #22C55E40 }
+    .tl-dot.orange { background:#F97316;box-shadow:0 0 0 2px #F9731640 }
+    .tl-dot.red    { background:#EF4444;box-shadow:0 0 0 2px #EF444440 }
+  </style>
+</head>
+<body>
+<div class="app-shell">
+  <div id="sidebar"></div>
+  <div id="main">
+    <div id="topbar"></div>
+    <div class="page-content" id="content"></div>
+  </div>
+</div>
+<script src="./js/auth.js"></script>
+<script>if(!Auth.requireAuth()) throw '';</script>
+<script src="./js/api.js"></script>
+<script src="./js/layout.js"></script>
+<script>
+Layout.init('legacy');
+var legacy = {}, daysSince = 0, editingMsg = false;
+
+document.getElementById('content').innerHTML = Layout.spinner();
+
+function load() {
+  fetch('/api/trustid/legacy', { headers:{Authorization:'Bearer '+Auth.getToken()} })
+    .then(function(r){return r.json();})
+    .then(function(r){
+      legacy = r.data||{};
+      daysSince = r.daysSinceActivity||0;
+      render();
+    });
+}
+load();
+
+function render() {
+  var daysLeft = Math.max(0, 90 - daysSince);
+  var pct = Math.min(100, (daysSince/90)*100);
+  var circum = 2*Math.PI*50;
+  var offset = circum*(1-pct/100);
+  var ringColor = daysLeft > 30 ? '#22C55E' : daysLeft > 10 ? '#F97316' : '#EF4444';
+  var statusColor = legacy.status==='admin_notified'?'legacy-status-admin':legacy.status==='prompted'?'legacy-status-prompted':'legacy-status-active';
+  var contacts = legacy.contacts||[{},{},{}];
+  while(contacts.length < 3) contacts.push({});
+
+  var html =
+    '<div class="page-header">'
+    +'<div><h1 class="page-title">⏳ Digital Legacy</h1><p class="page-sub">Your secret message — disclosed only after you are gone</p></div>'
+    +'</div>'
+
+    /* Status banner */
+    +'<div class="legacy-banner '+statusColor+'" style="display:flex;align-items:center;gap:24px;flex-wrap:wrap">'
+    +'<div class="countdown-ring">'
+    +'<svg width="120" height="120" viewBox="0 0 120 120"><circle cx="60" cy="60" r="50" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="8"/><circle cx="60" cy="60" r="50" fill="none" stroke="'+ringColor+'" stroke-width="8" stroke-dasharray="'+circum+'" stroke-dashoffset="'+offset+'" stroke-linecap="round"/></svg>'
+    +'<div class="countdown-inner"><div style="font-size:26px;font-weight:900;color:#fff">'+daysLeft+'</div><div style="font-size:10px;color:rgba(255,255,255,0.6);font-weight:600">DAYS LEFT</div></div>'
+    +'</div>'
+    +'<div style="flex:1">'
+    +'<div style="font-size:12px;font-weight:700;letter-spacing:1.5px;color:rgba(255,255,255,0.4);margin-bottom:6px">INACTIVITY STATUS</div>'
+    +'<div style="font-size:20px;font-weight:900;color:#fff;margin-bottom:6px">'
+    +(legacy.status==='admin_notified'?'🚨 Admin Notified — Contacts Being Called':legacy.status==='prompted'?'⚠️ Prompt Sent — Please Check In':'✅ Active — All Good')
+    +'</div>'
+    +'<div style="font-size:14px;color:rgba(255,255,255,0.65);margin-bottom:16px">Last activity: <strong>'+daysSince+' day'+( daysSince===1?'':'s')+' ago</strong></div>'
+    +'<button onclick="checkIn()" class="btn btn-primary" style="width:auto;background:rgba(255,255,255,0.2);border:1.5px solid rgba(255,255,255,0.4)">✅ I\'m Alive — Check In Now</button>'
+    +'</div>'
+    +'</div>'
+
+    /* Two-column layout */
+    +'<div style="display:grid;grid-template-columns:1fr 340px;gap:22px;margin-top:4px">'
+
+    /* Left column */
+    +'<div style="display:flex;flex-direction:column;gap:20px">'
+
+    /* How it works */
+    +'<div class="card">'
+    +'<h3 style="font-size:15px;font-weight:800;margin-bottom:16px">📋 How It Works</h3>'
+    +'<div class="timeline">'
+    +'<div class="tl-item"><div class="tl-dot green"></div><div style="font-size:13px;font-weight:700;color:#0F172A">Day 1–74 — Active</div><div style="font-size:12px;color:#64748B;margin-top:2px">You use the app normally. Timer resets on every login.</div></div>'
+    +'<div class="tl-item"><div class="tl-dot orange"></div><div style="font-size:13px;font-weight:700;color:#0F172A">Day 75–89 — Prompt Period</div><div style="font-size:12px;color:#64748B;margin-top:2px">We email you prompts asking you to check in. You can respond anytime to reset.</div></div>'
+    +'<div class="tl-item"><div class="tl-dot red"></div><div style="font-size:13px;font-weight:700;color:#0F172A">Day 90 — Admin Notified</div><div style="font-size:12px;color:#64748B;margin-top:2px">Admin is alerted and contacts your 3 emergency contacts to verify your status.</div></div>'
+    +'<div class="tl-item"><div class="tl-dot red"></div><div style="font-size:13px;font-weight:700;color:#0F172A">Confirmed — Message Disclosed</div><div style="font-size:12px;color:#64748B;margin-top:2px">If confirmed deceased, your secret message is sent to your chosen recipient.</div></div>'
+    +'</div></div>'
+
+    /* Secret message */
+    +'<div class="card">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">'
+    +'<h3 style="font-size:15px;font-weight:800">✉️ My Secret Message</h3>'
+    +'<button onclick="toggleMsgEdit()" class="btn btn-ghost btn-sm" style="width:auto">'+(editingMsg?'Cancel':'✏️ Edit')+'</button>'
+    +'</div>'
+    +(!editingMsg?
+      (legacy.message?
+        '<div class="msg-open" onclick="toggleMsgEdit()">'
+        +'<div style="font-size:12px;font-weight:700;color:#7C3AED;margin-bottom:6px">MESSAGE TITLE</div>'
+        +'<div style="font-size:16px;font-weight:800;color:#0F172A;margin-bottom:14px">'+(legacy.messageTitle||'My Final Message')+'</div>'
+        +'<div style="font-size:12px;font-weight:700;color:#64748B;margin-bottom:6px">SEND TO</div>'
+        +'<div style="font-size:14px;color:#334155;margin-bottom:14px">'+(legacy.discloseTo||'Not set')+'</div>'
+        +'<div style="font-size:12px;font-weight:700;color:#64748B;margin-bottom:6px">MESSAGE PREVIEW</div>'
+        +'<div style="font-size:13px;color:#64748B;font-style:italic;background:#F8FAFC;padding:12px;border-radius:10px;line-height:1.6">'+(legacy.message?'🔒 '+legacy.message.slice(0,60)+(legacy.message.length>60?'…':''): 'No message yet')+'</div>'
+        +'</div>'
+        :
+        '<div class="msg-envelope" onclick="toggleMsgEdit()">'
+        +'<div style="font-size:48px;margin-bottom:12px">✉️</div>'
+        +'<div style="font-size:15px;font-weight:700;color:#334155;margin-bottom:6px">Write Your Final Message</div>'
+        +'<div style="font-size:13px;color:#64748B">This message will only be sent after your passing has been confirmed. Click to compose.</div>'
+        +'</div>'
+      )
+      :
+      '<div style="display:flex;flex-direction:column;gap:14px">'
+      +'<div class="field"><label class="label">Message Title</label><input id="ml-title" class="input" value="'+(legacy.messageTitle||'My Final Message')+'" placeholder="e.g. A Letter to My Family"></div>'
+      +'<div class="field"><label class="label">Send To (email or name)</label><input id="ml-to" class="input" value="'+(legacy.discloseTo||'')+'" placeholder="family@example.com or My Children"></div>'
+      +'<div class="field"><label class="label">Your Secret Message</label><textarea id="ml-msg" class="input" rows="6" style="height:auto;resize:vertical;padding:12px" placeholder="Write everything you want to say — your love, wishes, instructions, confessions, or secrets…">'+(legacy.message||'')+'</textarea></div>'
+      +'<div style="padding:12px;background:#FEF3C720;border:1px solid #F59E0B30;border-radius:10px;font-size:12px;color:#92400E">🔒 This message is stored securely and will only be released after your death is confirmed by admin.</div>'
+      +'<button onclick="saveMsg()" class="btn btn-primary btn-full" id="saveMsgBtn">Save Message</button>'
+      +'</div>'
+    )
+    +'</div></div>'
+
+    /* Right column — emergency contacts */
+    +'<div style="display:flex;flex-direction:column;gap:16px">'
+    +'<div class="card">'
+    +'<h3 style="font-size:15px;font-weight:800;margin-bottom:6px">📞 Emergency Contacts</h3>'
+    +'<p style="font-size:12px;color:#64748B;margin-bottom:16px;line-height:1.5">We contact these people in order when you\'ve been inactive for 90 days to verify your status.</p>'
+    +contacts.slice(0,3).map(function(c,i){
+        var filled = !!(c.name||c.email||c.phone);
+        var colors=['#22C55E','#F97316','#7C3AED'];
+        return '<div class="contact-slot '+(filled?'filled ':'')+' priority-'+(i+1)+'" style="margin-bottom:12px">'
+          +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:'+(filled?'10':'0')+'px">'
+          +'<div style="width:28px;height:28px;border-radius:50%;background:'+colors[i]+';display:flex;align-items:center;justify-content:center;color:#fff;font-weight:900;font-size:12px;flex-shrink:0">'+(i+1)+'</div>'
+          +'<div style="font-size:12px;font-weight:700;color:'+(filled?'#0F172A':'#94A3B8')+'">'+( filled?(c.name||'Contact '+(i+1)):'Contact #'+(i+1)+' — not set')+'</div>'
+          +(filled?'<button onclick="editContact('+i+')" style="background:none;border:none;cursor:pointer;color:#94A3B8;font-size:13px;margin-left:auto">✏️</button>':'')
+          +'</div>'
+          +(filled?
+            '<div style="padding-left:38px">'
+            +(c.email?'<div style="font-size:12px;color:#64748B">📧 '+c.email+'</div>':'')
+            +(c.phone?'<div style="font-size:12px;color:#64748B">📱 '+c.phone+'</div>':'')
+            +'</div>'
+            :'<button onclick="editContact('+i+')" style="background:none;border:none;cursor:pointer;color:#7C3AED;font-size:13px;font-weight:600;padding-left:38px;margin-top:4px">+ Add Contact</button>'
+          )
+          +'</div>';
+      }).join('')
+    +'</div>'
+
+    /* Quick check-in */
+    +'<div style="background:linear-gradient(135deg,#7C3AED,#5B21B6);border-radius:16px;padding:20px;color:#fff;text-align:center">'
+    +'<div style="font-size:28px;margin-bottom:10px">✅</div>'
+    +'<div style="font-size:14px;font-weight:700;margin-bottom:6px">Confirm You\'re Alive</div>'
+    +'<div style="font-size:12px;opacity:0.7;margin-bottom:16px">Click every 90 days to keep your legacy sealed</div>'
+    +'<button onclick="checkIn()" style="background:rgba(255,255,255,0.2);border:1.5px solid rgba(255,255,255,0.4);color:#fff;padding:10px 24px;border-radius:10px;font-weight:700;cursor:pointer;width:100%">I\'m Still Here 👋</button>'
+    +'</div>'
+
+    +'</div></div>';
+
+  document.getElementById('content').innerHTML = html;
+}
+
+function toggleMsgEdit() { editingMsg = !editingMsg; render(); }
+
+async function saveMsg() {
+  var body = {
+    messageTitle: document.getElementById('ml-title').value.trim(),
+    discloseTo:   document.getElementById('ml-to').value.trim(),
+    message:      document.getElementById('ml-msg').value.trim(),
+    contacts:     legacy.contacts||[],
+  };
+  document.getElementById('saveMsgBtn').textContent='Saving…';
+  var r = await fetch('/api/trustid/legacy', { method:'PUT', headers:{'Content-Type':'application/json',Authorization:'Bearer '+Auth.getToken()}, body:JSON.stringify(body) }).then(function(x){return x.json();});
+  if (r.success) { legacy=r.data; editingMsg=false; render(); Layout.toast('Legacy message saved 🔐','success'); }
+  else { Layout.toast(r.message||'Error','error'); document.getElementById('saveMsgBtn').textContent='Save Message'; }
+}
+
+function editContact(idx) {
+  var c = (legacy.contacts||[])[idx]||{};
+  var name  = prompt('Contact '+(idx+1)+' Name:', c.name||'');
+  if (name===null) return;
+  var email = prompt('Contact '+(idx+1)+' Email:', c.email||'');
+  if (email===null) return;
+  var phone = prompt('Contact '+(idx+1)+' Phone:', c.phone||'');
+  if (phone===null) return;
+  var contacts = (legacy.contacts||[{},{},{}]).slice();
+  while(contacts.length<3) contacts.push({});
+  contacts[idx] = { name, email, phone, order:idx+1 };
+  fetch('/api/trustid/legacy', { method:'PUT', headers:{'Content-Type':'application/json',Authorization:'Bearer '+Auth.getToken()},
+    body:JSON.stringify({ messageTitle:legacy.messageTitle, message:legacy.message, discloseTo:legacy.discloseTo, contacts }) })
+    .then(function(r){return r.json();})
+    .then(function(r){ if(r.success){ legacy=r.data; render(); Layout.toast('Contact saved','success'); } });
+}
+
+async function checkIn() {
+  var r = await fetch('/api/trustid/legacy/check-in', { method:'POST', headers:{Authorization:'Bearer '+Auth.getToken()} }).then(function(x){return x.json();});
+  if (r.success) { daysSince=0; legacy.status='active'; render(); Layout.toast('✅ Confirmed! Your 90-day clock has been reset.','success'); }
+}
+</script>
+</body>
+</html>
