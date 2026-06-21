@@ -3,109 +3,153 @@
 <head>
   <meta charset="utf-8">
   <title>TrustID — My TrustID</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
   <link rel="icon" href="./icon.svg">
   <link rel="stylesheet" href="./css/styles.css">
-  <script src="./js/react.min.js"></script>
-  <script src="./js/react-dom.min.js"></script>
 </head>
 <body>
-<div id="app"></div>
+<div class="app-shell">
+  <div id="sidebar"></div>
+  <div id="main">
+    <div id="topbar"></div>
+    <div class="page-content" id="content"><div id="loading"></div></div>
+  </div>
+</div>
 <script src="./js/auth.js"></script>
-<script>Auth.requireAuth();</script>
+<script>if(!Auth.requireAuth()) throw '';</script>
 <script src="./js/api.js"></script>
-<script src="./js/components.js"></script>
+<script src="./js/layout.js"></script>
 <script>
-const { createElement: h } = React;
+Layout.init('trustid');
+document.getElementById('loading').innerHTML = Layout.spinner();
 
-function TrustIdPage() {
-  const user = Auth.getUser();
-  const tid  = user?.trustId;
-  const c    = tlC(tid?.level||1);
-  const bars = [['Identity Verification',85],['Document Authenticity',90],['Address Verification',70],['Financial Verification',60]];
+var user  = Auth.getUser() || {};
+var tid   = user.trustId   || {};
+var level = tid.level || 1;
+var score = tid.score || 100;
+var col   = Layout.tlColor(level);
+var ini   = ((user.firstName||'')[0]||'').toUpperCase() + ((user.lastName||'')[0]||'').toUpperCase();
 
-  return h(AppLayout, { activePage:'trustid' },
-    h('div', null,
-      h(PH, { title:'My TrustID', sub:'Your verified digital identity certificate',
-        actions: h('div', { style:{display:'flex',gap:10} },
-          h(Btn, { label:'Export PDF', icon:'📄', v:'ghost', full:false, sm:true }),
-          h(Btn, { label:'Share TrustID', icon:'🔗', full:false, sm:true })
-        )
-      }),
-      h('div', { style:{display:'grid',gridTemplateColumns:'1fr 360px',gap:24} },
-        h('div', { style:{display:'flex',flexDirection:'column',gap:20} },
-          /* Certificate card */
-          h('div', { style:{background:`linear-gradient(135deg,${C.navyD},#312E81,${C.purple})`,borderRadius:24,padding:32,position:'relative',overflow:'hidden',boxShadow:`0 20px 60px ${C.purple}45`} },
-            h('div', { style:{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:28} },
-              h('div', { style:{display:'flex',alignItems:'center',gap:10} },
-                h('span', { style:{fontSize:26} }, '🛡️'),
-                h('div', null,
-                  h('div', { style:{color:'rgba(255,255,255,0.45)',fontSize:9,fontWeight:700,letterSpacing:2.5} }, 'TRUSTID DIGITAL CERTIFICATE'),
-                  h('div', { style:{color:'#fff',fontSize:15,fontWeight:900} }, 'TrustID Platform')
-                )
-              ),
-              h(TBadge, { level:tid?.level||1 })
-            ),
-            h('div', null,
-              h('div', { style:{color:'rgba(255,255,255,0.4)',fontSize:10,fontWeight:700,letterSpacing:3,marginBottom:8} }, 'CERTIFICATE NUMBER'),
-              h('div', { style:{color:'#fff',fontSize:20,fontWeight:800,letterSpacing:4,marginBottom:22,fontFamily:'monospace'} }, tid?.id||'PENDING'),
-              h('div', { style:{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:18} },
-                [['Owner',`${user?.firstName} ${user?.lastName}`],['Issued',fmtDate(tid?.issuedAt)],['Status',(tid?.status||'pending').toUpperCase()]].map(([k,v]) =>
-                  h('div', { key:k },
-                    h('div', { style:{color:'rgba(255,255,255,0.4)',fontSize:9,fontWeight:700,letterSpacing:1.5,marginBottom:5} }, k),
-                    h('div', { style:{color:'#fff',fontSize:14,fontWeight:600} }, v)
-                  )
-                )
-              )
-            )
-          ),
-          /* Score Breakdown */
-          h('div', { className:'card' },
-            h('h3', { style:{fontSize:14,fontWeight:800,marginBottom:20} }, 'Trust Score Breakdown'),
-            h('div', { style:{display:'flex',alignItems:'center',gap:26,marginBottom:24} },
-              h(ScoreRing, { score:tid?.score||100, size:120 }),
-              h('div', null,
-                h('div', { style:{fontSize:36,fontWeight:900,color:c} }, tid?.score||100),
-                h('div', { style:{fontSize:13,color:C[500]} }, 'out of 1,000 points'),
-                h('div', { style:{marginTop:10} }, h(TBadge, { level:tid?.level||1 }))
-              )
-            ),
-            bars.map(([lb,pct]) => h('div', { key:lb, style:{marginBottom:13} },
-              h('div', { style:{display:'flex',justifyContent:'space-between',marginBottom:6,fontSize:13} },
-                h('span', { style:{color:C[700]} }, lb),
-                h('span', { style:{fontWeight:700} }, `${pct}%`)
-              ),
-              h('div', { style:{height:7,background:C[100],borderRadius:4} },
-                h('div', { style:{height:'100%',borderRadius:4,background:`linear-gradient(90deg,${C.purple},${C.purpleL})`,width:`${pct}%`} })
-              )
-            ))
-          )
-        ),
-        h('div', { style:{display:'flex',flexDirection:'column',gap:16} },
-          /* QR Code placeholder */
-          h('div', { className:'card', style:{textAlign:'center'} },
-            h('h3', { style:{fontSize:13,fontWeight:800,marginBottom:14} }, '📱 QR Code'),
-            h('div', { style:{width:150,height:150,margin:'0 auto 14px',background:C[50],borderRadius:12,display:'flex',alignItems:'center',justifyContent:'center',fontSize:48} }, '🔲'),
-            h('p', { style:{fontSize:12,color:C[500],marginBottom:12} }, 'Scan to verify this TrustID instantly'),
-            h(Btn, { label:'Download QR', v:'outline', icon:'📥', sm:true })
-          ),
-          /* Details */
-          h('div', { className:'card' },
-            h('h3', { style:{fontSize:13,fontWeight:800,marginBottom:14} }, 'Certificate Details'),
-            [['TrustID',tid?.id||'Pending'],['Level',`${tid?.level||1} — ${tlN(tid?.level||1)}`],['Score',`${tid?.score||100}/1000`],['Status',tid?.status||'Pending'],['Owner',`${user?.firstName} ${user?.lastName}`],['Email',user?.email],['Issued',fmtDate(tid?.issuedAt)]].map(([k,v]) =>
-              h('div', { key:k, style:{display:'flex',justifyContent:'space-between',padding:'8px 0',borderBottom:`1px solid ${C[50]}`,fontSize:12} },
-                h('span', { style:{color:C[500]} }, k),
-                h('span', { style:{fontWeight:600,color:C[900]} }, v)
-              )
-            )
-          )
-        )
-      )
-    )
-  );
+/* Score ring SVG */
+var r    = 50;
+var circ = 2 * Math.PI * r;
+var offset = circ * (1 - score / 1000);
+
+var bars = [
+  ['Identity Verification',   85],
+  ['Document Authenticity',   90],
+  ['Address Verification',    70],
+  ['Financial Verification',  60]
+];
+
+function tlBadge(lvl) {
+  var c   = Layout.tlColor(lvl);
+  var lbl = Layout.tlN(lvl);
+  return '<span style="display:inline-flex;align-items:center;gap:5px;padding:5px 14px;border-radius:100px;background:' + c + '18;border:1px solid ' + c + '40;color:' + c + ';font-size:12px;font-weight:700">🛡 L' + lvl + ' · ' + lbl + '</span>';
 }
 
-ReactDOM.createRoot(document.getElementById('app')).render(h(TrustIdPage));
+document.getElementById('content').innerHTML =
+  '<div class="page-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">'
+  + '<div><h1 class="page-title">My TrustID</h1><p class="page-sub">Your verified digital identity certificate</p></div>'
+  + '<div style="display:flex;gap:10px">'
+  +   '<button class="btn btn-ghost">📄 Export PDF</button>'
+  +   '<button class="btn btn-primary">🔗 Share TrustID</button>'
+  + '</div>'
+  + '</div>'
+
+  + '<div style="display:grid;grid-template-columns:1fr 340px;gap:24px">'
+
+  /* ── Left column ── */
+  + '<div style="display:flex;flex-direction:column;gap:20px">'
+
+  /* Certificate card */
+  + '<div style="background:linear-gradient(135deg,#0F0E2A 0%,#312E81 55%,#7C3AED 100%);border-radius:24px;padding:32px;box-shadow:0 20px 60px #7C3AED45;position:relative;overflow:hidden">'
+  +   '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:28px">'
+  +     '<div style="display:flex;align-items:center;gap:10px">'
+  +       '<span style="font-size:26px">🛡️</span>'
+  +       '<div>'
+  +         '<div style="color:rgba(255,255,255,0.45);font-size:9px;font-weight:700;letter-spacing:2.5px">TRUSTID DIGITAL CERTIFICATE</div>'
+  +         '<div style="color:#fff;font-size:15px;font-weight:900">TrustID Platform</div>'
+  +       '</div>'
+  +     '</div>'
+  +     tlBadge(level)
+  +   '</div>'
+  +   '<div>'
+  +     '<div style="color:rgba(255,255,255,0.4);font-size:10px;font-weight:700;letter-spacing:3px;margin-bottom:8px">CERTIFICATE NUMBER</div>'
+  +     '<div style="color:#fff;font-size:20px;font-weight:800;letter-spacing:4px;margin-bottom:22px;font-family:monospace">' + (tid.id || 'PENDING') + '</div>'
+  +     '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:18px">'
+  +       '<div><div style="color:rgba(255,255,255,0.4);font-size:9px;font-weight:700;letter-spacing:1.5px;margin-bottom:5px">OWNER</div><div style="color:#fff;font-size:14px;font-weight:600">' + (user.firstName||'') + ' ' + (user.lastName||'') + '</div></div>'
+  +       '<div><div style="color:rgba(255,255,255,0.4);font-size:9px;font-weight:700;letter-spacing:1.5px;margin-bottom:5px">ISSUED</div><div style="color:#fff;font-size:14px;font-weight:600">' + Layout.fmtDate(tid.issuedAt) + '</div></div>'
+  +       '<div><div style="color:rgba(255,255,255,0.4);font-size:9px;font-weight:700;letter-spacing:1.5px;margin-bottom:5px">STATUS</div><div style="color:#fff;font-size:14px;font-weight:600">' + (tid.status||'pending').toUpperCase() + '</div></div>'
+  +     '</div>'
+  +   '</div>'
+  + '</div>'
+
+  /* Score breakdown */
+  + '<div class="card">'
+  +   '<h3 style="font-size:14px;font-weight:800;margin-bottom:20px">Trust Score Breakdown</h3>'
+  +   '<div style="display:flex;align-items:center;gap:26px;margin-bottom:24px">'
+  +     '<div style="position:relative;width:120px;height:120px;flex-shrink:0">'
+  +       '<svg width="120" height="120" style="transform:rotate(-90deg)">'
+  +         '<circle cx="60" cy="60" r="' + r + '" fill="none" stroke="#E2E8F0" stroke-width="8"/>'
+  +         '<circle cx="60" cy="60" r="' + r + '" fill="none" stroke="' + col + '" stroke-width="8" stroke-dasharray="' + circ.toFixed(2) + '" stroke-dashoffset="' + offset.toFixed(2) + '" stroke-linecap="round"/>'
+  +       '</svg>'
+  +       '<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">'
+  +         '<span style="font-size:24px;font-weight:900;color:' + col + '">' + score + '</span>'
+  +         '<span style="font-size:11px;color:#64748B">/1000</span>'
+  +       '</div>'
+  +     '</div>'
+  +     '<div>'
+  +       '<div style="font-size:36px;font-weight:900;color:' + col + '">' + score + '</div>'
+  +       '<div style="font-size:13px;color:#64748B">out of 1,000 points</div>'
+  +       '<div style="margin-top:10px">' + tlBadge(level) + '</div>'
+  +     '</div>'
+  +   '</div>'
+  +   bars.map(function(b) {
+        return '<div style="margin-bottom:13px">'
+          + '<div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:13px">'
+          +   '<span style="color:#334155">' + b[0] + '</span>'
+          +   '<span style="font-weight:700">' + b[1] + '%</span>'
+          + '</div>'
+          + '<div style="height:7px;background:#F1F5F9;border-radius:4px">'
+          +   '<div style="height:100%;border-radius:4px;background:linear-gradient(90deg,#7C3AED,#8B5CF6);width:' + b[1] + '%"></div>'
+          + '</div>'
+          + '</div>';
+      }).join('')
+  + '</div>'
+  + '</div>'
+
+  /* ── Right column ── */
+  + '<div style="display:flex;flex-direction:column;gap:16px">'
+
+  /* QR placeholder */
+  + '<div class="card" style="text-align:center">'
+  +   '<h3 style="font-size:13px;font-weight:800;margin-bottom:14px">📱 QR Code</h3>'
+  +   '<div style="width:150px;height:150px;margin:0 auto 14px;background:#F8FAFC;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:52px;border:2px dashed #E2E8F0">🔲</div>'
+  +   '<p style="font-size:12px;color:#64748B;margin:0 0 12px">Scan to verify this TrustID instantly</p>'
+  +   '<button class="btn btn-outline btn-sm">📥 Download QR</button>'
+  + '</div>'
+
+  /* Details table */
+  + '<div class="card">'
+  +   '<h3 style="font-size:13px;font-weight:800;margin-bottom:14px">Certificate Details</h3>'
+  +   [
+       ['TrustID',     tid.id || 'Pending'],
+       ['Level',       level + ' — ' + Layout.tlN(level)],
+       ['Score',       score + '/1000'],
+       ['Status',      (tid.status||'pending').charAt(0).toUpperCase() + (tid.status||'pending').slice(1)],
+       ['Owner',       (user.firstName||'') + ' ' + (user.lastName||'')],
+       ['Email',       user.email || '—'],
+       ['Issued',      Layout.fmtDate(tid.issuedAt)]
+     ].map(function(row) {
+       return '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #F8FAFC;font-size:12px">'
+         + '<span style="color:#64748B">' + row[0] + '</span>'
+         + '<span style="font-weight:600;color:#0F172A">' + row[1] + '</span>'
+         + '</div>';
+     }).join('')
+  + '</div>'
+  + '</div>'
+  + '</div>';
 </script>
 </body>
 </html>

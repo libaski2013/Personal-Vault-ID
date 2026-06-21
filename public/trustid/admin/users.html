@@ -3,83 +3,87 @@
 <head>
   <meta charset="utf-8">
   <title>TrustID Admin — Users</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
   <link rel="icon" href="../icon.svg">
   <link rel="stylesheet" href="../css/styles.css">
-  <script src="../js/react.min.js"></script>
-  <script src="../js/react-dom.min.js"></script>
 </head>
 <body>
-<div id="app"></div>
+<div class="app-shell">
+  <div id="sidebar"></div>
+  <div id="main">
+    <div id="topbar"></div>
+    <div class="page-content" id="content"><div id="loading"></div></div>
+  </div>
+</div>
 <script src="../js/auth.js"></script>
-<script>Auth.requireAdmin();</script>
+<script>if(!Auth.requireAdmin()) throw '';</script>
 <script src="../js/api.js"></script>
-<script src="../js/components.js"></script>
+<script src="../js/layout.js"></script>
 <script>
-const { createElement: h, useState, useEffect } = React;
+Layout.init('admin-users');
+document.getElementById('loading').innerHTML = Layout.spinner();
 
-function AdminUsers() {
-  const [users,   setUsers]   = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [search,  setSearch]  = useState('');
+var allUsers = [];
 
-  useEffect(() => {
-    Api.getAdminUsers().then(r => { if (r.success) setUsers(r.data); setLoading(false); });
-  }, []);
+function renderUsers(search) {
+  search = (search || '').toLowerCase();
+  var filtered = allUsers.filter(function(u) {
+    return (u.firstName + ' ' + u.lastName + ' ' + u.email).toLowerCase().indexOf(search) !== -1;
+  });
 
-  const filtered = users.filter(u =>
-    `${u.firstName} ${u.lastName} ${u.email}`.toLowerCase().includes(search.toLowerCase())
-  );
+  var tbody = document.getElementById('usersBody');
+  if (!tbody) return;
 
-  return h(AppLayout, { activePage:'admin-users' },
-    h('div', null,
-      h(PH, { title:'User Management', sub:`${users.length} total users`,
-        actions: h(Btn, { label:'Export', v:'ghost', icon:'📤', full:false, sm:true }) }),
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="8"><div class="empty">No users found.</div></td></tr>';
+    return;
+  }
 
-      h('div', { className:'table-wrap' },
-        h('div', { style:{padding:'14px 20px',borderBottom:`1px solid ${C[100]}`} },
-          h(Field, { value:search, onChange:setSearch, placeholder:'🔍 Search by name or email…' })
-        ),
-        loading
-          ? h('div', { style:{padding:40,textAlign:'center'} }, h(Spin))
-          : h('table', null,
-              h('thead', null,
-                h('tr', null,
-                  ['User','Email','Trust Level','Score','Docs','Status','Joined',''].map(hd =>
-                    h('th', { key:hd }, hd)
-                  )
-                )
-              ),
-              h('tbody', null,
-                filtered.map(u =>
-                  h('tr', { key:u._id },
-                    h('td', null,
-                      h('div', { style:{display:'flex',alignItems:'center',gap:10} },
-                        h('div', { style:{width:38,height:38,borderRadius:'50%',background:`linear-gradient(135deg,${C.purple},${C.purpleL})`,display:'flex',alignItems:'center',justifyContent:'center',color:'#fff',fontWeight:700,fontSize:13,flexShrink:0} },
-                          (u.firstName[0]||'') + (u.lastName[0]||'')
-                        ),
-                        h('span', { style:{fontWeight:600} }, `${u.firstName} ${u.lastName}`)
-                      )
-                    ),
-                    h('td', { style:{color:C[600]} }, u.email),
-                    h('td', null, h(TBadge, { level:u.trustId?.level||1 })),
-                    h('td', { style:{fontWeight:700,color:tlC(u.trustId?.level||1)} }, u.trustId?.score||0),
-                    h('td', { style:{color:C[600]} }, u.docsCount||0),
-                    h('td', null, h(Badge, { status:u.status })),
-                    h('td', { style:{fontSize:12,color:C[500]} }, fmtShort(u.joinedAt)),
-                    h('td', null,
-                      h('button', { style:{padding:'4px 10px',borderRadius:7,background:C[100],border:'none',cursor:'pointer',fontSize:11,color:C[600]} }, 'View')
-                    )
-                  )
-                )
-              )
-            )
-      )
-    )
-  );
+  tbody.innerHTML = filtered.map(function(u) {
+    var ini   = ((u.firstName||'')[0]||'').toUpperCase() + ((u.lastName||'')[0]||'').toUpperCase();
+    var level = (u.trustId||{}).level || 1;
+    var score = (u.trustId||{}).score || 0;
+    var col   = Layout.tlColor(level);
+    var lbl   = Layout.tlN(level);
+    return '<tr>'
+      + '<td><div style="display:flex;align-items:center;gap:10px">'
+      +   '<div style="width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#7C3AED,#8B5CF6);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:13px;flex-shrink:0">' + ini + '</div>'
+      +   '<span style="font-weight:600;font-size:13px;color:#0F172A">' + (u.firstName||'') + ' ' + (u.lastName||'') + '</span>'
+      + '</div></td>'
+      + '<td style="font-size:12px;color:#64748B">' + (u.email||'') + '</td>'
+      + '<td><span style="display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:100px;background:' + col + '15;border:1px solid ' + col + '30;color:' + col + ';font-size:11px;font-weight:700">🛡 L' + level + ' · ' + lbl + '</span></td>'
+      + '<td style="font-weight:700;color:' + col + ';font-size:13px">' + score + '</td>'
+      + '<td style="color:#64748B;font-size:13px">' + (u.docsCount||0) + '</td>'
+      + '<td>' + Layout.badge(u.status||'active') + '</td>'
+      + '<td style="font-size:12px;color:#64748B">' + Layout.fmtShort(u.joinedAt) + '</td>'
+      + '<td><button style="padding:4px 10px;border-radius:7px;background:#F1F5F9;border:none;cursor:pointer;font-size:11px;color:#64748B;font-weight:600">View</button></td>'
+      + '</tr>';
+  }).join('');
 }
 
-ReactDOM.createRoot(document.getElementById('app')).render(h(AdminUsers));
+Api.getAdminUsers().then(function(res) {
+  allUsers = res.success ? res.data : [];
+
+  document.getElementById('content').innerHTML =
+    '<div class="page-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">'
+    + '<div><h1 class="page-title">User Management</h1><p class="page-sub">' + allUsers.length + ' total users</p></div>'
+    + '<button onclick="Layout.toast(\'Export coming soon.\', \'info\')" class="btn btn-ghost">📤 Export</button>'
+    + '</div>'
+
+    + '<div class="card">'
+    +   '<div style="padding-bottom:16px;border-bottom:1px solid #F1F5F9;margin-bottom:16px">'
+    +     '<input id="searchInput" class="input" placeholder="🔍 Search by name or email…" oninput="renderUsers(this.value)" style="max-width:360px">'
+    +   '</div>'
+    +   '<div class="table-wrap"><table>'
+    +   '<thead><tr><th>User</th><th>Email</th><th>Trust Level</th><th>Score</th><th>Docs</th><th>Status</th><th>Joined</th><th></th></tr></thead>'
+    +   '<tbody id="usersBody"></tbody>'
+    +   '</table></div>'
+    + '</div>';
+
+  renderUsers('');
+}).catch(function() {
+  document.getElementById('content').innerHTML = '<div class="empty">Failed to load users. Please refresh.</div>';
+});
 </script>
 </body>
 </html>

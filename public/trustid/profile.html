@@ -3,92 +3,121 @@
 <head>
   <meta charset="utf-8">
   <title>TrustID — Profile</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
   <link rel="icon" href="./icon.svg">
   <link rel="stylesheet" href="./css/styles.css">
-  <script src="./js/react.min.js"></script>
-  <script src="./js/react-dom.min.js"></script>
 </head>
 <body>
-<div id="app"></div>
+<div class="app-shell">
+  <div id="sidebar"></div>
+  <div id="main">
+    <div id="topbar"></div>
+    <div class="page-content" id="content"><div id="loading"></div></div>
+  </div>
+</div>
 <script src="./js/auth.js"></script>
-<script>Auth.requireAuth();</script>
+<script>if(!Auth.requireAuth()) throw '';</script>
 <script src="./js/api.js"></script>
-<script src="./js/components.js"></script>
+<script src="./js/layout.js"></script>
 <script>
-const { createElement: h, useState, useEffect } = React;
+Layout.init('profile');
+document.getElementById('loading').innerHTML = Layout.spinner();
 
-function ProfilePage() {
-  const user = Auth.getUser();
-  const [docs, setDocs] = useState([]);
-  const toast = useToast();
+var user = Auth.getUser() || {};
+var tid  = user.trustId  || {};
+var ini  = ((user.firstName||'')[0]||'').toUpperCase() + ((user.lastName||'')[0]||'').toUpperCase();
 
-  useEffect(() => { Api.getDocs().then(r => r.success && setDocs(r.data)); }, []);
-
-  const ini = ((user?.firstName||'')[0]||'') + ((user?.lastName||'')[0]||'');
-  const tid = user?.trustId;
-
-  return h(AppLayout, { activePage:'profile' },
-    h('div', null,
-      h(PH, { title:'Profile', sub:'Manage your personal information' }),
-      h('div', { style:{display:'grid',gridTemplateColumns:'280px 1fr',gap:22} },
-
-        /* ── Left column ── */
-        h('div', { style:{display:'flex',flexDirection:'column',gap:16} },
-          h('div', { className:'card', style:{textAlign:'center'} },
-            h('div', { style:{width:78,height:78,borderRadius:'50%',background:`linear-gradient(135deg,${C.purple},${C.purpleL})`,margin:'0 auto 14px',display:'flex',alignItems:'center',justifyContent:'center',color:'#fff',fontWeight:700,fontSize:28} }, ini||'U'),
-            h('div', { style:{fontSize:17,fontWeight:800,color:C[900]} }, `${user?.firstName||''} ${user?.lastName||''}`),
-            h('div', { style:{fontSize:13,color:C[500],marginBottom:12} }, user?.email),
-            h(TBadge, { level:tid?.level||1 }),
-            h('div', { style:{marginTop:16} },
-              h('div', { style:{fontSize:12,color:C[500],marginBottom:3} }, 'Member since'),
-              h('div', { style:{fontSize:13,fontWeight:600} }, fmtDate(user?.joinedAt||new Date()))
-            )
-          ),
-          h('div', { className:'card' },
-            h('h3', { style:{fontSize:13,fontWeight:800,marginBottom:13} }, 'Document Summary'),
-            [['Total',docs.length],['Verified',docs.filter(d=>d.status==='verified').length],['Pending',docs.filter(d=>d.status==='pending').length],['Rejected',docs.filter(d=>d.status==='rejected').length]].map(([k,v]) =>
-              h('div', { key:k, style:{display:'flex',justifyContent:'space-between',padding:'7px 0',borderBottom:`1px solid ${C[50]}`,fontSize:13} },
-                h('span', { style:{color:C[500]} }, k),
-                h('span', { style:{fontWeight:700} }, v)
-              )
-            )
-          )
-        ),
-
-        /* ── Right column ── */
-        h('div', { style:{display:'flex',flexDirection:'column',gap:18} },
-          h('div', { className:'card' },
-            h('h3', { style:{fontSize:15,fontWeight:800,marginBottom:18} }, 'Personal Information'),
-            h('div', { style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16,marginBottom:18} },
-              h(Field, { label:'First name', value:user?.firstName||'', onChange:()=>{} }),
-              h(Field, { label:'Last name',  value:user?.lastName||'',  onChange:()=>{} }),
-              h(Field, { label:'Email',      value:user?.email||'',     onChange:()=>{}, type:'email' }),
-              h(Field, { label:'Role',       value:user?.role==='admin'?'Administrator':'User', onChange:()=>{} })
-            ),
-            h('div', { style:{padding:'11px 14px',borderRadius:10,background:C.blue+'10',border:`1px solid ${C.blue}25`,fontSize:12,color:C.blue} },
-              'ℹ️ Profile editing coming soon. Contact admin to update your details.'
-            )
-          ),
-          h('div', { className:'card' },
-            h('h3', { style:{fontSize:15,fontWeight:800,marginBottom:18} }, 'TrustID Certificate'),
-            [['TrustID Number',tid?.id||'Pending'],['Trust Level',`${tid?.level||1} — ${tlN(tid?.level||1)}`],['Trust Score',`${tid?.score||100}/1000`],['Status',tid?.status||'Pending'],['Issued',fmtDate(tid?.issuedAt)]].map(([k,v]) =>
-              h('div', { key:k, style:{display:'flex',justifyContent:'space-between',padding:'10px 0',borderBottom:`1px solid ${C[50]}`,fontSize:13} },
-                h('span', { style:{color:C[500]} }, k),
-                h('span', { style:{fontWeight:600} }, v)
-              )
-            ),
-            h('div', { style:{marginTop:16} },
-              h('a', { href:'./certificate.html', className:'btn btn-outline', style:{width:'auto',display:'inline-flex'} }, '🛡️ View Full Certificate')
-            )
-          )
-        )
-      )
-    )
-  );
+function field(label, value) {
+  return '<div>'
+    + '<label class="label">' + label + '</label>'
+    + '<input class="input" value="' + (value||'') + '" readonly style="background:#F8FAFC;color:#334155;cursor:default">'
+    + '</div>';
 }
 
-ReactDOM.createRoot(document.getElementById('app')).render(h(ProfilePage));
+Api.getDocs().then(function(res) {
+  var docs     = res.success ? res.data : [];
+  var verified = docs.filter(function(d){ return d.status==='verified'; }).length;
+  var pending  = docs.filter(function(d){ return d.status==='pending'; }).length;
+  var rejected = docs.filter(function(d){ return d.status==='rejected'; }).length;
+
+  var level  = tid.level || 1;
+  var col    = Layout.tlColor(level);
+
+  document.getElementById('content').innerHTML =
+    '<div class="page-header">'
+    + '<div><h1 class="page-title">Profile</h1><p class="page-sub">Your personal information</p></div>'
+    + '</div>'
+
+    + '<div style="display:grid;grid-template-columns:280px 1fr;gap:22px">'
+
+    /* ── Left column ── */
+    + '<div style="display:flex;flex-direction:column;gap:16px">'
+
+    + '<div class="card" style="text-align:center">'
+    +   '<div style="width:78px;height:78px;border-radius:50%;background:linear-gradient(135deg,#7C3AED,#8B5CF6);margin:0 auto 14px;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:28px">' + (ini||'U') + '</div>'
+    +   '<div style="font-size:17px;font-weight:800;color:#0F172A">' + (user.firstName||'') + ' ' + (user.lastName||'') + '</div>'
+    +   '<div style="font-size:13px;color:#64748B;margin-bottom:12px">' + (user.email||'') + '</div>'
+    +   '<span style="display:inline-flex;align-items:center;gap:5px;padding:5px 14px;border-radius:100px;background:' + col + '18;border:1px solid ' + col + '40;color:' + col + ';font-size:12px;font-weight:700">🛡 L' + level + ' · ' + Layout.tlN(level) + '</span>'
+    +   '<div style="margin-top:16px;padding-top:14px;border-top:1px solid #F1F5F9">'
+    +     '<div style="font-size:12px;color:#64748B;margin-bottom:3px">Member since</div>'
+    +     '<div style="font-size:13px;font-weight:600;color:#334155">' + Layout.fmtDate(user.joinedAt || new Date()) + '</div>'
+    +   '</div>'
+    + '</div>'
+
+    + '<div class="card">'
+    +   '<h3 style="font-size:13px;font-weight:800;margin-bottom:13px">Document Summary</h3>'
+    +   [['Total', docs.length],['Verified', verified],['Pending', pending],['Rejected', rejected]].map(function(row) {
+         return '<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #F8FAFC;font-size:13px">'
+           + '<span style="color:#64748B">' + row[0] + '</span>'
+           + '<span style="font-weight:700;color:#0F172A">' + row[1] + '</span>'
+           + '</div>';
+       }).join('')
+    + '</div>'
+
+    + '</div>'
+
+    /* ── Right column ── */
+    + '<div style="display:flex;flex-direction:column;gap:18px">'
+
+    + '<div class="card">'
+    +   '<h3 style="font-size:15px;font-weight:800;margin-bottom:18px">Personal Information</h3>'
+    +   '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:18px">'
+    +     field('First Name',   user.firstName   || '')
+    +     field('Middle Name',  user.middleName   || '')
+    +     field('Last Name',    user.lastName     || '')
+    +     field('Email',        user.email        || '')
+    +     field('Role',         user.role === 'admin' ? 'Administrator' : 'User')
+    +   '</div>'
+    +   '<div style="padding:11px 14px;border-radius:10px;background:#3B82F610;border:1px solid #3B82F625;font-size:12px;color:#3B82F6">'
+    +     'ℹ️ Profile is read-only. Contact admin to update your details.'
+    +   '</div>'
+    + '</div>'
+
+    + '<div class="card">'
+    +   '<h3 style="font-size:15px;font-weight:800;margin-bottom:18px">TrustID Certificate</h3>'
+    +   [
+         ['TrustID Number', tid.id || 'Pending'],
+         ['Trust Level',    level + ' — ' + Layout.tlN(level)],
+         ['Trust Score',    (tid.score||100) + '/1000'],
+         ['Status',         (tid.status||'pending').charAt(0).toUpperCase() + (tid.status||'pending').slice(1)],
+         ['Issued',         Layout.fmtDate(tid.issuedAt)]
+       ].map(function(row) {
+         return '<div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #F8FAFC;font-size:13px">'
+           + '<span style="color:#64748B">' + row[0] + '</span>'
+           + '<span style="font-weight:600;color:#0F172A">' + row[1] + '</span>'
+           + '</div>';
+       }).join('')
+    +   '<div style="margin-top:16px">'
+    +     '<a href="./certificate.html" class="btn btn-outline" style="display:inline-flex;width:auto">🛡️ View Full Certificate</a>'
+    +   '</div>'
+    + '</div>'
+
+    + '</div>'
+    + '</div>';
+
+}).catch(function() {
+  document.getElementById('content').innerHTML = '<div class="empty">Failed to load profile data. Please refresh.</div>';
+});
 </script>
 </body>
 </html>

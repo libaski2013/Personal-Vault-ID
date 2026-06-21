@@ -9,52 +9,58 @@
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
     body{font-family:Inter,system-ui,-apple-system,sans-serif;min-height:100vh;display:flex}
-    input,button{font:inherit}
-
+    input,button,select{font:inherit}
     .left{flex:1;background:linear-gradient(155deg,#0F0E2A,#1E1B4B,#312E81);display:flex;align-items:center;justify-content:center;padding:60px}
     .left-inner{max-width:380px;color:#fff}
-    .brand{display:flex;align-items:center;gap:10px;margin-bottom:52px}
+    .brand{display:flex;align-items:center;gap:10px;margin-bottom:48px}
     .brand-icon{width:44px;height:44px;border-radius:12px;background:rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;font-size:22px}
     .brand-name{font-size:22px;font-weight:900}
-    .left h2{font-size:30px;font-weight:900;margin-bottom:12px}
-    .left p{color:rgba(255,255,255,0.65);font-size:15px;line-height:1.75}
-
-    .right{width:500px;display:flex;align-items:center;justify-content:center;padding:52px;background:#fff;overflow-y:auto}
-    .form-box{width:100%;max-width:400px}
-    .back-link{display:block;color:#64748B;font-size:14px;font-weight:600;margin-bottom:28px;text-decoration:none}
+    .left h2{font-size:28px;font-weight:900;margin-bottom:12px;line-height:1.2}
+    .left p{color:rgba(255,255,255,0.65);font-size:15px;line-height:1.75;margin-bottom:28px}
+    .perks{display:flex;flex-direction:column;gap:10px}
+    .perk{font-size:14px;color:rgba(255,255,255,0.75);display:flex;align-items:center;gap:8px}
+    .right{width:520px;display:flex;align-items:flex-start;justify-content:center;padding:40px 52px;background:#fff;overflow-y:auto;min-height:100vh}
+    .form-box{width:100%;max-width:420px;padding:20px 0}
+    .back-link{display:block;color:#64748B;font-size:14px;font-weight:600;margin-bottom:24px;text-decoration:none}
     .back-link:hover{color:#7C3AED}
-    .form-box h1{font-size:25px;font-weight:900;color:#0F172A;margin-bottom:6px}
-    .form-box .sub{color:#64748B;font-size:13px;margin-bottom:24px}
-    .error-box{padding:10px 14px;border-radius:10px;background:#EF444412;border:1px solid #EF444430;color:#EF4444;font-size:13px;margin-bottom:14px;display:none}
-    .success-box{padding:10px 14px;border-radius:10px;background:#22C55E12;border:1px solid #22C55E30;color:#22C55E;font-size:13px;margin-bottom:14px;display:none}
-    .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
-    .field{margin-bottom:0}
-    .field-full{margin-bottom:14px}
-    .field label,.field-full label{display:block;font-weight:600;font-size:13px;color:#334155;margin-bottom:6px}
-    .field input,.field-full input{width:100%;height:43px;padding:0 12px;border-radius:10px;border:1.5px solid #E2E8F0;font-size:14px;color:#0F172A;outline:none;transition:border-color 0.15s}
-    .field input:focus,.field-full input:focus{border-color:#7C3AED}
+    h1{font-size:25px;font-weight:900;color:#0F172A;margin-bottom:4px}
+    .sub{color:#64748B;font-size:13px;margin-bottom:24px}
+    .err-box{padding:10px 14px;border-radius:10px;background:#EF444412;border:1px solid #EF444430;color:#EF4444;font-size:13px;margin-bottom:14px;display:none}
+    .ok-box{padding:10px 14px;border-radius:10px;background:#22C55E12;border:1px solid #22C55E30;color:#22C55E;font-size:13px;margin-bottom:14px;display:none}
+    .grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:14px}
+    .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+    .field{margin-bottom:14px}
+    .field label{display:block;font-weight:600;font-size:13px;color:#334155;margin-bottom:6px}
     .req{color:#EF4444;margin-left:3px}
-    .btn-submit{width:100%;height:44px;border-radius:10px;background:linear-gradient(135deg,#7C3AED,#8B5CF6);border:none;color:#fff;font-weight:700;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-top:22px;transition:opacity 0.15s}
+    .field input,.field select{width:100%;height:43px;padding:0 12px;border-radius:10px;border:1.5px solid #E2E8F0;font-size:14px;color:#0F172A;outline:none;transition:border-color 0.15s;background:#fff}
+    .field input:focus,.field select:focus{border-color:#7C3AED}
+    .field input::placeholder{color:#94A3B8}
+    .step-indicator{display:flex;align-items:center;gap:8px;margin-bottom:24px}
+    .step{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0}
+    .step.done{background:#22C55E;color:#fff}
+    .step.active{background:#7C3AED;color:#fff}
+    .step.pending{background:#E2E8F0;color:#94A3B8}
+    .step-line{flex:1;height:2px;background:#E2E8F0}
+    .step-line.done{background:#22C55E}
+    .step-label{font-size:11px;color:#64748B;margin-top:2px}
+    .btn-submit{width:100%;height:44px;border-radius:10px;background:linear-gradient(135deg,#7C3AED,#8B5CF6);border:none;color:#fff;font-weight:700;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:opacity 0.15s}
     .btn-submit:hover{opacity:0.9}
     .btn-submit:disabled{opacity:0.6;cursor:not-allowed}
+    .btn-ghost{width:100%;height:44px;border-radius:10px;background:#F1F5F9;border:1px solid #E2E8F0;color:#334155;font-weight:700;font-size:14px;cursor:pointer;margin-top:10px}
     .spinner{width:16px;height:16px;border-radius:50%;border:2px solid rgba(255,255,255,0.3);border-top-color:#fff;animation:spin 0.8s linear infinite;display:none}
     @keyframes spin{to{transform:rotate(360deg)}}
     .login-link{text-align:center;margin-top:18px;font-size:13px;color:#64748B}
     .login-link a{color:#7C3AED;font-weight:700;text-decoration:none}
-
-    /* Success screen */
+    /* OTP digits */
+    .otp-row{display:flex;gap:10px;justify-content:center;margin:20px 0}
+    .otp-digit{width:52px;height:60px;border-radius:12px;border:2px solid #E2E8F0;font-size:28px;font-weight:700;text-align:center;outline:none;transition:border-color 0.15s;color:#0F172A}
+    .otp-digit:focus{border-color:#7C3AED}
+    .resend-link{text-align:center;font-size:13px;color:#64748B;margin-top:8px;cursor:pointer}
+    .resend-link span{color:#7C3AED;font-weight:600}
+    /* Success */
     .success-screen{display:none;text-align:center;padding:20px 0}
-    .success-screen .big-icon{font-size:60px;margin-bottom:18px}
-    .success-screen h2{font-size:26px;font-weight:900;color:#0F172A;margin-bottom:10px}
-    .success-screen p{color:#64748B;line-height:1.65;margin-bottom:28px}
-    .btn-go{width:100%;height:44px;border-radius:10px;background:linear-gradient(135deg,#7C3AED,#8B5CF6);border:none;color:#fff;font-weight:700;font-size:14px;cursor:pointer}
-
-    @media(max-width:640px){
-      body{flex-direction:column}
-      .left{display:none}
-      .right{width:100%;padding:32px 24px}
-      .grid-2{grid-template-columns:1fr}
-    }
+    .big-emoji{font-size:64px;margin-bottom:16px}
+    @media(max-width:640px){body{flex-direction:column}.left{display:none}.right{width:100%;padding:32px 24px}.grid-3,.grid-2{grid-template-columns:1fr}}
   </style>
 </head>
 <body>
@@ -65,60 +71,113 @@
       <div class="brand-icon">🛡️</div>
       <span class="brand-name">TrustID</span>
     </div>
-    <h2>Create your TrustID account</h2>
-    <p>Get verified and start building your trust score in minutes.</p>
+    <h2>Build your verified digital identity</h2>
+    <p>Join thousands of verified users. Your identity, secured and trusted.</p>
+    <div class="perks">
+      <div class="perk">✅ Government-grade identity certificates</div>
+      <div class="perk">🔒 Bank-grade end-to-end encryption</div>
+      <div class="perk">📊 Real-time dynamic trust scoring</div>
+      <div class="perk">📱 Share instantly via QR code</div>
+    </div>
   </div>
 </div>
 
 <div class="right">
   <div class="form-box">
 
-    <!-- Registration form -->
-    <div id="formSection">
+    <!-- STEP 1: Personal details -->
+    <div id="step1">
       <a href="./login.html" class="back-link">← Back to Sign In</a>
       <h1>Create Account</h1>
-      <p class="sub">Free forever. No credit card required.</p>
+      <p class="sub">Free forever · No credit card required</p>
 
-      <div class="error-box" id="err"></div>
+      <div class="step-indicator">
+        <div><div class="step active" id="s1dot">1</div><div class="step-label">Details</div></div>
+        <div class="step-line" id="line1"></div>
+        <div><div class="step pending" id="s2dot">2</div><div class="step-label">Verify</div></div>
+        <div class="step-line" id="line2"></div>
+        <div><div class="step pending" id="s3dot">3</div><div class="step-label">Done</div></div>
+      </div>
 
+      <div class="err-box" id="err1"></div>
+
+      <div class="grid-3">
+        <div class="field">
+          <label>First Name <span class="req">*</span></label>
+          <input type="text" id="firstName" placeholder="Ali" autocomplete="given-name">
+        </div>
+        <div class="field">
+          <label>Middle Name</label>
+          <input type="text" id="middleName" placeholder="Hassan" autocomplete="additional-name">
+        </div>
+        <div class="field">
+          <label>Last Name</label>
+          <input type="text" id="lastName" placeholder="Baba" autocomplete="family-name">
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Email Address <span class="req">*</span></label>
+        <input type="email" id="email" placeholder="ali.baba@example.com" autocomplete="email">
+      </div>
       <div class="grid-2">
         <div class="field">
-          <label>First name <span class="req">*</span></label>
-          <input type="text" id="firstName" placeholder="Jane" autocomplete="given-name">
+          <label>Password <span class="req">*</span></label>
+          <input type="password" id="password" placeholder="Min 8 characters" autocomplete="new-password">
         </div>
         <div class="field">
-          <label>Last name</label>
-          <input type="text" id="lastName" placeholder="Doe" autocomplete="family-name">
+          <label>Confirm Password <span class="req">*</span></label>
+          <input type="password" id="confirm" placeholder="Repeat password" autocomplete="new-password">
         </div>
       </div>
 
-      <div class="field-full">
-        <label>Email <span class="req">*</span></label>
-        <input type="email" id="email" placeholder="you@example.com" autocomplete="email">
-      </div>
-      <div class="field-full">
-        <label>Password <span class="req">*</span></label>
-        <input type="password" id="password" placeholder="Min 8 characters" autocomplete="new-password">
-      </div>
-      <div class="field-full">
-        <label>Confirm password <span class="req">*</span></label>
-        <input type="password" id="confirm" placeholder="Repeat password" autocomplete="new-password">
-      </div>
-
-      <button class="btn-submit" id="submitBtn" onclick="doRegister()">
-        <div class="spinner" id="spinner"></div>
-        <span id="btnText">Create Account</span>
+      <button class="btn-submit" id="btn1" onclick="sendOTP()">
+        <div class="spinner" id="sp1"></div>
+        <span id="bt1">Send Verification Code →</span>
       </button>
 
-      <div class="login-link">Have an account? <a href="./login.html">Sign in</a></div>
+      <div class="login-link">Already have an account? <a href="./login.html">Sign in</a></div>
     </div>
 
-    <!-- Success screen -->
-    <div class="success-screen" id="successSection">
-      <div class="big-icon">🎉</div>
-      <h2>Account Created!</h2>
-      <p>Welcome to TrustID. Your account is ready and you're now logged in.</p>
-      <button class="btn-go" onclick="location.href='./dashboard.html'">Go to Dashboard →</button>
+    <!-- STEP 2: OTP verification -->
+    <div id="step2" style="display:none">
+      <a href="#" class="back-link" onclick="goBack();return false">← Back</a>
+      <h1>Verify Your Email</h1>
+      <p class="sub" id="otpSub">Enter the 6-digit code we sent to your email</p>
+
+      <div class="step-indicator">
+        <div><div class="step done" id="s1dot2">✓</div><div class="step-label">Details</div></div>
+        <div class="step-line done"></div>
+        <div><div class="step active" id="s2dot2">2</div><div class="step-label">Verify</div></div>
+        <div class="step-line" id="line2b"></div>
+        <div><div class="step pending" id="s3dot2">3</div><div class="step-label">Done</div></div>
+      </div>
+
+      <div class="err-box" id="err2"></div>
+
+      <div class="otp-row" id="otpRow">
+        <input class="otp-digit" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]">
+        <input class="otp-digit" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]">
+        <input class="otp-digit" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]">
+        <input class="otp-digit" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]">
+        <input class="otp-digit" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]">
+        <input class="otp-digit" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]">
+      </div>
+
+      <button class="btn-submit" id="btn2" onclick="verifyOTP()">
+        <div class="spinner" id="sp2"></div>
+        <span id="bt2">Verify &amp; Create Account</span>
+      </button>
+
+      <div class="resend-link" style="margin-top:14px">Didn't receive it? <span onclick="resendOTP()">Resend code</span></div>
+    </div>
+
+    <!-- STEP 3: Success -->
+    <div class="success-screen" id="step3">
+      <div class="big-emoji">🎉</div>
+      <h2 style="font-size:26px;font-weight:900;color:#0F172A;margin-bottom:10px">Welcome to TrustID!</h2>
+      <p style="color:#64748B;line-height:1.65;margin-bottom:28px">Your account has been created and verified. Start building your trust score.</p>
+      <button class="btn-submit" onclick="location.href='./dashboard.html'">Go to Dashboard →</button>
     </div>
 
   </div>
@@ -126,63 +185,98 @@
 
 <script>
   /* Redirect logged-in users */
-  (function () {
+  (function(){
     try {
-      if (localStorage.getItem('tid_token')) {
-        var u = JSON.parse(localStorage.getItem('tid_user') || 'null');
-        location.replace(u && u.role === 'admin' ? './admin/dashboard.html' : './dashboard.html');
+      if(localStorage.getItem('tid_token')){
+        var u=JSON.parse(localStorage.getItem('tid_user')||'null');
+        location.replace(u&&u.role==='admin'?'./admin/dashboard.html':'./dashboard.html');
       }
-    } catch(e){}
+    }catch(e){}
   })();
 
-  async function doRegister() {
-    var firstName = document.getElementById('firstName').value.trim();
-    var lastName  = document.getElementById('lastName').value.trim();
-    var email     = document.getElementById('email').value.trim();
-    var password  = document.getElementById('password').value;
-    var confirm   = document.getElementById('confirm').value;
-    var btn       = document.getElementById('submitBtn');
-    var spinner   = document.getElementById('spinner');
-    var btnText   = document.getElementById('btnText');
+  var _email='', _firstName='';
 
-    if (!firstName || !email || !password) { showErr('Please fill in all required fields.'); return; }
-    if (password !== confirm)              { showErr('Passwords do not match.');            return; }
-    if (password.length < 8)              { showErr('Password must be at least 8 characters.'); return; }
-
-    btn.disabled          = true;
-    spinner.style.display = 'block';
-    btnText.textContent   = 'Creating…';
-    document.getElementById('err').style.display = 'none';
-
-    try {
-      var res  = await fetch('/api/trustid/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ firstName: firstName, lastName: lastName, email: email, password: password })
-      });
-      var data = await res.json();
-
-      if (data.success && data.token) {
-        localStorage.setItem('tid_token', data.token);
-        localStorage.setItem('tid_user',  JSON.stringify(data.user));
-        document.getElementById('formSection').style.display    = 'none';
-        document.getElementById('successSection').style.display = 'block';
-      } else {
-        showErr(data.message || 'Registration failed. Please try again.');
-      }
-    } catch(e) {
-      showErr('Network error. Please try again.');
-    }
-
-    btn.disabled          = false;
-    spinner.style.display = 'none';
-    btnText.textContent   = 'Create Account';
+  function showErr(id, msg){ var el=document.getElementById(id); el.textContent=msg; el.style.display='block'; }
+  function hideErr(id){ document.getElementById(id).style.display='none'; }
+  function setLoading(btnId, spId, txtId, loading, label){
+    var btn=document.getElementById(btnId), sp=document.getElementById(spId), txt=document.getElementById(txtId);
+    btn.disabled=loading; sp.style.display=loading?'block':'none'; txt.textContent=loading?'Please wait…':label;
   }
 
-  function showErr(msg) {
-    var el = document.getElementById('err');
-    el.textContent   = msg;
-    el.style.display = 'block';
+  async function sendOTP(){
+    var firstName=document.getElementById('firstName').value.trim();
+    var middleName=document.getElementById('middleName').value.trim();
+    var lastName=document.getElementById('lastName').value.trim();
+    var email=document.getElementById('email').value.trim();
+    var password=document.getElementById('password').value;
+    var confirm=document.getElementById('confirm').value;
+    hideErr('err1');
+    if(!firstName||!email||!password){showErr('err1','First name, email and password are required.');return;}
+    if(password!==confirm){showErr('err1','Passwords do not match.');return;}
+    if(password.length<8){showErr('err1','Password must be at least 8 characters.');return;}
+    setLoading('btn1','sp1','bt1',true,'Sending…');
+    try{
+      var res=await fetch('/api/trustid/auth/request-otp',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({firstName,middleName,lastName,email,password})});
+      var data=await res.json();
+      if(data.success){
+        _email=email; _firstName=firstName;
+        document.getElementById('otpSub').textContent='We sent a 6-digit code to '+email;
+        document.getElementById('step1').style.display='none';
+        document.getElementById('step2').style.display='block';
+        document.querySelector('.otp-digit').focus();
+      } else showErr('err1',data.message||'Failed to send code. Try again.');
+    }catch(e){showErr('err1','Network error. Please try again.');}
+    setLoading('btn1','sp1','bt1',false,'Send Verification Code →');
+  }
+
+  /* OTP digit auto-advance */
+  document.getElementById('otpRow').addEventListener('input',function(e){
+    if(e.target.classList.contains('otp-digit')&&e.target.value){
+      var next=e.target.nextElementSibling;
+      if(next) next.focus();
+    }
+  });
+  document.getElementById('otpRow').addEventListener('keydown',function(e){
+    if(e.key==='Backspace'&&!e.target.value){
+      var prev=e.target.previousElementSibling;
+      if(prev){prev.focus();prev.value='';}
+    }
+    if(e.key==='Enter') verifyOTP();
+  });
+
+  async function verifyOTP(){
+    var digits=Array.from(document.querySelectorAll('.otp-digit')).map(function(i){return i.value;});
+    var code=digits.join('');
+    hideErr('err2');
+    if(code.length<6){showErr('err2','Please enter all 6 digits.');return;}
+    setLoading('btn2','sp2','bt2',true,'Verifying…');
+    try{
+      var res=await fetch('/api/trustid/auth/verify-otp',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:_email,code:code})});
+      var data=await res.json();
+      if(data.success&&data.token){
+        localStorage.setItem('tid_token',data.token);
+        localStorage.setItem('tid_user',JSON.stringify(data.user));
+        document.getElementById('step2').style.display='none';
+        document.getElementById('step3').style.display='block';
+      } else showErr('err2',data.message||'Invalid code. Please try again.');
+    }catch(e){showErr('err2','Network error. Please try again.');}
+    setLoading('btn2','sp2','bt2',false,'Verify & Create Account');
+  }
+
+  async function resendOTP(){
+    var firstName=document.getElementById('firstName').value.trim();
+    var password=document.getElementById('password').value;
+    try{
+      await fetch('/api/trustid/auth/request-otp',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({firstName,email:_email,password})});
+      document.getElementById('err2').style.display='none';
+      alert('New code sent to '+_email);
+    }catch(e){}
+  }
+
+  function goBack(){
+    document.getElementById('step2').style.display='none';
+    document.getElementById('step1').style.display='block';
+    document.querySelectorAll('.otp-digit').forEach(function(d){d.value='';});
   }
 </script>
 </body>

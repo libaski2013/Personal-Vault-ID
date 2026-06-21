@@ -3,108 +3,202 @@
 <head>
   <meta charset="utf-8">
   <title>TrustID — Reminders</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
   <link rel="icon" href="./icon.svg">
   <link rel="stylesheet" href="./css/styles.css">
-  <script src="./js/react.min.js"></script>
-  <script src="./js/react-dom.min.js"></script>
 </head>
 <body>
-<div id="app"></div>
+<div class="app-shell">
+  <div id="sidebar"></div>
+  <div id="main">
+    <div id="topbar"></div>
+    <div class="page-content" id="content"><div id="loading"></div></div>
+  </div>
+</div>
+
+<!-- Add Reminder Modal -->
+<div id="remModal" class="modal-backdrop" style="display:none">
+  <div class="modal" style="max-width:440px;width:100%">
+    <div class="modal-header">
+      <h2 class="modal-title">Add Reminder</h2>
+      <button onclick="closeRemModal()" style="background:none;border:none;font-size:24px;cursor:pointer;color:#94A3B8;line-height:1;padding:0">&times;</button>
+    </div>
+    <div style="padding:24px;display:flex;flex-direction:column;gap:16px">
+      <div>
+        <label class="label">Title <span style="color:#EF4444">*</span></label>
+        <input id="remTitle" class="input" placeholder="e.g. Renew passport">
+      </div>
+      <div>
+        <label class="label">Due Date</label>
+        <input id="remDate" class="input" type="date">
+      </div>
+      <div>
+        <label class="label">Priority</label>
+        <div style="display:flex;gap:10px">
+          <button id="pri-low"    onclick="setPriority('low')"    style="flex:1;height:40px;border-radius:10px;background:#22C55E20;border:1.5px solid #22C55E;cursor:pointer;font-weight:700;font-size:13px;color:#22C55E">Low</button>
+          <button id="pri-medium" onclick="setPriority('medium')" style="flex:1;height:40px;border-radius:10px;background:transparent;border:1.5px solid #E2E8F0;cursor:pointer;font-weight:700;font-size:13px;color:#94A3B8">Medium</button>
+          <button id="pri-high"   onclick="setPriority('high')"   style="flex:1;height:40px;border-radius:10px;background:transparent;border:1.5px solid #E2E8F0;cursor:pointer;font-weight:700;font-size:13px;color:#94A3B8">High</button>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:4px">
+        <button onclick="closeRemModal()" class="btn btn-ghost btn-full">Cancel</button>
+        <button onclick="submitReminder()" id="remBtn" class="btn btn-primary btn-full">Add Reminder</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script src="./js/auth.js"></script>
-<script>Auth.requireAuth();</script>
+<script>if(!Auth.requireAuth()) throw '';</script>
 <script src="./js/api.js"></script>
-<script src="./js/components.js"></script>
+<script src="./js/layout.js"></script>
 <script>
-const { createElement: h, useState, useEffect, useCallback } = React;
-const pc = { high:C.red, medium:C.orange, low:C.green };
+Layout.init('reminders');
+document.getElementById('loading').innerHTML = Layout.spinner();
 
-function RemindersPage() {
-  const [rem,    setRem]    = useState([]);
-  const [loading,setLoading]= useState(true);
-  const [show,   setShow]   = useState(false);
-  const [form,   setForm]   = useState({ title:'', dueDate:'', priority:'medium' });
-  const [saving, setSaving] = useState(false);
-  const toast = useToast();
+var PCOL = { high:'#EF4444', medium:'#F97316', low:'#22C55E' };
+var allReminders = [];
+var selPriority  = 'low';
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    const r = await Api.getReminders();
-    if (r.success) setRem(r.data);
-    setLoading(false);
-  }, []);
-  useEffect(() => { load(); }, [load]);
-
-  const add = async () => {
-    if (!form.title) return;
-    setSaving(true);
-    const r = await Api.addReminder(form);
-    setSaving(false);
-    if (r.success) { setRem(p=>[r.data,...p]); setForm({title:'',dueDate:'',priority:'medium'}); setShow(false); toast({type:'success',msg:'Reminder added!'}); }
-    else toast({type:'error',msg:r.message||'Failed'});
-  };
-
-  const toggle = async (id, done) => {
-    const r = await Api.updateReminder(id, { done:!done });
-    if (r.success) setRem(p=>p.map(x=>x._id===id?{...x,done:!done}:x));
-  };
-
-  const del = async id => {
-    await Api.deleteReminder(id);
-    setRem(p=>p.filter(r=>r._id!==id));
-  };
-
-  const active = rem.filter(r=>!r.done);
-  const done   = rem.filter(r=>r.done);
-
-  return h(AppLayout, { activePage:'reminders' },
-    h('div', null,
-      h(PH, { title:'Reminders', sub:'Stay on top of deadlines',
-        actions: h(Btn, { label:'Add Reminder', icon:'➕', full:false, sm:true, onClick:()=>setShow(true) }) }),
-
-      loading ? h('div', { style:{display:'flex',justifyContent:'center',padding:60} }, h(Spin, { sz:32 })) :
-      h('div', { style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:22} },
-        h('div', null,
-          h('h3', { style:{fontSize:13,fontWeight:800,color:C[700],marginBottom:12} }, `Active (${active.length})`),
-          active.map(r => h('div', { key:r._id, className:'card', style:{marginBottom:10,display:'flex',gap:13,alignItems:'center'} },
-            h('div', { onClick:()=>toggle(r._id,r.done), style:{width:24,height:24,borderRadius:'50%',border:`2.5px solid ${pc[r.priority]}`,cursor:'pointer',flexShrink:0} }),
-            h('div', { style:{flex:1} },
-              h('div', { style:{fontWeight:700,fontSize:14} }, r.title),
-              h('div', { style:{fontSize:12,color:C[500],marginTop:3} }, r.dueDate?`📅 ${fmtDate(r.dueDate)}`:'No date')
-            ),
-            h('span', { style:{padding:'3px 10px',borderRadius:100,background:pc[r.priority]+'15',color:pc[r.priority],fontSize:11,fontWeight:700,textTransform:'capitalize'} }, r.priority),
-            h('button', { onClick:()=>del(r._id), style:{background:'none',border:'none',cursor:'pointer',color:C[300],fontSize:17} }, '🗑')
-          )),
-          active.length===0 && h('div', { style:{textAlign:'center',padding:'32px 0',color:C[400],fontSize:14} }, '🎉 All caught up!')
-        ),
-        h('div', null,
-          h('h3', { style:{fontSize:13,fontWeight:800,color:C[500],marginBottom:12} }, `Completed (${done.length})`),
-          done.map(r => h('div', { key:r._id, className:'card', style:{marginBottom:10,display:'flex',gap:13,alignItems:'center',opacity:0.65} },
-            h('div', { onClick:()=>toggle(r._id,r.done), style:{width:24,height:24,borderRadius:'50%',background:C.green+'20',border:`2.5px solid ${C.green}`,display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',flexShrink:0,fontSize:12} }, '✓'),
-            h('span', { style:{flex:1,textDecoration:'line-through',color:C[400],fontSize:14} }, r.title)
-          ))
-        )
-      ),
-
-      h(Modal, { open:show, onClose:()=>setShow(false), title:'Add Reminder' },
-        h('div', { style:{display:'flex',flexDirection:'column',gap:15} },
-          h(Field, { label:'Title', value:form.title, onChange:v=>setForm(f=>({...f,title:v})), placeholder:'e.g. Renew passport', req:true }),
-          h(Field, { label:'Due Date', value:form.dueDate, onChange:v=>setForm(f=>({...f,dueDate:v})), type:'date' }),
-          h('div', null,
-            h('label', { className:'label' }, 'Priority'),
-            h('div', { style:{display:'flex',gap:10} },
-              ['low','medium','high'].map(p => h('button', { key:p, onClick:()=>setForm(f=>({...f,priority:p})),
-                style:{flex:1,height:40,borderRadius:10,background:form.priority===p?pc[p]+'20':'transparent',border:`1.5px solid ${form.priority===p?pc[p]:C[200]}`,cursor:'pointer',fontWeight:700,fontSize:13,color:form.priority===p?pc[p]:C[500],textTransform:'capitalize'} }, p))
-            )
-          ),
-          h(Btn, { label:'Add Reminder', onClick:add, loading:saving })
-        )
-      )
-    )
-  );
+function openRemModal()  { document.getElementById('remModal').style.display = 'flex'; setPriority('low'); }
+function closeRemModal() {
+  document.getElementById('remModal').style.display = 'none';
+  document.getElementById('remTitle').value = '';
+  document.getElementById('remDate').value  = '';
+  selPriority = 'low';
 }
 
-ReactDOM.createRoot(document.getElementById('app')).render(h(RemindersPage));
+function setPriority(p) {
+  selPriority = p;
+  ['low','medium','high'].forEach(function(lvl) {
+    var btn = document.getElementById('pri-' + lvl);
+    if (!btn) return;
+    var c = PCOL[lvl];
+    if (lvl === p) {
+      btn.style.background = c + '20';
+      btn.style.border     = '1.5px solid ' + c;
+      btn.style.color      = c;
+    } else {
+      btn.style.background = 'transparent';
+      btn.style.border     = '1.5px solid #E2E8F0';
+      btn.style.color      = '#94A3B8';
+    }
+  });
+}
+
+function renderReminders() {
+  var active    = allReminders.filter(function(r){ return !r.done; });
+  var completed = allReminders.filter(function(r){ return r.done;  });
+
+  var activeEl = document.getElementById('activeList');
+  var doneEl   = document.getElementById('doneList');
+  var aHead    = document.getElementById('activeHead');
+  var dHead    = document.getElementById('doneHead');
+
+  if (aHead) aHead.textContent = 'Active (' + active.length + ')';
+  if (dHead) dHead.textContent = 'Completed (' + completed.length + ')';
+
+  if (activeEl) {
+    if (active.length === 0) {
+      activeEl.innerHTML = '<div style="text-align:center;padding:32px 0;color:#94A3B8;font-size:14px">🎉 All caught up!</div>';
+    } else {
+      activeEl.innerHTML = active.map(function(r) {
+        var c = PCOL[r.priority] || '#94A3B8';
+        return '<div class="card" style="display:flex;gap:13px;align-items:center;margin-bottom:10px">'
+          + '<div onclick="toggleReminder(\'' + r._id + '\',' + (r.done ? 'true' : 'false') + ')" style="width:24px;height:24px;border-radius:50%;border:2.5px solid ' + c + ';cursor:pointer;flex-shrink:0"></div>'
+          + '<div style="flex:1">'
+          +   '<div style="font-weight:700;font-size:14px;color:#0F172A">' + r.title + '</div>'
+          +   '<div style="font-size:12px;color:#64748B;margin-top:3px">' + (r.dueDate ? '📅 ' + Layout.fmtDate(r.dueDate) : 'No due date') + '</div>'
+          + '</div>'
+          + '<span style="padding:3px 10px;border-radius:100px;background:' + c + '15;color:' + c + ';font-size:11px;font-weight:700;text-transform:capitalize">' + (r.priority||'medium') + '</span>'
+          + '<button onclick="deleteReminder(\'' + r._id + '\')" style="background:none;border:none;cursor:pointer;color:#CBD5E1;font-size:17px;padding:4px">🗑</button>'
+          + '</div>';
+      }).join('');
+    }
+  }
+
+  if (doneEl) {
+    if (completed.length === 0) {
+      doneEl.innerHTML = '<div style="text-align:center;padding:32px 0;color:#94A3B8;font-size:14px">No completed reminders yet.</div>';
+    } else {
+      doneEl.innerHTML = completed.map(function(r) {
+        return '<div class="card" style="display:flex;gap:13px;align-items:center;margin-bottom:10px;opacity:0.65">'
+          + '<div onclick="toggleReminder(\'' + r._id + '\',' + (r.done ? 'true' : 'false') + ')" style="width:24px;height:24px;border-radius:50%;background:#22C55E20;border:2.5px solid #22C55E;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;font-size:12px;color:#22C55E">✓</div>'
+          + '<span style="flex:1;text-decoration:line-through;color:#94A3B8;font-size:14px">' + r.title + '</span>'
+          + '<button onclick="deleteReminder(\'' + r._id + '\')" style="background:none;border:none;cursor:pointer;color:#CBD5E1;font-size:15px;padding:4px">🗑</button>'
+          + '</div>';
+      }).join('');
+    }
+  }
+}
+
+function toggleReminder(id, wasDone) {
+  Api.updateReminder(id, { done: !wasDone }).then(function(res) {
+    if (res.success) {
+      allReminders = allReminders.map(function(r){ return r._id === id ? Object.assign({}, r, { done: !wasDone }) : r; });
+      renderReminders();
+    }
+  });
+}
+
+function deleteReminder(id) {
+  Api.deleteReminder(id).then(function() {
+    allReminders = allReminders.filter(function(r){ return r._id !== id; });
+    renderReminders();
+    Layout.toast('Reminder deleted.', 'info');
+  });
+}
+
+function submitReminder() {
+  var title   = document.getElementById('remTitle').value.trim();
+  var dueDate = document.getElementById('remDate').value;
+  if (!title) { Layout.toast('Title is required.', 'error'); return; }
+
+  var btn = document.getElementById('remBtn');
+  btn.disabled    = true;
+  btn.textContent = 'Adding…';
+
+  Api.addReminder({ title: title, dueDate: dueDate || null, priority: selPriority }).then(function(res) {
+    btn.disabled    = false;
+    btn.textContent = 'Add Reminder';
+    if (res.success) {
+      allReminders.unshift(res.data);
+      renderReminders();
+      closeRemModal();
+      Layout.toast('Reminder added!');
+    } else {
+      Layout.toast(res.message || 'Failed to add reminder.', 'error');
+    }
+  });
+}
+
+Api.getReminders().then(function(res) {
+  allReminders = res.success ? res.data : [];
+
+  document.getElementById('content').innerHTML =
+    '<div class="page-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">'
+    + '<div><h1 class="page-title">Reminders</h1><p class="page-sub">Stay on top of deadlines</p></div>'
+    + '<button onclick="openRemModal()" class="btn btn-primary">➕ Add Reminder</button>'
+    + '</div>'
+
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:22px">'
+
+    + '<div>'
+    +   '<h3 id="activeHead" style="font-size:13px;font-weight:800;color:#334155;margin-bottom:12px">Active</h3>'
+    +   '<div id="activeList"></div>'
+    + '</div>'
+
+    + '<div>'
+    +   '<h3 id="doneHead" style="font-size:13px;font-weight:800;color:#64748B;margin-bottom:12px">Completed</h3>'
+    +   '<div id="doneList"></div>'
+    + '</div>'
+
+    + '</div>';
+
+  renderReminders();
+}).catch(function() {
+  document.getElementById('content').innerHTML = '<div class="empty">Failed to load reminders. Please refresh.</div>';
+});
 </script>
 </body>
 </html>

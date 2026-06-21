@@ -3,101 +3,128 @@
 <head>
   <meta charset="utf-8">
   <title>TrustID — Settings</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
   <link rel="icon" href="./icon.svg">
   <link rel="stylesheet" href="./css/styles.css">
-  <script src="./js/react.min.js"></script>
-  <script src="./js/react-dom.min.js"></script>
 </head>
 <body>
-<div id="app"></div>
+<div class="app-shell">
+  <div id="sidebar"></div>
+  <div id="main">
+    <div id="topbar"></div>
+    <div class="page-content" id="content"></div>
+  </div>
+</div>
 <script src="./js/auth.js"></script>
-<script>Auth.requireAuth();</script>
+<script>if(!Auth.requireAuth()) throw '';</script>
 <script src="./js/api.js"></script>
-<script src="./js/components.js"></script>
+<script src="./js/layout.js"></script>
 <script>
-const { createElement: h, useState } = React;
+Layout.init('settings');
 
-function SettingsPage() {
-  const [cur,  setCur]  = useState('');
-  const [nw,   setNw]   = useState('');
-  const [conf, setConf] = useState('');
-  const [loading, setLoading] = useState(false);
-  const toast = useToast();
+/* Static notification toggles state */
+var notifState = { 'Email Notifications':true, 'Document Alerts':true, 'Reminder Emails':false, 'Security Alerts':true };
 
-  const submit = async () => {
-    if (!cur || !nw || nw !== conf) {
-      toast({ type:'error', msg: nw !== conf ? "Passwords don't match" : 'Fill all fields' });
-      return;
-    }
-    if (nw.length < 8) { toast({ type:'error', msg:'Password must be at least 8 characters' }); return; }
-    setLoading(true);
-    const r = await Api.changePassword(cur, nw);
-    setLoading(false);
-    if (r.success) {
-      toast({ type:'success', msg:'Password updated!' });
-      setCur(''); setNw(''); setConf('');
-    } else {
-      toast({ type:'error', msg: r.message || 'Failed to update password' });
-    }
-  };
-
-  return h(AppLayout, { activePage:'settings' },
-    h('div', null,
-      h(PH, { title:'Settings', sub:'Manage account preferences' }),
-      h('div', { style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:22} },
-
-        /* ── Left ── */
-        h('div', { style:{display:'flex',flexDirection:'column',gap:18} },
-          h('div', { className:'card' },
-            h('h3', { style:{fontSize:15,fontWeight:800,marginBottom:18} }, '🔒 Change Password'),
-            h('div', { style:{display:'flex',flexDirection:'column',gap:14,marginBottom:16} },
-              h(Field, { label:'Current password', value:cur,  onChange:setCur,  type:'password' }),
-              h(Field, { label:'New password',     value:nw,   onChange:setNw,   type:'password', placeholder:'Min 8 characters' }),
-              h(Field, { label:'Confirm new password', value:conf, onChange:setConf, type:'password' })
-            ),
-            h(Btn, { label:'Update Password', onClick:submit, loading })
-          ),
-          h('div', { className:'card' },
-            h('h3', { style:{fontSize:15,fontWeight:800,marginBottom:14} }, '🔔 Notifications'),
-            [['Email Notifications',true],['Document Alerts',true],['Reminder Emails',false],['Security Alerts',true]].map(([lb,on]) =>
-              h('div', { key:lb, style:{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'10px 0',borderBottom:`1px solid ${C[50]}`} },
-                h('span', { style:{fontSize:13,color:C[700]} }, lb),
-                h('div', { style:{width:40,height:22,borderRadius:11,background:on?C.purple:C[200],position:'relative',cursor:'pointer'} },
-                  h('div', { style:{position:'absolute',top:2,left:on?20:2,width:18,height:18,borderRadius:'50%',background:'#fff',transition:'left 0.2s'} })
-                )
-              )
-            )
-          )
-        ),
-
-        /* ── Right ── */
-        h('div', { style:{display:'flex',flexDirection:'column',gap:18} },
-          h('div', { className:'card' },
-            h('h3', { style:{fontSize:15,fontWeight:800,marginBottom:14} }, '🌐 Session'),
-            h('div', { style:{padding:'12px 14px',borderRadius:10,background:C.green+'10',border:`1px solid ${C.green}30`,marginBottom:14} },
-              h('div', { style:{fontWeight:700,fontSize:13,color:C.green} }, '✅ Connected to Live Backend'),
-              h('div', { style:{fontSize:12,color:C[500],marginTop:4} }, 'All data is saved to MongoDB')
-            ),
-            h('div', { style:{display:'flex',flexDirection:'column',gap:10} },
-              h(Btn, { label:'Sign Out', v:'ghost', onClick:Auth.logout }),
-            )
-          ),
-          h('div', { className:'card' },
-            h('h3', { style:{fontSize:15,fontWeight:800,marginBottom:14} }, '🗑️ Danger Zone'),
-            h('div', { style:{padding:14,borderRadius:10,background:C.red+'06',border:`1px solid ${C.red}20`} },
-              h('div', { style:{fontWeight:700,fontSize:13,color:C[900],marginBottom:4} }, 'Delete Account'),
-              h('div', { style:{fontSize:12,color:C[500],marginBottom:12,lineHeight:1.6} }, 'This is irreversible. All your data will be permanently deleted.'),
-              h(Btn, { label:'Delete Account', v:'danger', full:false, sm:true })
-            )
-          )
-        )
-      )
-    )
-  );
+function toggleNotif(key) {
+  notifState[key] = !notifState[key];
+  renderNotifToggles();
 }
 
-ReactDOM.createRoot(document.getElementById('app')).render(h(SettingsPage));
+function renderNotifToggles() {
+  var container = document.getElementById('notifToggles');
+  if (!container) return;
+  container.innerHTML = Object.keys(notifState).map(function(key) {
+    var on  = notifState[key];
+    var bg  = on ? '#7C3AED' : '#E2E8F0';
+    var pos = on ? '20px'    : '2px';
+    return '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #F8FAFC">'
+      + '<span style="font-size:13px;color:#334155">' + key + '</span>'
+      + '<div onclick="toggleNotif(\'' + key + '\')" style="width:40px;height:22px;border-radius:11px;background:' + bg + ';position:relative;cursor:pointer;transition:background 0.2s">'
+      +   '<div style="position:absolute;top:2px;left:' + pos + ';width:18px;height:18px;border-radius:50%;background:#fff;transition:left 0.2s"></div>'
+      + '</div>'
+      + '</div>';
+  }).join('');
+}
+
+function submitPassword() {
+  var cur  = document.getElementById('curPwd').value;
+  var nw   = document.getElementById('newPwd').value;
+  var conf = document.getElementById('confPwd').value;
+
+  if (!cur || !nw || !conf) { Layout.toast('Please fill all fields.', 'error'); return; }
+  if (nw !== conf)           { Layout.toast("New passwords don't match.", 'error'); return; }
+  if (nw.length < 8)         { Layout.toast('Password must be at least 8 characters.', 'error'); return; }
+
+  var btn = document.getElementById('pwdBtn');
+  btn.disabled    = true;
+  btn.textContent = 'Updating…';
+
+  Api.changePassword(cur, nw).then(function(res) {
+    btn.disabled    = false;
+    btn.textContent = 'Update Password';
+    if (res.success) {
+      Layout.toast('Password updated successfully!');
+      document.getElementById('curPwd').value  = '';
+      document.getElementById('newPwd').value  = '';
+      document.getElementById('confPwd').value = '';
+    } else {
+      Layout.toast(res.message || 'Failed to update password.', 'error');
+    }
+  });
+}
+
+document.getElementById('content').innerHTML =
+  '<div class="page-header">'
+  + '<div><h1 class="page-title">Settings</h1><p class="page-sub">Manage account preferences</p></div>'
+  + '</div>'
+
+  + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:22px">'
+
+  /* ── Left ── */
+  + '<div style="display:flex;flex-direction:column;gap:18px">'
+
+  + '<div class="card">'
+  +   '<h3 style="font-size:15px;font-weight:800;margin-bottom:18px">🔒 Change Password</h3>'
+  +   '<div style="display:flex;flex-direction:column;gap:14px;margin-bottom:16px">'
+  +     '<div><label class="label">Current Password</label><input id="curPwd" class="input" type="password" placeholder="Enter current password"></div>'
+  +     '<div><label class="label">New Password</label><input id="newPwd" class="input" type="password" placeholder="Min 8 characters"></div>'
+  +     '<div><label class="label">Confirm New Password</label><input id="confPwd" class="input" type="password" placeholder="Repeat new password"></div>'
+  +   '</div>'
+  +   '<button id="pwdBtn" onclick="submitPassword()" class="btn btn-primary btn-full">Update Password</button>'
+  + '</div>'
+
+  + '<div class="card">'
+  +   '<h3 style="font-size:15px;font-weight:800;margin-bottom:14px">🔔 Notifications</h3>'
+  +   '<div id="notifToggles"></div>'
+  + '</div>'
+
+  + '</div>'
+
+  /* ── Right ── */
+  + '<div style="display:flex;flex-direction:column;gap:18px">'
+
+  + '<div class="card">'
+  +   '<h3 style="font-size:15px;font-weight:800;margin-bottom:14px">🌐 Session</h3>'
+  +   '<div style="padding:12px 14px;border-radius:10px;background:#22C55E10;border:1px solid #22C55E30;margin-bottom:14px">'
+  +     '<div style="font-weight:700;font-size:13px;color:#22C55E">✅ Connected to Live Backend</div>'
+  +     '<div style="font-size:12px;color:#64748B;margin-top:4px">All data is saved to MongoDB</div>'
+  +   '</div>'
+  +   '<button onclick="Auth.logout()" class="btn btn-ghost btn-full">Sign Out</button>'
+  + '</div>'
+
+  + '<div class="card">'
+  +   '<h3 style="font-size:15px;font-weight:800;margin-bottom:14px">🗑️ Danger Zone</h3>'
+  +   '<div style="padding:14px;border-radius:10px;background:#EF444406;border:1px solid #EF444420">'
+  +     '<div style="font-weight:700;font-size:13px;color:#0F172A;margin-bottom:4px">Delete Account</div>'
+  +     '<div style="font-size:12px;color:#64748B;margin-bottom:12px;line-height:1.6">This is irreversible. All your data will be permanently deleted.</div>'
+  +     '<button onclick="Layout.toast(\'Account deletion requires admin approval.\', \'warning\')" class="btn btn-danger btn-sm">Delete Account</button>'
+  +   '</div>'
+  + '</div>'
+
+  + '</div>'
+  + '</div>';
+
+renderNotifToggles();
 </script>
 </body>
 </html>

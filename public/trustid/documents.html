@@ -3,126 +3,224 @@
 <head>
   <meta charset="utf-8">
   <title>TrustID — Documents</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
   <link rel="icon" href="./icon.svg">
   <link rel="stylesheet" href="./css/styles.css">
-  <script src="./js/react.min.js"></script>
-  <script src="./js/react-dom.min.js"></script>
 </head>
 <body>
-<div id="app"></div>
+<div class="app-shell">
+  <div id="sidebar"></div>
+  <div id="main">
+    <div id="topbar"></div>
+    <div class="page-content" id="content"><div id="loading"></div></div>
+  </div>
+</div>
+
+<!-- Upload Modal -->
+<div id="uploadModal" class="modal-backdrop" style="display:none">
+  <div class="modal" style="max-width:460px;width:100%">
+    <div class="modal-header">
+      <h2 class="modal-title">Upload Document</h2>
+      <button onclick="closeUploadModal()" style="background:none;border:none;font-size:24px;cursor:pointer;color:#94A3B8;line-height:1;padding:0">&times;</button>
+    </div>
+    <div style="padding:24px;display:flex;flex-direction:column;gap:16px">
+      <div>
+        <label class="label">Document Name <span style="color:#EF4444">*</span></label>
+        <input id="docName" class="input" placeholder="e.g. My Passport">
+      </div>
+      <div>
+        <label class="label">Document Type <span style="color:#EF4444">*</span></label>
+        <select id="docType" class="input">
+          <option value="">Select type…</option>
+          <option>Passport</option>
+          <option>Driver's License</option>
+          <option>National ID</option>
+          <option>Bank Statement</option>
+          <option>Utility Bill</option>
+          <option>Tax Return</option>
+          <option>Birth Certificate</option>
+        </select>
+      </div>
+      <div>
+        <label class="label">Category <span style="color:#EF4444">*</span></label>
+        <select id="docCategory" class="input">
+          <option value="">Select category…</option>
+          <option value="identity">Identity</option>
+          <option value="financial">Financial</option>
+          <option value="address">Address</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+      <div>
+        <label class="label">Document Number <span style="color:#94A3B8;font-weight:400">(optional)</span></label>
+        <input id="docNumber" class="input" placeholder="e.g. A1234567">
+      </div>
+      <div style="display:flex;gap:10px;margin-top:4px">
+        <button onclick="closeUploadModal()" class="btn btn-ghost btn-full">Cancel</button>
+        <button onclick="submitUpload()" id="uploadBtn" class="btn btn-primary btn-full">Upload Document</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script src="./js/auth.js"></script>
-<script>Auth.requireAuth();</script>
+<script>if(!Auth.requireAuth()) throw '';</script>
 <script src="./js/api.js"></script>
-<script src="./js/components.js"></script>
+<script src="./js/layout.js"></script>
 <script>
-const { createElement: h, useState, useEffect, useCallback } = React;
-const cic = { identity:'🪪', financial:'💳', address:'🏠', other:'📄' };
+Layout.init('documents');
+document.getElementById('loading').innerHTML = Layout.spinner();
 
-function DocumentsPage() {
-  const [docs,      setDocs]     = useState([]);
-  const [loading,   setLoading]  = useState(true);
-  const [tab,       setTab]      = useState('all');
-  const [view,      setView]     = useState('table');
-  const [showUp,    setShowUp]   = useState(false);
-  const [uf,        setUf]       = useState({ type:'', category:'identity' });
-  const [uploading, setUploading]= useState(false);
-  const toast = useToast();
+var allDocs  = [];
+var activeTab = 'all';
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    const r = await Api.getDocs();
-    if (r.success) setDocs(r.data);
-    setLoading(false);
-  }, []);
-  useEffect(() => { load(); }, [load]);
+var DOC_ICONS = {
+  'Passport':'🛂',
+  "Driver's License":'🚗',
+  'National ID':'🪪',
+  'Bank Statement':'🏦',
+  'Utility Bill':'⚡',
+  'Tax Return':'📊',
+  'Birth Certificate':'📜'
+};
 
-  const upload = async () => {
-    if (!uf.type) return;
-    setUploading(true);
-    const r = await Api.uploadDoc({ name:uf.type, type:uf.type, category:uf.category });
-    setUploading(false);
-    if (r.success) {
-      setDocs(d => [r.data, ...d]);
-      setShowUp(false);
-      setUf({ type:'', category:'identity' });
-      toast({ type:'success', msg:'Document uploaded!' });
-    } else toast({ type:'error', msg:r.message || 'Upload failed' });
-  };
-
-  const filtered = tab === 'all' ? docs : docs.filter(d => d.status === tab);
-
-  return h(AppLayout, { activePage:'documents' },
-    h('div', null,
-      h(PH, { title:'Documents', sub:`${docs.length} total · ${docs.filter(d=>d.status==='verified').length} verified`,
-        actions: h(Btn, { label:'Upload Document', icon:'📤', full:false, sm:true, onClick:()=>setShowUp(true) }) }),
-
-      /* Tabs + View Toggle */
-      h('div', { style:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:18} },
-        h('div', { style:{display:'flex',background:C[100],borderRadius:10,padding:4,gap:2} },
-          ['all','verified','pending','rejected'].map(t =>
-            h('button', { key:t, onClick:()=>setTab(t),
-              style:{padding:'6px 16px',borderRadius:8,border:'none',background:tab===t?'#fff':'transparent',color:tab===t?C[900]:C[500],fontWeight:tab===t?700:400,fontSize:13,cursor:'pointer',textTransform:'capitalize',boxShadow:tab===t?'0 1px 4px rgba(0,0,0,0.08)':'none'} },
-              t, tab===t&&` (${filtered.length})`)
-          )
-        ),
-        h('div', { style:{display:'flex',gap:6} },
-          ['table','grid'].map(v =>
-            h('button', { key:v, onClick:()=>setView(v), style:{padding:'6px 12px',borderRadius:8,border:`1px solid ${C[200]}`,background:view===v?C.purple:'#fff',color:view===v?'#fff':C[600],fontWeight:600,fontSize:12,cursor:'pointer'} },
-              v==='table'?'☰ Table':'⊞ Grid')
-          )
-        )
-      ),
-
-      loading ? h('div', { style:{display:'flex',justifyContent:'center',padding:60} }, h(Spin, { sz:32 })) :
-      view==='table' ?
-        h('div', { className:'table-wrap' },
-          h('table', null,
-            h('thead', null, h('tr', null, ['Document','Category','Date','Status',''].map(hd => h('th', { key:hd }, hd)))),
-            h('tbody', null,
-              filtered.map(doc => h('tr', { key:doc._id },
-                h('td', null, h('div', { style:{display:'flex',alignItems:'center',gap:11} },
-                  h('div', { style:{width:38,height:38,borderRadius:9,background:C[100],display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,flexShrink:0} }, cic[doc.category]||'📄'),
-                  h('span', { style:{fontWeight:600} }, doc.name))),
-                h('td', { style:{textTransform:'capitalize'} }, doc.category),
-                h('td', null, fmtDate(doc.createdAt)),
-                h('td', null, h(Badge, { status:doc.status })),
-                h('td', null)
-              ))
-            )
-          ),
-          filtered.length===0 && h('div', { style:{textAlign:'center',padding:40,color:C[400]} }, 'No documents found')
-        ) :
-        h('div', { style:{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:16} },
-          filtered.map(doc => h('div', { key:doc._id, className:'card', style:{cursor:'pointer'} },
-            h('div', { style:{display:'flex',justifyContent:'space-between',marginBottom:14} },
-              h('div', { style:{width:48,height:48,borderRadius:12,background:C[100],display:'flex',alignItems:'center',justifyContent:'center',fontSize:24} }, cic[doc.category]||'📄'),
-              h(Badge, { status:doc.status })
-            ),
-            h('div', { style:{fontWeight:700,fontSize:14,color:C[900]} }, doc.name),
-            h('div', { style:{fontSize:12,color:C[500],marginTop:4} }, fmtDate(doc.createdAt))
-          ))
-        ),
-
-      h(Modal, { open:showUp, onClose:()=>setShowUp(false), title:'Upload Document' },
-        h('div', { style:{display:'flex',flexDirection:'column',gap:16} },
-          h(Sel, { label:'Document Type', value:uf.type, onChange:v=>setUf(f=>({...f,type:v})), ph:'Select type…',
-            options:['Passport',"Driver's License",'National ID','Bank Statement','Utility Bill','Tax Return','Birth Certificate'] }),
-          h(Sel, { label:'Category', value:uf.category, onChange:v=>setUf(f=>({...f,category:v})),
-            options:[{v:'identity',l:'Identity'},{v:'financial',l:'Financial'},{v:'address',l:'Address'},{v:'other',l:'Other'}] }),
-          h('div', { style:{border:`2px dashed ${C[200]}`,borderRadius:12,padding:28,textAlign:'center',background:C[50]} },
-            h('div', { style:{fontSize:30,marginBottom:8} }, '📁'),
-            h('div', { style:{fontSize:14,color:C[500]} }, 'Click to select or drag & drop'),
-            h('div', { style:{fontSize:12,color:C[400],marginTop:4} }, 'PDF, JPG, PNG — max 10MB')
-          ),
-          h(Btn, { label:'Upload Document', onClick:upload, loading:uploading, icon:'📤' })
-        )
-      )
-    )
-  );
+function openUploadModal()  { document.getElementById('uploadModal').style.display = 'flex'; }
+function closeUploadModal() {
+  document.getElementById('uploadModal').style.display = 'none';
+  document.getElementById('docName').value    = '';
+  document.getElementById('docType').value    = '';
+  document.getElementById('docCategory').value = '';
+  document.getElementById('docNumber').value  = '';
 }
 
-ReactDOM.createRoot(document.getElementById('app')).render(h(DocumentsPage));
+function setTab(tab) {
+  activeTab = tab;
+  document.querySelectorAll('.tab').forEach(function(t){ t.classList.remove('active'); });
+  var el = document.getElementById('tab-' + tab);
+  if (el) el.classList.add('active');
+  renderDocs();
+}
+
+function renderDocs() {
+  var filtered = activeTab === 'all'
+    ? allDocs
+    : allDocs.filter(function(d){ return d.status === activeTab; });
+
+  var tbody = document.getElementById('docsBody');
+  if (!tbody) return;
+
+  /* update counts */
+  ['all','verified','pending','rejected'].forEach(function(t) {
+    var cnt = t === 'all' ? allDocs.length : allDocs.filter(function(d){ return d.status === t; }).length;
+    var el  = document.getElementById('cnt-' + t);
+    if (el) el.textContent = cnt;
+  });
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5"><div class="empty">No documents found.</div></td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(function(d) {
+    var icon = DOC_ICONS[d.type] || '📄';
+    return '<tr>'
+      + '<td><div style="display:flex;align-items:center;gap:10px">'
+      +   '<div style="width:38px;height:38px;border-radius:10px;background:#F1F5F9;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">' + icon + '</div>'
+      +   '<div><div style="font-weight:600;font-size:13px;color:#0F172A">' + (d.name || d.type) + '</div>'
+      +   '<div style="font-size:11px;color:#94A3B8">' + (d.type || '') + '</div></div>'
+      + '</div></td>'
+      + '<td><span style="font-size:12px;color:#64748B;text-transform:capitalize">' + (d.category || '—') + '</span></td>'
+      + '<td style="font-size:12px;color:#64748B">' + Layout.fmtDate(d.createdAt) + '</td>'
+      + '<td>' + Layout.badge(d.status) + '</td>'
+      + '<td><button onclick="confirmDelete(\'' + d._id + '\')" class="btn btn-danger btn-sm" title="Delete">🗑</button></td>'
+      + '</tr>';
+  }).join('');
+}
+
+function confirmDelete(id) {
+  Layout.toast('Document deletion is not available yet.', 'warning');
+}
+
+function submitUpload() {
+  var name     = document.getElementById('docName').value.trim();
+  var type     = document.getElementById('docType').value;
+  var category = document.getElementById('docCategory').value;
+  var number   = document.getElementById('docNumber').value.trim();
+
+  if (!name || !type || !category) {
+    Layout.toast('Please fill all required fields.', 'error');
+    return;
+  }
+
+  var btn = document.getElementById('uploadBtn');
+  btn.disabled    = true;
+  btn.textContent = 'Uploading…';
+
+  var body = { name: name, type: type, category: category };
+  if (number) body.documentNumber = number;
+
+  Api.uploadDoc(body).then(function(res) {
+    btn.disabled    = false;
+    btn.textContent = 'Upload Document';
+    if (res.success) {
+      Layout.toast('Document uploaded successfully!');
+      closeUploadModal();
+      allDocs.unshift(res.data);
+      renderDocs();
+      /* update stat cards */
+      var verified = allDocs.filter(function(d){ return d.status==='verified'; }).length;
+      var pending  = allDocs.filter(function(d){ return d.status==='pending'; }).length;
+      var rejected = allDocs.filter(function(d){ return d.status==='rejected'; }).length;
+      var stTotal  = document.getElementById('st-total');
+      var stVerif  = document.getElementById('st-verified');
+      var stPend   = document.getElementById('st-pending');
+      var stRej    = document.getElementById('st-rejected');
+      if (stTotal) stTotal.textContent = allDocs.length;
+      if (stVerif) stVerif.textContent = verified;
+      if (stPend)  stPend.textContent  = pending;
+      if (stRej)   stRej.textContent   = rejected;
+    } else {
+      Layout.toast(res.message || 'Upload failed.', 'error');
+    }
+  });
+}
+
+Api.getDocs().then(function(res) {
+  allDocs = res.success ? res.data : [];
+  var verified = allDocs.filter(function(d){ return d.status==='verified'; }).length;
+  var pending  = allDocs.filter(function(d){ return d.status==='pending'; }).length;
+  var rejected = allDocs.filter(function(d){ return d.status==='rejected'; }).length;
+
+  document.getElementById('content').innerHTML =
+    '<div class="page-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">'
+    + '<div><h1 class="page-title">Documents</h1><p class="page-sub">Manage your identity and financial documents</p></div>'
+    + '<button onclick="openUploadModal()" class="btn btn-primary">📤 Upload Document</button>'
+    + '</div>'
+
+    + '<div class="grid-4" style="margin-bottom:24px">'
+    + '<div class="stat-card"><div style="width:44px;height:44px;border-radius:12px;background:#7C3AED15;display:flex;align-items:center;justify-content:center;font-size:22px;margin-bottom:14px">📁</div><div class="stat-value" id="st-total">' + allDocs.length + '</div><div class="stat-label">Total Documents</div></div>'
+    + '<div class="stat-card"><div style="width:44px;height:44px;border-radius:12px;background:#22C55E15;display:flex;align-items:center;justify-content:center;font-size:22px;margin-bottom:14px">✅</div><div class="stat-value" id="st-verified">' + verified + '</div><div class="stat-label">Verified</div></div>'
+    + '<div class="stat-card"><div style="width:44px;height:44px;border-radius:12px;background:#F9731615;display:flex;align-items:center;justify-content:center;font-size:22px;margin-bottom:14px">⏳</div><div class="stat-value" id="st-pending">' + pending + '</div><div class="stat-label">Pending</div></div>'
+    + '<div class="stat-card"><div style="width:44px;height:44px;border-radius:12px;background:#EF444415;display:flex;align-items:center;justify-content:center;font-size:22px;margin-bottom:14px">❌</div><div class="stat-value" id="st-rejected">' + rejected + '</div><div class="stat-label">Rejected</div></div>'
+    + '</div>'
+
+    + '<div class="card">'
+    + '<div class="tabs" style="margin-bottom:20px">'
+    + '<button id="tab-all"      class="tab active" onclick="setTab(\'all\')">All <span id="cnt-all"      style="font-size:11px;background:#F1F5F9;border-radius:20px;padding:1px 7px;margin-left:4px">' + allDocs.length + '</span></button>'
+    + '<button id="tab-verified" class="tab"        onclick="setTab(\'verified\')">Verified <span id="cnt-verified" style="font-size:11px;background:#DCFCE7;color:#16A34A;border-radius:20px;padding:1px 7px;margin-left:4px">' + verified + '</span></button>'
+    + '<button id="tab-pending"  class="tab"        onclick="setTab(\'pending\')">Pending <span id="cnt-pending"  style="font-size:11px;background:#FEF9C3;color:#B45309;border-radius:20px;padding:1px 7px;margin-left:4px">' + pending + '</span></button>'
+    + '<button id="tab-rejected" class="tab"        onclick="setTab(\'rejected\')">Rejected <span id="cnt-rejected" style="font-size:11px;background:#FEE2E2;color:#B91C1C;border-radius:20px;padding:1px 7px;margin-left:4px">' + rejected + '</span></button>'
+    + '</div>'
+    + '<div class="table-wrap"><table>'
+    + '<thead><tr><th>Document</th><th>Category</th><th>Date</th><th>Status</th><th>Actions</th></tr></thead>'
+    + '<tbody id="docsBody"></tbody>'
+    + '</table></div>'
+    + '</div>';
+
+  renderDocs();
+}).catch(function() {
+  document.getElementById('content').innerHTML = '<div class="empty">Failed to load documents. Please refresh.</div>';
+});
 </script>
 </body>
 </html>

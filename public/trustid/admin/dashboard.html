@@ -3,119 +3,154 @@
 <head>
   <meta charset="utf-8">
   <title>TrustID Admin — Overview</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
   <link rel="icon" href="../icon.svg">
   <link rel="stylesheet" href="../css/styles.css">
-  <script src="../js/react.min.js"></script>
-  <script src="../js/react-dom.min.js"></script>
 </head>
 <body>
-<div id="app"></div>
+<div class="app-shell">
+  <div id="sidebar"></div>
+  <div id="main">
+    <div id="topbar"></div>
+    <div class="page-content" id="content"><div id="loading"></div></div>
+  </div>
+</div>
 <script src="../js/auth.js"></script>
-<script>Auth.requireAdmin();</script>
+<script>if(!Auth.requireAdmin()) throw '';</script>
 <script src="../js/api.js"></script>
-<script src="../js/components.js"></script>
+<script src="../js/layout.js"></script>
 <script>
-const { createElement: h, useState, useEffect } = React;
+Layout.init('admin-dashboard');
+document.getElementById('loading').innerHTML = Layout.spinner();
 
-function AdminDashboard() {
-  const [stats,   setStats]   = useState(null);
-  const [docs,    setDocs]    = useState([]);
-  const [loading, setLoading] = useState(true);
+Promise.all([Api.getAdminStats(), Api.getAllDocs()]).then(function(results) {
+  var sr   = results[0];
+  var dr   = results[1];
+  var s    = sr.success ? sr.data : {};
+  var docs = dr.success ? dr.data : [];
 
-  useEffect(() => {
-    Promise.all([Api.getAdminStats(), Api.getAllDocs()]).then(([sr, dr]) => {
-      if (sr.success) setStats(sr.data);
-      if (dr.success) setDocs(dr.data);
-      setLoading(false);
-    });
-  }, []);
+  var totalUsers    = s.totalUsers       || 0;
+  var activeTrust   = s.activeTrustIds   || 0;
+  var verifiedDocs  = s.verifiedDocs     || 0;
+  var pendingReview = s.pendingReviews   || 0;
 
-  if (loading) return h(AppLayout, { activePage:'admin-dashboard' },
-    h('div', { style:{display:'flex',justifyContent:'center',padding:60} }, h(Spin, { sz:32 }))
-  );
+  var growth   = s.growth   || [];
+  var docStatus = s.docStatus || [];
+  var byLevel  = s.byLevel  || [];
 
-  return h(AppLayout, { activePage:'admin-dashboard' },
-    h('div', null,
-      h(PH, { title:'Platform Overview', sub:'Real-time analytics & insights' }),
+  /* Growth bars */
+  var maxU = 1;
+  growth.forEach(function(g) { if (g.users > maxU) maxU = g.users; });
 
-      /* Stat cards */
-      h('div', { style:{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:18,marginBottom:26} },
-        h(StatCard, { icon:'👥', label:'Total Users',     value:(stats.totalUsers||0).toLocaleString(),     color:C.blue,   delta:12 }),
-        h(StatCard, { icon:'🛡️', label:'Active TrustIDs', value:(stats.activeTrustIds||0).toLocaleString(), color:C.purple, delta:8  }),
-        h(StatCard, { icon:'✅', label:'Verified Docs',   value:(stats.verifiedDocs||0).toLocaleString(),   color:C.green,  delta:15 }),
-        h(StatCard, { icon:'⏳', label:'Pending Reviews', value:stats.pendingReviews||0,                    color:C.orange, delta:-5 })
-      ),
+  var growthHTML = growth.map(function(g) {
+    var uPct = ((g.users / maxU) * 100).toFixed(0);
+    var dPct = ((( g.docs||0) / maxU) * 100).toFixed(0);
+    return '<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;position:relative;height:160px">'
+      + '<div style="flex:1;width:100%;display:flex;align-items:flex-end;gap:2px">'
+      +   '<div title="Users: ' + g.users + '" style="flex:1;height:' + uPct + '%;background:#3B82F690;border-radius:3px 3px 0 0;min-height:4px"></div>'
+      +   '<div title="Docs: ' + (g.docs||0) + '" style="flex:1;height:' + dPct + '%;background:#7C3AED90;border-radius:3px 3px 0 0;min-height:4px"></div>'
+      + '</div>'
+      + '<span style="font-size:9px;color:#64748B;margin-top:4px">' + (g.m||'') + '</span>'
+      + '</div>';
+  }).join('');
 
-      /* Growth chart (simple bar) */
-      h('div', { style:{display:'grid',gridTemplateColumns:'2fr 1fr',gap:22,marginBottom:22} },
-        h('div', { className:'card' },
-          h('h3', { style:{fontSize:14,fontWeight:800,marginBottom:18} }, 'Platform Growth'),
-          h('div', { style:{display:'flex',alignItems:'flex-end',gap:8,height:160,padding:'0 0 24px'} },
-            (stats.growth||[]).map(({ m, users, docs:d }) => {
-              const maxU = Math.max(...(stats.growth||[]).map(g=>g.users), 1);
-              return h('div', { key:m, style:{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:3,height:'100%',position:'relative'} },
-                h('div', { style:{flex:1,width:'100%',display:'flex',flexDirection:'column',justifyContent:'flex-end',gap:3} },
-                  h('div', { title:`Users: ${users}`, style:{height:`${(users/maxU*100)}%`,background:C.blue+'90',borderRadius:'3px 3px 0 0',minHeight:4,width:'45%',alignSelf:'flex-start'} }),
-                  h('div', { title:`Docs: ${d}`, style:{height:`${(d/maxU*100)}%`,background:C.purple+'90',borderRadius:'3px 3px 0 0',minHeight:4,width:'45%',alignSelf:'flex-end',marginTop:-d,position:'absolute',right:0,bottom:0} })
-                ),
-                h('span', { style:{position:'absolute',bottom:-18,fontSize:9,color:C[500]} }, m)
-              );
-            })
-          ),
-          h('div', { style:{display:'flex',gap:16,marginTop:8} },
-            h('span', { style:{display:'flex',alignItems:'center',gap:4,fontSize:12} }, h('span', { style:{width:10,height:10,borderRadius:2,background:C.blue+'90',display:'inline-block'} }), 'Users'),
-            h('span', { style:{display:'flex',alignItems:'center',gap:4,fontSize:12} }, h('span', { style:{width:10,height:10,borderRadius:2,background:C.purple+'90',display:'inline-block'} }), 'Docs')
-          )
-        ),
-        h('div', { className:'card' },
-          h('h3', { style:{fontSize:14,fontWeight:800,marginBottom:14} }, 'Document Status'),
-          (stats.docStatus||[]).map(d => h('div', { key:d.name, style:{marginBottom:12} },
-            h('div', { style:{display:'flex',justifyContent:'space-between',fontSize:13,marginBottom:4} },
-              h('span', null, d.name),
-              h('strong', null, d.value)
-            ),
-            h('div', { style:{height:6,background:C[100],borderRadius:3} },
-              h('div', { style:{height:'100%',borderRadius:3,background:d.color,width:`${Math.min(100,(d.value/((stats.verifiedDocs||1)+1))*100)}%`} })
-            )
-          ))
-        )
-      ),
+  /* Doc status bars */
+  var maxDocVal = 1;
+  docStatus.forEach(function(d) { if ((d.value||0) > maxDocVal) maxDocVal = d.value; });
+  var docStatusHTML = docStatus.map(function(d) {
+    var pct = ((( d.value||0) / maxDocVal) * 100).toFixed(0);
+    return '<div style="margin-bottom:12px">'
+      + '<div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px">'
+      +   '<span>' + (d.name||'') + '</span>'
+      +   '<strong>' + (d.value||0) + '</strong>'
+      + '</div>'
+      + '<div style="height:6px;background:#F1F5F9;border-radius:3px">'
+      +   '<div style="height:100%;border-radius:3px;background:' + (d.color||'#7C3AED') + ';width:' + pct + '%"></div>'
+      + '</div>'
+      + '</div>';
+  }).join('');
 
-      /* By level + Recent submissions */
-      h('div', { style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:22} },
-        h('div', { className:'card' },
-          h('h3', { style:{fontSize:14,fontWeight:800,marginBottom:16} }, 'Users by Trust Level'),
-          (stats.byLevel||[]).map(({ l, v }) => {
-            const max = Math.max(...(stats.byLevel||[]).map(x=>x.v), 1);
-            return h('div', { key:l, style:{marginBottom:10} },
-              h('div', { style:{display:'flex',justifyContent:'space-between',fontSize:12,marginBottom:4} },
-                h('span', { style:{color:C[600]} }, l),
-                h('strong', null, v)
-              ),
-              h('div', { style:{height:6,background:C[100],borderRadius:3} },
-                h('div', { style:{height:'100%',borderRadius:3,background:C.purple,width:`${(v/max)*100}%`} })
-              )
-            );
-          })
-        ),
-        h('div', { className:'card' },
-          h('h3', { style:{fontSize:14,fontWeight:800,marginBottom:16} }, 'Recent Submissions'),
-          docs.slice(0,6).map(d => h('div', { key:d._id, style:{display:'flex',gap:12,alignItems:'center',padding:'8px 0',borderBottom:`1px solid ${C[50]}`} },
-            h('div', { style:{width:36,height:36,borderRadius:8,background:C[100],display:'flex',alignItems:'center',justifyContent:'center',fontSize:17,flexShrink:0} }, '📄'),
-            h('div', { style:{flex:1} },
-              h('div', { style:{fontWeight:600,fontSize:12} }, d.type),
-              h('div', { style:{fontSize:11,color:C[500]} }, `${d.user?.firstName||''} ${d.user?.lastName||''} · ${fmtShort(d.createdAt)}`)
-            ),
-            h(Badge, { status:d.status })
-          ))
-        )
-      )
-    )
-  );
-}
+  /* By level bars */
+  var maxLvl = 1;
+  byLevel.forEach(function(x) { if ((x.v||0) > maxLvl) maxLvl = x.v; });
+  var byLevelHTML = byLevel.map(function(x) {
+    var pct = (((x.v||0) / maxLvl) * 100).toFixed(0);
+    return '<div style="margin-bottom:10px">'
+      + '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">'
+      +   '<span style="color:#475569">' + (x.l||'') + '</span>'
+      +   '<strong>' + (x.v||0) + '</strong>'
+      + '</div>'
+      + '<div style="height:6px;background:#F1F5F9;border-radius:3px">'
+      +   '<div style="height:100%;border-radius:3px;background:#7C3AED;width:' + pct + '%"></div>'
+      + '</div>'
+      + '</div>';
+  }).join('');
 
-ReactDOM.createRoot(document.getElementById('app')).render(h(AdminDashboard));
+  /* Recent submissions */
+  var recentHTML = docs.slice(0, 6).map(function(d) {
+    return '<div style="display:flex;gap:12px;align-items:center;padding:8px 0;border-bottom:1px solid #F8FAFC">'
+      + '<div style="width:36px;height:36px;border-radius:8px;background:#F1F5F9;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0">📄</div>'
+      + '<div style="flex:1">'
+      +   '<div style="font-weight:600;font-size:12px;color:#0F172A">' + (d.type||'Document') + '</div>'
+      +   '<div style="font-size:11px;color:#64748B">' + ((d.user||{}).firstName||'') + ' ' + ((d.user||{}).lastName||'') + ' · ' + Layout.fmtShort(d.createdAt) + '</div>'
+      + '</div>'
+      + Layout.badge(d.status)
+      + '</div>';
+  }).join('');
+
+  document.getElementById('content').innerHTML =
+    '<div class="page-header">'
+    + '<div><h1 class="page-title">Platform Overview</h1><p class="page-sub">Real-time analytics &amp; insights</p></div>'
+    + '</div>'
+
+    + '<div class="grid-4" style="margin-bottom:26px">'
+    + Layout.statCard('👥', 'Total Users',       totalUsers.toLocaleString(),   '#3B82F6')
+    + Layout.statCard('🛡️', 'Active TrustIDs',   activeTrust.toLocaleString(),  '#7C3AED')
+    + Layout.statCard('✅', 'Verified Docs',      verifiedDocs.toLocaleString(), '#22C55E')
+    + Layout.statCard('⏳', 'Pending Reviews',    pendingReview,                 '#F97316')
+    + '</div>'
+
+    + '<div style="display:grid;grid-template-columns:2fr 1fr;gap:22px;margin-bottom:22px">'
+
+    /* Growth chart */
+    + '<div class="card">'
+    +   '<h3 style="font-size:14px;font-weight:800;margin-bottom:18px">Platform Growth</h3>'
+    +   '<div style="display:flex;align-items:flex-end;gap:8px;height:160px;padding-bottom:24px">'
+    +     (growthHTML || '<div style="color:#94A3B8;font-size:13px;margin:auto">No growth data yet</div>')
+    +   '</div>'
+    +   '<div style="display:flex;gap:16px;margin-top:8px">'
+    +     '<span style="display:flex;align-items:center;gap:4px;font-size:12px"><span style="width:10px;height:10px;border-radius:2px;background:#3B82F690;display:inline-block"></span>Users</span>'
+    +     '<span style="display:flex;align-items:center;gap:4px;font-size:12px"><span style="width:10px;height:10px;border-radius:2px;background:#7C3AED90;display:inline-block"></span>Docs</span>'
+    +   '</div>'
+    + '</div>'
+
+    /* Doc status */
+    + '<div class="card">'
+    +   '<h3 style="font-size:14px;font-weight:800;margin-bottom:14px">Document Status</h3>'
+    +   (docStatusHTML || '<div class="empty">No status data</div>')
+    + '</div>'
+
+    + '</div>'
+
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:22px">'
+
+    /* By level */
+    + '<div class="card">'
+    +   '<h3 style="font-size:14px;font-weight:800;margin-bottom:16px">Users by Trust Level</h3>'
+    +   (byLevelHTML || '<div class="empty">No level data</div>')
+    + '</div>'
+
+    /* Recent submissions */
+    + '<div class="card">'
+    +   '<h3 style="font-size:14px;font-weight:800;margin-bottom:16px">Recent Submissions</h3>'
+    +   (docs.length === 0 ? '<div class="empty">No documents yet</div>' : recentHTML)
+    + '</div>'
+
+    + '</div>';
+
+}).catch(function() {
+  document.getElementById('content').innerHTML = '<div class="empty">Failed to load admin data. Please refresh.</div>';
+});
 </script>
 </body>
 </html>

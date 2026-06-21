@@ -3,106 +3,204 @@
 <head>
   <meta charset="utf-8">
   <title>TrustID — To-Do List</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
   <link rel="icon" href="./icon.svg">
   <link rel="stylesheet" href="./css/styles.css">
-  <script src="./js/react.min.js"></script>
-  <script src="./js/react-dom.min.js"></script>
 </head>
 <body>
-<div id="app"></div>
+<div class="app-shell">
+  <div id="sidebar"></div>
+  <div id="main">
+    <div id="topbar"></div>
+    <div class="page-content" id="content"><div id="loading"></div></div>
+  </div>
+</div>
+
+<!-- Add Task Modal -->
+<div id="todoModal" class="modal-backdrop" style="display:none">
+  <div class="modal" style="max-width:440px;width:100%">
+    <div class="modal-header">
+      <h2 class="modal-title">Add Task</h2>
+      <button onclick="closeTodoModal()" style="background:none;border:none;font-size:24px;cursor:pointer;color:#94A3B8;line-height:1;padding:0">&times;</button>
+    </div>
+    <div style="padding:24px;display:flex;flex-direction:column;gap:16px">
+      <div>
+        <label class="label">Task Title <span style="color:#EF4444">*</span></label>
+        <input id="todoTitle" class="input" placeholder="e.g. Upload bank statement">
+      </div>
+      <div>
+        <label class="label">Category</label>
+        <input id="todoCategory" class="input" placeholder="e.g. Documents, Finance…">
+      </div>
+      <div>
+        <label class="label">Priority</label>
+        <div style="display:flex;gap:10px">
+          <button id="tp-low"    onclick="setTodoPriority('low')"    style="flex:1;height:40px;border-radius:10px;background:#22C55E20;border:1.5px solid #22C55E;cursor:pointer;font-weight:700;font-size:13px;color:#22C55E">Low</button>
+          <button id="tp-medium" onclick="setTodoPriority('medium')" style="flex:1;height:40px;border-radius:10px;background:transparent;border:1.5px solid #E2E8F0;cursor:pointer;font-weight:700;font-size:13px;color:#94A3B8">Medium</button>
+          <button id="tp-high"   onclick="setTodoPriority('high')"   style="flex:1;height:40px;border-radius:10px;background:transparent;border:1.5px solid #E2E8F0;cursor:pointer;font-weight:700;font-size:13px;color:#94A3B8">High</button>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:4px">
+        <button onclick="closeTodoModal()" class="btn btn-ghost btn-full">Cancel</button>
+        <button onclick="submitTodo()" id="todoBtn" class="btn btn-primary btn-full">Add Task</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script src="./js/auth.js"></script>
-<script>Auth.requireAuth();</script>
+<script>if(!Auth.requireAuth()) throw '';</script>
 <script src="./js/api.js"></script>
-<script src="./js/components.js"></script>
+<script src="./js/layout.js"></script>
 <script>
-const { createElement: h, useState, useEffect, useCallback } = React;
-const pc = { high:C.red, medium:C.orange, low:C.green };
+Layout.init('todo');
+document.getElementById('loading').innerHTML = Layout.spinner();
 
-function TodoPage() {
-  const [todos,  setTodos]  = useState([]);
-  const [loading,setLoading]= useState(true);
-  const [show,   setShow]   = useState(false);
-  const [form,   setForm]   = useState({ title:'', priority:'medium', category:'General' });
-  const [saving, setSaving] = useState(false);
-  const toast = useToast();
+var PCOL     = { high:'#EF4444', medium:'#F97316', low:'#22C55E' };
+var allTodos = [];
+var selPriority = 'low';
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    const r = await Api.getTodos();
-    if (r.success) setTodos(r.data);
-    setLoading(false);
-  }, []);
-  useEffect(() => { load(); }, [load]);
-
-  const add = async () => {
-    if (!form.title) return;
-    setSaving(true);
-    const r = await Api.addTodo(form);
-    setSaving(false);
-    if (r.success) { setTodos(p=>[r.data,...p]); setForm({title:'',priority:'medium',category:'General'}); setShow(false); toast({type:'success',msg:'Task added!'}); }
-  };
-
-  const toggle = async (id, done) => {
-    const r = await Api.updateTodo(id, { done:!done });
-    if (r.success) setTodos(p=>p.map(x=>x._id===id?{...x,done:!done}:x));
-  };
-
-  const del = async id => {
-    await Api.deleteTodo(id);
-    setTodos(p=>p.filter(t=>t._id!==id));
-  };
-
-  const active = todos.filter(t=>!t.done);
-  const done   = todos.filter(t=>t.done);
-
-  return h(AppLayout, { activePage:'todo' },
-    h('div', null,
-      h(PH, { title:'To-Do List', sub:`${active.length} pending · ${done.length} completed`,
-        actions: h(Btn, { label:'Add Task', icon:'➕', full:false, sm:true, onClick:()=>setShow(true) }) }),
-
-      loading ? h('div', { style:{display:'flex',justifyContent:'center',padding:60} }, h(Spin, { sz:32 })) :
-      h('div', { style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:22} },
-        h('div', null,
-          h('h3', { style:{fontSize:13,fontWeight:800,marginBottom:12} }, `Active (${active.length})`),
-          active.map(t => h('div', { key:t._id, className:'card', style:{display:'flex',gap:12,alignItems:'center',marginBottom:9} },
-            h('div', { onClick:()=>toggle(t._id,t.done), style:{width:22,height:22,borderRadius:'50%',border:`2px solid ${pc[t.priority]}`,cursor:'pointer',flexShrink:0} }),
-            h('div', { style:{flex:1} },
-              h('div', { style:{fontWeight:600,fontSize:13} }, t.title),
-              h('div', { style:{fontSize:11,color:C[500]} }, t.category)
-            ),
-            h('span', { style:{padding:'2px 8px',borderRadius:100,background:pc[t.priority]+'15',color:pc[t.priority],fontSize:10,fontWeight:700,textTransform:'capitalize'} }, t.priority),
-            h('button', { onClick:()=>del(t._id), style:{background:'none',border:'none',cursor:'pointer',color:C[300],fontSize:15} }, '🗑')
-          ))
-        ),
-        h('div', null,
-          h('h3', { style:{fontSize:13,fontWeight:800,color:C[500],marginBottom:12} }, `Completed (${done.length})`),
-          done.map(t => h('div', { key:t._id, className:'card', style:{display:'flex',gap:12,alignItems:'center',marginBottom:9,opacity:0.65} },
-            h('div', { onClick:()=>toggle(t._id,t.done), style:{width:22,height:22,borderRadius:'50%',background:C.green+'20',border:`2px solid ${C.green}`,display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',flexShrink:0,fontSize:11} }, '✓'),
-            h('span', { style:{flex:1,textDecoration:'line-through',color:C[400],fontSize:13} }, t.title)
-          ))
-        )
-      ),
-
-      h(Modal, { open:show, onClose:()=>setShow(false), title:'Add Task' },
-        h('div', { style:{display:'flex',flexDirection:'column',gap:15} },
-          h(Field, { label:'Task', value:form.title, onChange:v=>setForm(f=>({...f,title:v})), placeholder:'e.g. Upload bank statement', req:true }),
-          h(Field, { label:'Category', value:form.category, onChange:v=>setForm(f=>({...f,category:v})), placeholder:'e.g. Documents' }),
-          h('div', null,
-            h('label', { className:'label' }, 'Priority'),
-            h('div', { style:{display:'flex',gap:10} },
-              ['low','medium','high'].map(p => h('button', { key:p, onClick:()=>setForm(f=>({...f,priority:p})),
-                style:{flex:1,height:40,borderRadius:10,background:form.priority===p?pc[p]+'20':'transparent',border:`1.5px solid ${form.priority===p?pc[p]:C[200]}`,cursor:'pointer',fontWeight:700,fontSize:13,color:form.priority===p?pc[p]:C[500],textTransform:'capitalize'} }, p))
-            )
-          ),
-          h(Btn, { label:'Add Task', onClick:add, loading:saving })
-        )
-      )
-    )
-  );
+function openTodoModal()  { document.getElementById('todoModal').style.display = 'flex'; setTodoPriority('low'); }
+function closeTodoModal() {
+  document.getElementById('todoModal').style.display = 'none';
+  document.getElementById('todoTitle').value    = '';
+  document.getElementById('todoCategory').value = '';
+  selPriority = 'low';
 }
 
-ReactDOM.createRoot(document.getElementById('app')).render(h(TodoPage));
+function setTodoPriority(p) {
+  selPriority = p;
+  ['low','medium','high'].forEach(function(lvl) {
+    var btn = document.getElementById('tp-' + lvl);
+    if (!btn) return;
+    var c = PCOL[lvl];
+    if (lvl === p) {
+      btn.style.background = c + '20';
+      btn.style.border     = '1.5px solid ' + c;
+      btn.style.color      = c;
+    } else {
+      btn.style.background = 'transparent';
+      btn.style.border     = '1.5px solid #E2E8F0';
+      btn.style.color      = '#94A3B8';
+    }
+  });
+}
+
+function renderTodos() {
+  var active    = allTodos.filter(function(t){ return !t.done; });
+  var completed = allTodos.filter(function(t){ return t.done;  });
+
+  var activeEl = document.getElementById('activeList');
+  var doneEl   = document.getElementById('doneList');
+  var aHead    = document.getElementById('activeHead');
+  var dHead    = document.getElementById('doneHead');
+
+  if (aHead) aHead.textContent = 'Active (' + active.length + ')';
+  if (dHead) dHead.textContent = 'Completed (' + completed.length + ')';
+
+  if (activeEl) {
+    if (active.length === 0) {
+      activeEl.innerHTML = '<div style="text-align:center;padding:32px 0;color:#94A3B8;font-size:14px">All done! 🎉</div>';
+    } else {
+      activeEl.innerHTML = active.map(function(t) {
+        var c = PCOL[t.priority] || '#94A3B8';
+        return '<div class="card" style="display:flex;gap:12px;align-items:center;margin-bottom:9px">'
+          + '<div onclick="toggleTodo(\'' + t._id + '\',' + (t.done ? 'true' : 'false') + ')" style="width:22px;height:22px;border-radius:50%;border:2px solid ' + c + ';cursor:pointer;flex-shrink:0"></div>'
+          + '<div style="flex:1">'
+          +   '<div style="font-weight:600;font-size:13px;color:#0F172A">' + t.title + '</div>'
+          +   '<div style="font-size:11px;color:#64748B;margin-top:2px">' + (t.category || 'General') + '</div>'
+          + '</div>'
+          + '<span style="padding:2px 8px;border-radius:100px;background:' + c + '15;color:' + c + ';font-size:10px;font-weight:700;text-transform:capitalize">' + (t.priority||'medium') + '</span>'
+          + '<button onclick="deleteTodo(\'' + t._id + '\')" style="background:none;border:none;cursor:pointer;color:#CBD5E1;font-size:15px;padding:4px">🗑</button>'
+          + '</div>';
+      }).join('');
+    }
+  }
+
+  if (doneEl) {
+    if (completed.length === 0) {
+      doneEl.innerHTML = '<div style="text-align:center;padding:32px 0;color:#94A3B8;font-size:14px">No completed tasks yet.</div>';
+    } else {
+      doneEl.innerHTML = completed.map(function(t) {
+        return '<div class="card" style="display:flex;gap:12px;align-items:center;margin-bottom:9px;opacity:0.65">'
+          + '<div onclick="toggleTodo(\'' + t._id + '\',' + (t.done ? 'true' : 'false') + ')" style="width:22px;height:22px;border-radius:50%;background:#22C55E20;border:2px solid #22C55E;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;font-size:11px;color:#22C55E">✓</div>'
+          + '<span style="flex:1;text-decoration:line-through;color:#94A3B8;font-size:13px">' + t.title + '</span>'
+          + '<button onclick="deleteTodo(\'' + t._id + '\')" style="background:none;border:none;cursor:pointer;color:#CBD5E1;font-size:15px;padding:4px">🗑</button>'
+          + '</div>';
+      }).join('');
+    }
+  }
+}
+
+function toggleTodo(id, wasDone) {
+  Api.updateTodo(id, { done: !wasDone }).then(function(res) {
+    if (res.success) {
+      allTodos = allTodos.map(function(t){ return t._id === id ? Object.assign({}, t, { done: !wasDone }) : t; });
+      renderTodos();
+    }
+  });
+}
+
+function deleteTodo(id) {
+  Api.deleteTodo(id).then(function() {
+    allTodos = allTodos.filter(function(t){ return t._id !== id; });
+    renderTodos();
+    Layout.toast('Task deleted.', 'info');
+  });
+}
+
+function submitTodo() {
+  var title    = document.getElementById('todoTitle').value.trim();
+  var category = document.getElementById('todoCategory').value.trim() || 'General';
+  if (!title) { Layout.toast('Task title is required.', 'error'); return; }
+
+  var btn = document.getElementById('todoBtn');
+  btn.disabled    = true;
+  btn.textContent = 'Adding…';
+
+  Api.addTodo({ title: title, category: category, priority: selPriority }).then(function(res) {
+    btn.disabled    = false;
+    btn.textContent = 'Add Task';
+    if (res.success) {
+      allTodos.unshift(res.data);
+      renderTodos();
+      closeTodoModal();
+      Layout.toast('Task added!');
+    } else {
+      Layout.toast(res.message || 'Failed to add task.', 'error');
+    }
+  });
+}
+
+Api.getTodos().then(function(res) {
+  allTodos = res.success ? res.data : [];
+  var active = allTodos.filter(function(t){ return !t.done; }).length;
+  var done   = allTodos.filter(function(t){ return t.done;  }).length;
+
+  document.getElementById('content').innerHTML =
+    '<div class="page-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">'
+    + '<div><h1 class="page-title">To-Do List</h1><p class="page-sub">' + active + ' pending · ' + done + ' completed</p></div>'
+    + '<button onclick="openTodoModal()" class="btn btn-primary">➕ Add Task</button>'
+    + '</div>'
+
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:22px">'
+
+    + '<div>'
+    +   '<h3 id="activeHead" style="font-size:13px;font-weight:800;color:#334155;margin-bottom:12px">Active</h3>'
+    +   '<div id="activeList"></div>'
+    + '</div>'
+
+    + '<div>'
+    +   '<h3 id="doneHead" style="font-size:13px;font-weight:800;color:#64748B;margin-bottom:12px">Completed</h3>'
+    +   '<div id="doneList"></div>'
+    + '</div>'
+
+    + '</div>';
+
+  renderTodos();
+}).catch(function() {
+  document.getElementById('content').innerHTML = '<div class="empty">Failed to load tasks. Please refresh.</div>';
+});
 </script>
 </body>
 </html>

@@ -3,110 +3,144 @@
 <head>
   <meta charset="utf-8">
   <title>TrustID Admin — Verification Queue</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
   <link rel="icon" href="../icon.svg">
   <link rel="stylesheet" href="../css/styles.css">
-  <script src="../js/react.min.js"></script>
-  <script src="../js/react-dom.min.js"></script>
 </head>
 <body>
-<div id="app"></div>
+<div class="app-shell">
+  <div id="sidebar"></div>
+  <div id="main">
+    <div id="topbar"></div>
+    <div class="page-content" id="content"><div id="loading"></div></div>
+  </div>
+</div>
 <script src="../js/auth.js"></script>
-<script>Auth.requireAdmin();</script>
+<script>if(!Auth.requireAdmin()) throw '';</script>
 <script src="../js/api.js"></script>
-<script src="../js/components.js"></script>
+<script src="../js/layout.js"></script>
 <script>
-const { createElement: h, useState, useEffect, useCallback } = React;
+Layout.init('admin-docs');
+document.getElementById('loading').innerHTML = Layout.spinner();
 
-function AdminDocs() {
-  const [docs,    setDocs]    = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [tab,     setTab]     = useState('pending');
-  const toast = useToast();
+var allDocs  = [];
+var activeTab = 'pending';
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    const r = await Api.getAllDocs();
-    if (r.success) setDocs(r.data);
-    setLoading(false);
-  }, []);
-  useEffect(() => { load(); }, [load]);
-
-  const verify = async id => {
-    const r = await Api.verifyDoc(id);
-    if (r.success) { setDocs(d=>d.map(x=>x._id===id?{...x,status:'verified'}:x)); toast({type:'success',msg:'Document verified!'}); }
-    else toast({type:'error',msg:r.message||'Failed'});
-  };
-
-  const reject = async id => {
-    const r = await Api.rejectDoc(id, 'Does not meet requirements');
-    if (r.success) { setDocs(d=>d.map(x=>x._id===id?{...x,status:'rejected'}:x)); toast({type:'warning',msg:'Document rejected'}); }
-    else toast({type:'error',msg:r.message||'Failed'});
-  };
-
-  const filtered = tab==='all' ? docs : docs.filter(d=>d.status===tab);
-  const pending  = docs.filter(d=>d.status==='pending').length;
-
-  return h(AppLayout, { activePage:'admin-docs' },
-    h('div', null,
-      h(PH, { title:'Verification Queue', sub:`${pending} documents awaiting review` }),
-
-      /* Tabs */
-      h('div', { style:{display:'flex',gap:4,marginBottom:18,background:C[100],borderRadius:10,padding:4,width:'fit-content'} },
-        ['pending','verified','rejected','all'].map(t =>
-          h('button', { key:t, onClick:()=>setTab(t),
-            style:{padding:'7px 18px',borderRadius:8,border:'none',background:tab===t?'#fff':'transparent',color:tab===t?C[900]:C[500],fontWeight:tab===t?700:400,fontSize:13,cursor:'pointer',textTransform:'capitalize',boxShadow:tab===t?'0 1px 4px rgba(0,0,0,0.08)':'none'} },
-            t,
-            t==='pending'&&pending>0&&h('span', { style:{background:C.orange,color:'#fff',borderRadius:100,padding:'0 6px',fontSize:10,marginLeft:5,fontWeight:700} }, pending)
-          )
-        )
-      ),
-
-      h('div', { className:'table-wrap' },
-        loading
-          ? h('div', { style:{padding:40,textAlign:'center'} }, h(Spin))
-          : h('table', null,
-              h('thead', null,
-                h('tr', null,
-                  ['Document','Submitted By','Date','Status','Actions'].map(hd => h('th', { key:hd }, hd))
-                )
-              ),
-              h('tbody', null,
-                filtered.map(d =>
-                  h('tr', { key:d._id },
-                    h('td', null,
-                      h('div', { style:{display:'flex',alignItems:'center',gap:10} },
-                        h('div', { style:{width:38,height:38,borderRadius:9,background:C[100],display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,flexShrink:0} }, '📄'),
-                        h('span', { style:{fontWeight:600} }, d.type)
-                      )
-                    ),
-                    h('td', null,
-                      h('div', { style:{fontSize:13,fontWeight:500} }, `${d.user?.firstName||''} ${d.user?.lastName||''}`),
-                      h('div', { style:{fontSize:11,color:C[500]} }, d.user?.email)
-                    ),
-                    h('td', { style:{color:C[500]} }, fmtDate(d.createdAt)),
-                    h('td', null, h(Badge, { status:d.status })),
-                    h('td', null,
-                      d.status==='pending'
-                        ? h('div', { style:{display:'flex',gap:8} },
-                            h('button', { onClick:()=>verify(d._id), style:{padding:'6px 14px',borderRadius:8,background:C.green+'12',border:`1px solid ${C.green}40`,cursor:'pointer',fontWeight:700,fontSize:12,color:C.green} }, '✓ Verify'),
-                            h('button', { onClick:()=>reject(d._id), style:{padding:'6px 14px',borderRadius:8,background:C.red+'12',border:`1px solid ${C.red}40`,cursor:'pointer',fontWeight:700,fontSize:12,color:C.red} }, '✗ Reject')
-                          )
-                        : h('span', { style:{fontSize:12,color:C[400]} }, '— No action needed')
-                    )
-                  )
-                ),
-                filtered.length===0 && h('tr', null,
-                  h('td', { colSpan:5, style:{padding:40,textAlign:'center',color:C[400],fontSize:14} }, '🎉 No documents in this category')
-                )
-              )
-            )
-      )
-    )
-  );
+function setTab(tab) {
+  activeTab = tab;
+  document.querySelectorAll('.tab').forEach(function(t){ t.classList.remove('active'); });
+  var el = document.getElementById('dtab-' + tab);
+  if (el) el.classList.add('active');
+  renderDocs();
 }
 
-ReactDOM.createRoot(document.getElementById('app')).render(h(AdminDocs));
+function renderDocs() {
+  var filtered = activeTab === 'all'
+    ? allDocs
+    : allDocs.filter(function(d){ return d.status === activeTab; });
+
+  var tbody = document.getElementById('docsBody');
+  if (!tbody) return;
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5"><div class="empty">🎉 No documents in this category.</div></td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(function(d) {
+    var u       = d.user || {};
+    var actions = '';
+    if (d.status === 'pending') {
+      actions =
+        '<div style="display:flex;gap:8px">'
+        + '<button onclick="verifyDoc(\'' + d._id + '\')" style="padding:6px 14px;border-radius:8px;background:#22C55E12;border:1px solid #22C55E40;cursor:pointer;font-weight:700;font-size:12px;color:#22C55E">✓ Verify</button>'
+        + '<button onclick="rejectDoc(\'' + d._id + '\')" style="padding:6px 14px;border-radius:8px;background:#EF444412;border:1px solid #EF444440;cursor:pointer;font-weight:700;font-size:12px;color:#EF4444">✗ Reject</button>'
+        + '</div>';
+    } else {
+      actions = '<span style="font-size:12px;color:#94A3B8">— No action needed</span>';
+    }
+    return '<tr>'
+      + '<td><div style="display:flex;align-items:center;gap:10px">'
+      +   '<div style="width:38px;height:38px;border-radius:9px;background:#F1F5F9;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">📄</div>'
+      +   '<span style="font-weight:600;font-size:13px;color:#0F172A">' + (d.type||d.name||'Document') + '</span>'
+      + '</div></td>'
+      + '<td>'
+      +   '<div style="font-size:13px;font-weight:500;color:#0F172A">' + (u.firstName||'') + ' ' + (u.lastName||'') + '</div>'
+      +   '<div style="font-size:11px;color:#64748B">' + (u.email||'') + '</div>'
+      + '</td>'
+      + '<td style="font-size:12px;color:#64748B">' + Layout.fmtDate(d.createdAt) + '</td>'
+      + '<td>' + Layout.badge(d.status) + '</td>'
+      + '<td>' + actions + '</td>'
+      + '</tr>';
+  }).join('');
+}
+
+function verifyDoc(id) {
+  Api.verifyDoc(id).then(function(res) {
+    if (res.success) {
+      allDocs = allDocs.map(function(d){ return d._id === id ? Object.assign({}, d, { status:'verified' }) : d; });
+      renderDocs();
+      updateTabCounts();
+      Layout.toast('Document verified!');
+    } else {
+      Layout.toast(res.message || 'Verification failed.', 'error');
+    }
+  });
+}
+
+function rejectDoc(id) {
+  var reason = prompt('Reason for rejection (optional):') || 'Does not meet requirements';
+  Api.rejectDoc(id, reason).then(function(res) {
+    if (res.success) {
+      allDocs = allDocs.map(function(d){ return d._id === id ? Object.assign({}, d, { status:'rejected' }) : d; });
+      renderDocs();
+      updateTabCounts();
+      Layout.toast('Document rejected.', 'warning');
+    } else {
+      Layout.toast(res.message || 'Rejection failed.', 'error');
+    }
+  });
+}
+
+function updateTabCounts() {
+  var pending  = allDocs.filter(function(d){ return d.status==='pending'; }).length;
+  var verified = allDocs.filter(function(d){ return d.status==='verified'; }).length;
+  var rejected = allDocs.filter(function(d){ return d.status==='rejected'; }).length;
+  var pEl = document.getElementById('pcount');
+  if (pEl) pEl.textContent = pending > 0 ? pending : '';
+  var subEl = document.getElementById('queueSub');
+  if (subEl) subEl.textContent = pending + ' documents awaiting review';
+}
+
+Api.getAllDocs().then(function(res) {
+  allDocs = res.success ? res.data : [];
+  var pending  = allDocs.filter(function(d){ return d.status==='pending'; }).length;
+  var verified = allDocs.filter(function(d){ return d.status==='verified'; }).length;
+  var rejected = allDocs.filter(function(d){ return d.status==='rejected'; }).length;
+
+  document.getElementById('content').innerHTML =
+    '<div class="page-header">'
+    + '<div><h1 class="page-title">Verification Queue</h1><p class="page-sub" id="queueSub">' + pending + ' documents awaiting review</p></div>'
+    + '</div>'
+
+    + '<div class="tabs" style="margin-bottom:18px">'
+    + '<button id="dtab-pending"  class="tab active" onclick="setTab(\'pending\')">Pending <span id="pcount" style="background:#F97316;color:#fff;border-radius:100px;padding:0 6px;font-size:10px;margin-left:5px;font-weight:700">' + (pending > 0 ? pending : '') + '</span></button>'
+    + '<button id="dtab-verified" class="tab"        onclick="setTab(\'verified\')">Verified</button>'
+    + '<button id="dtab-rejected" class="tab"        onclick="setTab(\'rejected\')">Rejected</button>'
+    + '<button id="dtab-all"      class="tab"        onclick="setTab(\'all\')">All (' + allDocs.length + ')</button>'
+    + '</div>'
+
+    + '<div class="card">'
+    +   '<div class="table-wrap"><table>'
+    +   '<thead><tr><th>Document</th><th>Submitted By</th><th>Date</th><th>Status</th><th>Actions</th></tr></thead>'
+    +   '<tbody id="docsBody"></tbody>'
+    +   '</table></div>'
+    + '</div>';
+
+  renderDocs();
+}).catch(function() {
+  document.getElementById('content').innerHTML = '<div class="empty">Failed to load verification queue. Please refresh.</div>';
+});
 </script>
 </body>
 </html>
