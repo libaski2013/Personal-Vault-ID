@@ -116,8 +116,21 @@ const legacySchema = new Schema({
   disclosedAt:    Date,
 }, { timestamps: true });
 
+/* ── Vault Share Card ── */
+const shareSchema = new Schema({
+  userId:        { type: OID, ref: 'pvusers', required: true },
+  shareCode:     { type: String, unique: true, required: true },
+  title:         { type: String, default: 'My Personal Vault' },
+  customMessage: { type: String, default: '' },
+  sections:      [{ type: String }],   /* identity, documents, academics, lifestory, address, contact */
+  isActive:      { type: Boolean, default: true },
+  expiresAt:     { type: Date, default: null },
+  viewCount:     { type: Number, default: 0 },
+}, { timestamps: true });
+
 module.exports = {
   User:      mongoose.model('pvusers',     userSchema),
+  ShareCard: mongoose.model('pvsharecards', shareSchema),
   Document:  mongoose.model('pvdocuments', documentSchema),
   Academic:  mongoose.model('pvacademics', academicSchema),
   LifeEntry: mongoose.model('pvlife',      lifeSchema),

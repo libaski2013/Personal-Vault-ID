@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Personal Vault — Share My Vault</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="icon" href="./icon.svg">
+  <link rel="stylesheet" href="./css/styles.css">
+  <style>
+    /* ── Section selector cards ── */
+    .section-toggle { display:flex;align-items:center;gap:14px;padding:16px 18px;border-radius:14px;border:2px solid #E2E8F0;background:#fff;cursor:pointer;transition:all 0.18s;margin-bottom:10px;user-select:none; }
+    .section-toggle:hover { border-color:#7C3AED;background:#7C3AED05; }
+    .section-toggle.selected { border-color:#7C3AED;background:#7C3AED08; }
+    .section-toggle input[type=checkbox] { width:18px;height:18px;accent-color:#7C3AED;flex-shrink:0; }
+    .section-icon { font-size:26px;width:36px;text-align:center;flex-shrink:0; }
+    .section-info { flex:1 }
+    .section-title { font-size:14px;font-weight:700;color:#0F172A;margin-bottom:2px; }
+    .section-desc  { font-size:12px;color:#64748B; }
+    .section-badge { font-size:11px;font-weight:700;padding:2px 8px;border-radius:100px;background:#22C55E18;color:#15803D; }
+
+    /* ── Generated card display ── */
+    .share-result { background:linear-gradient(135deg,#0F0E2A,#1E1B4B);border-radius:24px;padding:32px;color:#fff; }
+    .share-code-box { background:rgba(255,255,255,0.1);border:1.5px solid rgba(255,255,255,0.2);border-radius:16px;padding:20px;text-align:center;margin:20px 0; }
+    .share-code { font-size:32px;font-weight:900;letter-spacing:6px;font-family:monospace;color:#fff;margin-bottom:6px; }
+    .share-url  { font-size:12px;color:rgba(255,255,255,0.5);word-break:break-all; }
+    .action-btn { display:inline-flex;align-items:center;gap:6px;padding:10px 18px;border-radius:10px;background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.25);color:#fff;font-size:13px;font-weight:600;cursor:pointer;transition:background 0.15s; }
+    .action-btn:hover { background:rgba(255,255,255,0.25); }
+
+    /* ── My active share cards ── */
+    .share-card-item { background:#fff;border-radius:16px;border:1px solid #E8ECF4;padding:18px;display:flex;align-items:center;gap:16px;margin-bottom:10px; }
+    .share-card-code { font-family:monospace;font-size:18px;font-weight:900;color:#7C3AED;letter-spacing:3px; }
+    .views-badge { font-size:11px;background:#3B82F618;color:#1D4ED8;padding:2px 8px;border-radius:100px;font-weight:700; }
+    .active-dot  { width:8px;height:8px;border-radius:50%; display:inline-block; }
+
+    /* Expiry select */
+    .expiry-row { display:flex;gap:10px;flex-wrap:wrap;margin-top:8px; }
+    .expiry-opt { padding:7px 14px;border-radius:10px;border:1.5px solid #E2E8F0;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.15s;background:#fff;color:#64748B; }
+    .expiry-opt.sel { border-color:#7C3AED;background:#7C3AED08;color:#7C3AED; }
+  </style>
+</head>
+<body>
+<div class="app-shell">
+  <div id="sidebar"></div>
+  <div id="main">
+    <div id="topbar"></div>
+    <div class="page-content" id="content"></div>
+  </div>
+</div>
+<script src="./js/auth.js"></script>
+<script>if(!Auth.requireAuth()) throw '';</script>
+<script src="./js/api.js"></script>
+<script src="./js/layout.js"></script>
+<script>
+Layout.init('share');
+
+var myCards = [], expiry = 0, lastGenerated = null;
+
+var SECTIONS = [
+  { id:'identity',  icon:'🛡️', label:'Digital Identity',       desc:'Your name, TrustID number, trust score and level',       badge:'Always verified' },
+  { id:'documents', icon:'📁', label:'Verified Documents',      desc:'Only verified documents — names and types (no content)',  badge:'Verified only' },
+  { id:'academics', icon:'🎓', label:'Academic Records',        desc:'Public certificates, degrees, awards and transcripts',    badge:'Public records' },
+  { id:'lifestory', icon:'📖', label:'Life Story',              desc:'Your public life milestones and achievements',            badge:'Public entries' },
+  { id:'address',   icon:'🏠', label:'Location',                desc:'City, state and country only — no street address shown',  badge:'City level' },
+  { id:'contact',   icon:'📧', label:'Contact Email',           desc:'Your registered email address',                           badge:'Email only' },
+];
+
+var selected = new Set(['identity','documents','academics']);
+
+document.getElementById('content').innerHTML = Layout.spinner();
+
+fetch('/api/trustid/share', { headers:{Authorization:'Bearer '+Auth.getToken()} })
+  .then(function(r){return r.json();})
+  .then(function(r){ myCards = r.success?r.data:[]; render(); })
+  .catch(function(){ myCards=[]; render(); });
+
+function render() {
+  var html =
+    '<div class="page-header">'
+    +'<div><h1 class="page-title">📤 Share My Vault</h1><p class="page-sub">Select what to share, generate a code — anyone who scans it sees your chosen summary</p></div>'
+    +'</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 360px;gap:24px;align-items:start">'
+
+    /* ── Left: Builder ── */
+    +'<div style="display:flex;flex-direction:column;gap:20px">'
+
+    /* Title */
+    +'<div class="card">'
+    +'<h3 style="font-size:15px;font-weight:800;margin-bottom:14px">✏️ Share Card Title</h3>'
+    +'<input id="shareTitle" class="input" value="My Personal Vault" placeholder="e.g. My Professional Profile" style="margin-bottom:10px">'
+    +'<textarea id="shareMsg" class="input" rows="2" style="height:auto;resize:none;padding:10px" placeholder="Optional message to show viewers (e.g. Hello! Here is my verified profile.)"></textarea>'
+    +'</div>'
+
+    /* Section picker */
+    +'<div class="card">'
+    +'<h3 style="font-size:15px;font-weight:800;margin-bottom:6px">📋 Choose What to Include</h3>'
+    +'<p style="font-size:13px;color:#64748B;margin-bottom:16px">Check the sections you want visible to anyone with the share code</p>'
+    + SECTIONS.map(function(s){
+        var sel = selected.has(s.id);
+        return '<label class="section-toggle'+(sel?' selected':'')+'" onclick="toggleSection(\''+s.id+'\')">'
+          +'<input type="checkbox" '+(sel?'checked':'')+' onclick="event.stopPropagation();toggleSection(\''+s.id+'\')">'
+          +'<span class="section-icon">'+s.icon+'</span>'
+          +'<div class="section-info"><div class="section-title">'+s.label+'</div><div class="section-desc">'+s.desc+'</div></div>'
+          +'<span class="section-badge">'+s.badge+'</span>'
+          +'</label>';
+      }).join('')
+    +'</div>'
+
+    /* Expiry */
+    +'<div class="card">'
+    +'<h3 style="font-size:15px;font-weight:800;margin-bottom:6px">⏰ Link Expiry</h3>'
+    +'<p style="font-size:13px;color:#64748B;margin-bottom:10px">Set when this share link automatically expires (optional)</p>'
+    +'<div class="expiry-row">'
+    +[{v:0,l:'Never'},{v:1,l:'1 Day'},{v:7,l:'7 Days'},{v:30,l:'30 Days'},{v:90,l:'90 Days'}].map(function(o){
+        return '<button class="expiry-opt'+(expiry===o.v?' sel':'')+'" onclick="setExpiry('+o.v+')">'+o.l+'</button>';
+      }).join('')
+    +'</div></div>'
+
+    /* Generate button */
+    +'<button onclick="generateCard()" class="btn btn-primary btn-full" id="genBtn" style="height:52px;font-size:15px">🔐 Generate Share Code</button>'
+
+    +'</div>'
+
+    /* ── Right: Result + active cards ── */
+    +'<div style="display:flex;flex-direction:column;gap:16px">'
+
+    /* Generated result */
+    + (lastGenerated ? renderResult(lastGenerated) :
+      '<div class="card" style="text-align:center;padding:32px">'
+      +'<div style="font-size:48px;margin-bottom:14px">🔐</div>'
+      +'<div style="font-size:14px;font-weight:700;color:#334155;margin-bottom:8px">No code generated yet</div>'
+      +'<div style="font-size:13px;color:#64748B">Select sections and click Generate to create your share code</div>'
+      +'</div>'
+    )
+
+    /* My active share cards */
+    +(myCards.length > 0 ?
+      '<div class="card"><h3 style="font-size:14px;font-weight:800;margin-bottom:14px">📑 My Share Codes ('+myCards.length+')</h3>'
+      + myCards.map(function(c){
+          var expired = c.expiresAt && new Date()>new Date(c.expiresAt);
+          return '<div class="share-card-item">'
+            +'<div style="flex:1">'
+            +'<div class="share-card-code">'+c.shareCode+'</div>'
+            +'<div style="font-size:12px;color:#64748B;margin-top:4px">'+c.title+'</div>'
+            +'<div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">'
+            +'<span class="views-badge">👁 '+c.viewCount+' views</span>'
+            +(expired?'<span style="font-size:11px;background:#EF444418;color:#B91C1C;padding:2px 8px;border-radius:100px;font-weight:700">Expired</span>':
+              c.isActive?'<span style="font-size:11px;background:#22C55E18;color:#15803D;padding:2px 8px;border-radius:100px;font-weight:700">● Active</span>'
+              :'<span style="font-size:11px;background:#94A3B818;color:#475569;padding:2px 8px;border-radius:100px;font-weight:700">● Paused</span>')
+            +'</div></div>'
+            +'<div style="display:flex;flex-direction:column;gap:6px">'
+            +'<button onclick="viewCard(\''+c.shareCode+'\')" title="Preview" style="background:none;border:1px solid #E2E8F0;border-radius:8px;padding:6px 10px;cursor:pointer;font-size:12px;color:#334155;font-weight:600">👁 View</button>'
+            +'<button onclick="copyShareLink(\''+c.shareCode+'\')" title="Copy link" style="background:none;border:1px solid #E2E8F0;border-radius:8px;padding:6px 10px;cursor:pointer;font-size:12px;color:#334155;font-weight:600">📋 Copy</button>'
+            +'<button onclick="deleteCard(\''+c._id+'\')" title="Delete" style="background:none;border:1px solid #EF444430;border-radius:8px;padding:6px 10px;cursor:pointer;font-size:12px;color:#EF4444;font-weight:600">🗑 Del</button>'
+            +'</div></div>';
+        }).join('')
+      +'</div>'
+      :'')
+
+    +'</div></div>';
+
+  document.getElementById('content').innerHTML = html;
+}
+
+function renderResult(card) {
+  var url = window.location.origin+'/trustid/view.html?code='+card.shareCode;
+  return '<div class="share-result">'
+    +'<div style="font-size:13px;font-weight:700;letter-spacing:1px;color:rgba(255,255,255,0.45);margin-bottom:6px">✅ SHARE CODE GENERATED</div>'
+    +'<div style="font-size:16px;font-weight:800;margin-bottom:4px">'+card.title+'</div>'
+    +'<div style="font-size:12px;color:rgba(255,255,255,0.5);margin-bottom:16px">'+card.sections.join(' · ')+'</div>'
+    +'<div class="share-code-box">'
+    +'<div class="share-code">'+card.shareCode+'</div>'
+    +'<div class="share-url">'+url+'</div>'
+    +'</div>'
+    +'<div style="text-align:center;margin-bottom:16px">'
+    + Layout.qrImg(url, 180)
+    +'</div>'
+    +'<div style="font-size:12px;color:rgba(255,255,255,0.5);text-align:center;margin-bottom:16px">Anyone who scans this QR code will see your chosen vault summary</div>'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center">'
+    +'<button onclick="copyShareLink(\''+card.shareCode+'\')" class="action-btn">📋 Copy Link</button>'
+    +'<button onclick="downloadQR(\''+url+'\')" class="action-btn">⬇️ Download QR</button>'
+    +'<button onclick="viewCard(\''+card.shareCode+'\')" class="action-btn">👁 Preview</button>'
+    +(navigator.share?'<button onclick="shareNative(\''+url+'\',\''+card.title+'\')" class="action-btn">📤 Share</button>':'')
+    +'</div>'
+    +'</div>';
+}
+
+function toggleSection(id) {
+  if (selected.has(id)) selected.delete(id);
+  else selected.add(id);
+  /* re-render only the toggles */
+  SECTIONS.forEach(function(s) {
+    var labels = document.querySelectorAll('.section-toggle');
+    labels.forEach(function(l) {
+      var cb = l.querySelector('input[type=checkbox]');
+      if (!cb) return;
+      var idx = SECTIONS.findIndex(function(x){ return x.id===s.id; });
+      /* skip if not matching */
+    });
+  });
+  render();
+}
+
+function setExpiry(v) { expiry=v; render(); }
+
+async function generateCard() {
+  var secs = Array.from(selected);
+  if (secs.length===0) { Layout.toast('Select at least one section','error'); return; }
+  var title   = document.getElementById('shareTitle').value.trim()||'My Personal Vault';
+  var message = document.getElementById('shareMsg').value.trim();
+  document.getElementById('genBtn').textContent='Generating…';
+  var r = await fetch('/api/trustid/share', {
+    method:'POST',
+    headers:{'Content-Type':'application/json',Authorization:'Bearer '+Auth.getToken()},
+    body:JSON.stringify({ title, customMessage:message, sections:secs, expiresInDays:expiry||null })
+  }).then(function(x){return x.json();});
+  if (r.success) {
+    lastGenerated = r.data;
+    myCards.unshift(r.data);
+    render();
+    Layout.toast('Share code created: '+r.shareCode,'success');
+  } else Layout.toast(r.message||'Error','error');
+}
+
+function shareUrl(code) { return window.location.origin+'/trustid/view.html?code='+code; }
+
+function copyShareLink(code) {
+  var url = shareUrl(code);
+  navigator.clipboard ? navigator.clipboard.writeText(url).then(function(){ Layout.toast('Link copied!','success'); })
+    : (function(){ var el=document.createElement('textarea');el.value=url;document.body.appendChild(el);el.select();document.execCommand('copy');document.body.removeChild(el);Layout.toast('Copied!','success'); })();
+}
+
+function viewCard(code) { window.open(shareUrl(code),'_blank'); }
+
+function downloadQR(url) {
+  var a=document.createElement('a');
+  a.href='https://api.qrserver.com/v1/create-qr-code/?size=400x400&data='+encodeURIComponent(url);
+  a.download='personal-vault-share-qr.png';a.target='_blank';a.click();
+}
+
+function shareNative(url, title) {
+  navigator.share({ title:title+' — Personal Vault', url });
+}
+
+async function deleteCard(id) {
+  if (!confirm('Delete this share code? Anyone with it will no longer be able to view your vault.')) return;
+  var r = await fetch('/api/trustid/share/'+id, { method:'DELETE', headers:{Authorization:'Bearer '+Auth.getToken()} }).then(function(x){return x.json();});
+  if (r.success) { myCards=myCards.filter(function(c){return c._id!==id;}); if(lastGenerated&&lastGenerated._id===id) lastGenerated=null; render(); Layout.toast('Deleted','info'); }
+}
+</script>
+</body>
+</html>

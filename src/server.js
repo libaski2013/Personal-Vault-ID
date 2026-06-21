@@ -66,6 +66,7 @@ fastify.register(require('./routes/academics'),  { prefix: '/api/trustid/academi
 fastify.register(require('./routes/vault'),      { prefix: '/api/trustid/vault' });
 fastify.register(require('./routes/lifestory'),  { prefix: '/api/trustid/life' });
 fastify.register(require('./routes/legacy'),     { prefix: '/api/trustid/legacy' });
+fastify.register(require('./routes/share'),      { prefix: '/api/trustid/share' });
 
 /* ── Track user activity on every authenticated API call ── */
 fastify.addHook('onRequest', async (request) => {

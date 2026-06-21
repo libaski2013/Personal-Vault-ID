@@ -14,6 +14,7 @@ var Layout = (function () {
     { id:'address',    icon:'🏠', label:'My Address',        href:'/trustid/address.html' },
     { id:'vault',      icon:'🔐', label:'Secret Vault',      href:'/trustid/vault.html' },
     { id:'legacy',     icon:'⏳', label:'Digital Legacy',     href:'/trustid/legacy.html' },
+    { id:'share',      icon:'📤', label:'Share My Vault',      href:'/trustid/share.html' },
   ];
   var BOT_NAV = [
     { id:'profile',  icon:'👤', label:'Profile',  href:'/trustid/profile.html' },
@@ -29,7 +30,7 @@ var Layout = (function () {
     dashboard:'Dashboard', identity:'My Identity', documents:'Documents',
     academics:'Academics & Awards', lifestory:'Life Story', expenses:'Expenses',
     reminders:'Reminders', todo:'To-Do List', calendar:'Calendar',
-    address:'My Address', vault:'Secret Vault', legacy:'Digital Legacy',
+    address:'My Address', vault:'Secret Vault', legacy:'Digital Legacy', share:'Share My Vault',
     profile:'Profile', settings:'Settings',
     'admin-dashboard':'Platform Overview', 'admin-users':'User Management',
     'admin-docs':'Verification Queue', 'admin-trustids':'ID Registry',

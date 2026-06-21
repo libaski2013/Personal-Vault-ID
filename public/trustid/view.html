@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Personal Vault — Shared Profile</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#1E1B4B">
+  <link rel="icon" href="./icon.svg">
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:Inter,system-ui,-apple-system,sans-serif;background:#F0F2F8;color:#0F172A;min-height:100vh}
+    button{font:inherit;cursor:pointer}
+    a{color:inherit;text-decoration:none}
+
+    /* Header */
+    .pv-header{background:linear-gradient(135deg,#0F0E2A,#1E1B4B);padding:20px 24px;display:flex;align-items:center;gap:12px}
+    .pv-logo-icon{width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,#7C3AED,#5B21B6);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+    .pv-logo-name{font-size:17px;font-weight:900;color:#fff}
+    .pv-logo-sub{font-size:11px;color:rgba(255,255,255,0.4);font-weight:600}
+    .verified-badge{margin-left:auto;background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.3);border-radius:100px;padding:5px 12px;display:flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:#22C55E}
+
+    /* Main wrapper */
+    .pv-wrap{max-width:680px;margin:0 auto;padding:24px 16px 60px}
+
+    /* Profile hero card */
+    .profile-hero{background:linear-gradient(135deg,#0F0E2A,#312E81,#7C3AED);border-radius:24px;padding:32px;color:#fff;margin-bottom:20px;position:relative;overflow:hidden}
+    .profile-hero::before{content:'';position:absolute;top:-40px;right:-40px;width:220px;height:220px;border-radius:50%;background:rgba(255,255,255,0.04)}
+    .profile-avatar{width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,#7C3AED,#8B5CF6);display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:900;color:#fff;margin-bottom:14px;border:3px solid rgba(255,255,255,0.2)}
+    .profile-name{font-size:24px;font-weight:900;margin-bottom:4px}
+    .profile-sub{font-size:13px;color:rgba(255,255,255,0.55)}
+
+    /* Trust ID card inside hero */
+    .tid-card{margin-top:20px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:14px;padding:16px}
+    .tid-label{font-size:9px;font-weight:700;letter-spacing:2px;color:rgba(255,255,255,0.4);margin-bottom:4px}
+    .tid-number{font-size:16px;font-weight:800;letter-spacing:3px;font-family:monospace;color:#fff;margin-bottom:10px}
+    .tid-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+    .tid-pill{display:inline-flex;align-items:center;gap:5px;padding:4px 12px;border-radius:100px;font-size:11px;font-weight:700}
+
+    /* Score ring */
+    .score-ring-wrap{position:relative;width:72px;height:72px;flex-shrink:0}
+    .score-inner{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+
+    /* Section cards */
+    .section-card{background:#fff;border-radius:18px;border:1px solid #E8ECF4;margin-bottom:16px;overflow:hidden;animation:fadeUp 0.4s ease both}
+    @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+    .section-card:nth-child(1){animation-delay:0.05s}
+    .section-card:nth-child(2){animation-delay:0.10s}
+    .section-card:nth-child(3){animation-delay:0.15s}
+    .section-card:nth-child(4){animation-delay:0.20s}
+    .section-card:nth-child(5){animation-delay:0.25s}
+    .section-card:nth-child(6){animation-delay:0.30s}
+
+    .section-head{padding:16px 20px;border-bottom:1px solid #F1F5F9;display:flex;align-items:center;gap:10px}
+    .section-head-icon{font-size:20px}
+    .section-head-title{font-size:14px;font-weight:800;color:#0F172A}
+    .section-body{padding:16px 20px}
+
+    /* Doc row */
+    .doc-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #F8FAFC}
+    .doc-row:last-child{border-bottom:none}
+    .doc-icon{width:36px;height:36px;border-radius:9px;background:#F1F5F9;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0}
+    .badge-v{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:100px;font-size:11px;font-weight:700;background:#22C55E18;color:#15803D}
+
+    /* Academic row */
+    .acad-row{display:flex;align-items:flex-start;gap:12px;padding:10px 0;border-bottom:1px solid #F8FAFC}
+    .acad-row:last-child{border-bottom:none}
+    .acad-icon{width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0}
+
+    /* Life entry */
+    .life-entry{padding:12px 0;border-bottom:1px solid #F8FAFC}
+    .life-entry:last-child{border-bottom:none}
+    .life-cat{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:100px;font-size:11px;font-weight:700;margin-bottom:6px}
+
+    /* Footer */
+    .pv-footer{text-align:center;padding:24px 16px;color:#94A3B8;font-size:12px}
+    .pv-footer a{color:#7C3AED;font-weight:600}
+
+    /* Error/loading */
+    .center-msg{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;text-align:center;padding:40px}
+
+    /* Custom message box */
+    .custom-msg{background:linear-gradient(135deg,#7C3AED12,#3B82F612);border:1px solid #7C3AED25;border-radius:14px;padding:16px 20px;margin-bottom:16px;font-size:14px;color:#334155;line-height:1.65;font-style:italic}
+
+    @media(max-width:480px){.profile-name{font-size:20px}.pv-wrap{padding:16px 12px 40px}}
+  </style>
+</head>
+<body>
+
+<div class="pv-header">
+  <div class="pv-logo-icon">🔐</div>
+  <div><div class="pv-logo-name">Personal Vault</div><div class="pv-logo-sub">VERIFIED PROFILE</div></div>
+  <div class="verified-badge">✅ Verified</div>
+</div>
+
+<div class="pv-wrap" id="wrap">
+  <div class="center-msg">
+    <div style="font-size:36px;margin-bottom:12px">⏳</div>
+    <div style="font-size:15px;font-weight:700;color:#334155">Loading vault summary…</div>
+  </div>
+</div>
+
+<div class="pv-footer">
+  Powered by <a href="./index.html">Personal Vault</a> · This profile was shared by its owner
+</div>
+
+<script>
+var CAT_META = {
+  education:{icon:'🎓',label:'Education',color:'#3B82F6'},
+  career:{icon:'💼',label:'Career',color:'#7C3AED'},
+  family:{icon:'👨‍👩‍👧',label:'Family',color:'#EC4899'},
+  health:{icon:'❤️',label:'Health',color:'#EF4444'},
+  travel:{icon:'✈️',label:'Travel',color:'#F97316'},
+  hobby:{icon:'🎨',label:'Hobby',color:'#EAB308'},
+  achievement:{icon:'🏆',label:'Achievement',color:'#22C55E'},
+  milestone:{icon:'⭐',label:'Milestone',color:'#7C3AED'},
+  other:{icon:'📌',label:'Other',color:'#64748B'},
+};
+var ACAD_ICONS = {degree:'🎓',certificate:'📜',diploma:'🏛️',transcript:'📋',award:'🏆',course:'📚',other:'📄'};
+var ACAD_COLOR = {degree:'#3B82F6',certificate:'#7C3AED',diploma:'#EC4899',transcript:'#22C55E',award:'#EAB308',course:'#F97316',other:'#64748B'};
+
+function fmtDate(d){ return d?new Date(d).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):'—'; }
+function tlN(l){ return ['','Basic','Standard','Enhanced','High','Sovereign'][l]||'Unknown'; }
+function tlColor(l){ return ['','#EF4444','#F97316','#EAB308','#22C55E','#7C3AED'][l]||'#94A3B8'; }
+
+/* Get code from URL */
+var code = new URLSearchParams(window.location.search).get('code');
+if (!code) {
+  document.getElementById('wrap').innerHTML = '<div class="center-msg"><div style="font-size:48px;margin-bottom:16px">🔗</div><h2 style="font-size:20px;font-weight:900;color:#0F172A;margin-bottom:8px">No share code</h2><p style="color:#64748B">Please scan a valid Personal Vault QR code.</p></div>';
+} else {
+  fetch('/api/trustid/share/view/'+code)
+    .then(function(r){return r.json();})
+    .then(function(r){
+      if (!r.success) {
+        document.getElementById('wrap').innerHTML = '<div class="center-msg"><div style="font-size:48px;margin-bottom:16px">⚠️</div><h2 style="font-size:20px;font-weight:900;color:#0F172A;margin-bottom:8px">Cannot load profile</h2><p style="color:#64748B">'+r.message+'</p></div>';
+        return;
+      }
+      renderProfile(r.data);
+    })
+    .catch(function(){
+      document.getElementById('wrap').innerHTML = '<div class="center-msg"><div style="font-size:48px;margin-bottom:16px">❌</div><h2 style="font-size:20px;font-weight:900;color:#0F172A;margin-bottom:8px">Network error</h2><p style="color:#64748B">Could not load this profile. Please try again.</p></div>';
+    });
+}
+
+function renderProfile(d) {
+  var id   = d.identity||{};
+  var tid  = id.trustId||{};
+  var ini  = id.name ? id.name.split(' ').map(function(w){return w[0]||'';}).join('').slice(0,2).toUpperCase() : '?';
+  var scoreColor = tlColor(tid.level||1);
+  var r = 30, circ = 2*Math.PI*r, offset = circ*(1-(tid.score||100)/1000);
+
+  var html = '';
+
+  /* ── Profile hero ── */
+  html += '<div class="profile-hero">'
+    +'<div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:16px">'
+    +'<div>'
+    +'<div class="profile-avatar">'+ini+'</div>'
+    +'<div class="profile-name">'+(id.name||'Anonymous')+'</div>'
+    +'<div class="profile-sub">Member since '+fmtDate(id.joinedAt)+'</div>'
+    +'</div>'
+    /* Score ring */
+    +(tid.score?
+      '<div class="score-ring-wrap" style="width:76px;height:76px">'
+      +'<svg width="76" height="76" viewBox="0 0 76 76" style="transform:rotate(-90deg)"><circle cx="38" cy="38" r="'+r+'" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="7"/><circle cx="38" cy="38" r="'+r+'" fill="none" stroke="'+scoreColor+'" stroke-width="7" stroke-dasharray="'+circ+'" stroke-dashoffset="'+offset+'" stroke-linecap="round"/></svg>'
+      +'<div class="score-inner"><span style="font-size:18px;font-weight:900;color:'+scoreColor+'">'+tid.score+'</span><span style="font-size:9px;color:rgba(255,255,255,0.4)">/1000</span></div>'
+      +'</div>'
+      :'')
+    +'</div>'
+    +(tid.id?
+      '<div class="tid-card">'
+      +'<div class="tid-label">PERSONAL VAULT ID</div>'
+      +'<div class="tid-number">'+tid.id+'</div>'
+      +'<div class="tid-row">'
+      +'<span class="tid-pill" style="background:'+scoreColor+'25;color:'+scoreColor+'">🛡 L'+(tid.level||1)+' '+tlN(tid.level||1)+'</span>'
+      +'<span class="tid-pill" style="background:#22C55E25;color:#22C55E">● ACTIVE</span>'
+      +'</div></div>'
+      :'')
+    +'</div>';
+
+  /* Custom message */
+  if (d.customMessage) {
+    html += '<div class="custom-msg">"'+d.customMessage+'"</div>';
+  }
+
+  var sections = d.sections||[];
+
+  /* ── Contact ── */
+  if (sections.includes('contact') && d.contact) {
+    html += '<div class="section-card">'
+      +'<div class="section-head"><span class="section-head-icon">📧</span><span class="section-head-title">Contact</span></div>'
+      +'<div class="section-body"><div style="font-size:14px;color:#334155">'+d.contact.email+'</div></div>'
+      +'</div>';
+  }
+
+  /* ── Address ── */
+  if (sections.includes('address') && d.address) {
+    var a = d.address;
+    var loc = [a.city,a.state,a.country].filter(Boolean).join(', ');
+    html += '<div class="section-card">'
+      +'<div class="section-head"><span class="section-head-icon">🏠</span><span class="section-head-title">Location</span></div>'
+      +'<div class="section-body">'
+      +'<div style="display:flex;align-items:center;gap:10px">'
+      +'<div style="font-size:28px">📍</div>'
+      +'<div><div style="font-size:15px;font-weight:700;color:#0F172A">'+loc+'</div>'
+      +(a.postalCode?'<div style="font-size:12px;color:#64748B">Postal: '+a.postalCode+'</div>':'')
+      +'</div></div>'
+      +'</div></div>';
+  }
+
+  /* ── Verified Documents ── */
+  if (sections.includes('documents') && d.documents && d.documents.length) {
+    var DOC_ICONS = {identity:'🪪',financial:'💳',address:'🏠',other:'📄'};
+    html += '<div class="section-card">'
+      +'<div class="section-head"><span class="section-head-icon">📁</span><span class="section-head-title">Verified Documents</span>'
+      +'<span style="margin-left:auto;font-size:12px;background:#22C55E18;color:#15803D;padding:2px 8px;border-radius:100px;font-weight:700">'+d.documents.length+' verified</span>'
+      +'</div>'
+      +'<div class="section-body">'
+      + d.documents.map(function(doc){
+          return '<div class="doc-row">'
+            +'<div class="doc-icon">'+( DOC_ICONS[doc.category]||'📄')+'</div>'
+            +'<div style="flex:1"><div style="font-size:13px;font-weight:600;color:#0F172A">'+doc.name+'</div><div style="font-size:11px;color:#64748B;text-transform:capitalize">'+doc.category+'</div></div>'
+            +'<span class="badge-v">✅ Verified</span>'
+            +'</div>';
+        }).join('')
+      +'</div></div>';
+  }
+
+  /* ── Academics ── */
+  if (sections.includes('academics') && d.academics && d.academics.length) {
+    html += '<div class="section-card">'
+      +'<div class="section-head"><span class="section-head-icon">🎓</span><span class="section-head-title">Academic Records</span></div>'
+      +'<div class="section-body">'
+      + d.academics.map(function(a){
+          var col = ACAD_COLOR[a.type]||'#64748B';
+          return '<div class="acad-row">'
+            +'<div class="acad-icon" style="background:'+col+'15">'+( ACAD_ICONS[a.type]||'📄')+'</div>'
+            +'<div style="flex:1">'
+            +'<div style="font-size:13px;font-weight:700;color:#0F172A">'+a.title+'</div>'
+            +(a.institution?'<div style="font-size:12px;color:#64748B">🏛 '+a.institution+'</div>':'')
+            +'<div style="display:flex;gap:8px;margin-top:4px">'
+            +(a.year?'<span style="font-size:11px;color:'+col+';font-weight:700">📅 '+a.year+'</span>':'')
+            +(a.grade?'<span style="font-size:11px;color:#22C55E;font-weight:700">⭐ '+a.grade+'</span>':'')
+            +'</div></div>'
+            +'<span style="font-size:10px;background:'+col+'18;color:'+col+';padding:2px 8px;border-radius:100px;font-weight:700;flex-shrink:0">'+( a.type.charAt(0).toUpperCase()+a.type.slice(1))+'</span>'
+            +'</div>';
+        }).join('')
+      +'</div></div>';
+  }
+
+  /* ── Life Story ── */
+  if (sections.includes('lifestory') && d.lifestory && d.lifestory.length) {
+    html += '<div class="section-card">'
+      +'<div class="section-head"><span class="section-head-icon">📖</span><span class="section-head-title">Life Story Highlights</span></div>'
+      +'<div class="section-body">'
+      + d.lifestory.slice(0,8).map(function(e){
+          var m = CAT_META[e.category]||CAT_META.other;
+          return '<div class="life-entry">'
+            +'<span class="life-cat" style="background:'+m.color+'18;color:'+m.color+'">'+m.icon+' '+m.label+'</span>'
+            +'<div style="font-size:14px;font-weight:700;color:#0F172A;margin-bottom:4px">'+e.title+'</div>'
+            +(e.date?'<div style="font-size:11px;color:#94A3B8;margin-bottom:6px">📅 '+fmtDate(e.date)+'</div>':'')
+            +(e.content?'<div style="font-size:13px;color:#64748B;line-height:1.55">'+e.content.slice(0,200)+(e.content.length>200?'…':'')+'</div>':'')
+            +'</div>';
+        }).join('')
+      +(d.lifestory.length>8?'<div style="text-align:center;padding:12px 0;font-size:13px;color:#94A3B8">And '+(d.lifestory.length-8)+' more entries…</div>':'')
+      +'</div></div>';
+  }
+
+  /* View count + code */
+  html += '<div style="text-align:center;padding:20px 0;color:#94A3B8;font-size:12px">'
+    +'Share code: <strong>'+code+'</strong> · Viewed '+d.viewCount+' time'+(d.viewCount===1?'':'s')
+    +'</div>';
+
+  document.getElementById('wrap').innerHTML = html;
+  document.title = (id.name||'Personal Vault')+' — Verified Profile';
+}
+</script>
+</body>
+</html>
