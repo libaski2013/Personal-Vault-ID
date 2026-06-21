@@ -1,72 +1,64 @@
 /* ── TrustID API Service ── */
-const Api = (() => {
-  /* Auto-detect base URL: full URL for Capacitor/native, relative for web */
-  const isNative = typeof window !== 'undefined' && (
-    window.location.protocol === 'capacitor:' ||
-    window.location.protocol === 'ionic:' ||
-    window.location.hostname === 'localhost' && window.Capacitor
-  );
-  const BASE = isNative
-    ? (localStorage.getItem('tid_api_url') || 'https://trustid-realtime.onrender.com/api/trustid')
-    : '/api/trustid';
+/* Uses var so it is accessible from every other <script> tag */
+var Api = (function () {
+  var BASE = '/api/trustid';
 
-  const req = async (method, path, body) => {
-    const token = Auth.getToken();
-    const opts = {
-      method,
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
+  function req(method, path, body) {
+    var token = Auth.getToken();
+    var opts = {
+      method: method,
+      headers: Object.assign(
+        { 'Content-Type': 'application/json' },
+        token ? { Authorization: 'Bearer ' + token } : {}
+      ),
     };
     if (body != null) opts.body = JSON.stringify(body);
-    try {
-      const res = await fetch(BASE + path, opts);
-      const data = await res.json();
-      /* Auto-logout on 401 */
-      if (res.status === 401 && !path.includes('/auth/login')) {
-        Auth.logout();
-        return { success: false, message: 'Session expired' };
-      }
-      return data;
-    } catch (err) {
-      return { success: false, message: err.message || 'Network error' };
-    }
-  };
+    return fetch(BASE + path, opts)
+      .then(function (res) {
+        if (res.status === 401 && path.indexOf('/auth/login') === -1) {
+          Auth.logout();
+          return { success: false, message: 'Session expired' };
+        }
+        return res.json();
+      })
+      .catch(function (err) {
+        return { success: false, message: err.message || 'Network error' };
+      });
+  }
 
   return {
     /* ── Auth ── */
-    login:          (email, password)   => req('POST', '/auth/login',           { email, password }),
-    register:       (form)              => req('POST', '/auth/register',         form),
-    changePassword: (cur, nw)           => req('PUT',  '/auth/change-password',  { currentPassword: cur, newPassword: nw }),
-    seedAdmin:      ()                  => req('POST', '/auth/seed-admin'),
+    login:          function (email, password) { return req('POST', '/auth/login',          { email: email, password: password }); },
+    register:       function (form)            { return req('POST', '/auth/register',        form); },
+    changePassword: function (cur, nw)         { return req('PUT',  '/auth/change-password', { currentPassword: cur, newPassword: nw }); },
+    seedAdmin:      function ()                { return req('POST', '/auth/seed-admin'); },
 
     /* ── Documents ── */
-    getDocs:    ()         => req('GET',  '/documents'),
-    uploadDoc:  (body)     => req('POST', '/documents',          body),
-    getAllDocs:  ()         => req('GET',  '/documents/all'),
-    verifyDoc:  (id)       => req('PUT',  `/documents/${id}/verify`),
-    rejectDoc:  (id, r)    => req('PUT',  `/documents/${id}/reject`, { reason: r }),
+    getDocs:   function ()        { return req('GET',    '/documents'); },
+    uploadDoc: function (body)    { return req('POST',   '/documents', body); },
+    getAllDocs: function ()        { return req('GET',    '/documents/all'); },
+    verifyDoc: function (id)      { return req('PUT',    '/documents/' + id + '/verify'); },
+    rejectDoc: function (id, r)   { return req('PUT',    '/documents/' + id + '/reject', { reason: r }); },
 
     /* ── Expenses ── */
-    getExpenses:   ()     => req('GET',    '/expenses'),
-    addExpense:    (body) => req('POST',   '/expenses',       body),
-    deleteExpense: (id)   => req('DELETE', `/expenses/${id}`),
+    getExpenses:   function ()     { return req('GET',    '/expenses'); },
+    addExpense:    function (body) { return req('POST',   '/expenses', body); },
+    deleteExpense: function (id)   { return req('DELETE', '/expenses/' + id); },
 
     /* ── Reminders ── */
-    getReminders:   ()         => req('GET',    '/reminders'),
-    addReminder:    (body)     => req('POST',   '/reminders',        body),
-    updateReminder: (id, body) => req('PUT',    `/reminders/${id}`,  body),
-    deleteReminder: (id)       => req('DELETE', `/reminders/${id}`),
+    getReminders:   function ()         { return req('GET',    '/reminders'); },
+    addReminder:    function (body)     { return req('POST',   '/reminders', body); },
+    updateReminder: function (id, body) { return req('PUT',    '/reminders/' + id, body); },
+    deleteReminder: function (id)       { return req('DELETE', '/reminders/' + id); },
 
     /* ── Todos ── */
-    getTodos:   ()         => req('GET',    '/todos'),
-    addTodo:    (body)     => req('POST',   '/todos',        body),
-    updateTodo: (id, body) => req('PUT',    `/todos/${id}`,  body),
-    deleteTodo: (id)       => req('DELETE', `/todos/${id}`),
+    getTodos:   function ()         { return req('GET',    '/todos'); },
+    addTodo:    function (body)     { return req('POST',   '/todos', body); },
+    updateTodo: function (id, body) { return req('PUT',    '/todos/' + id, body); },
+    deleteTodo: function (id)       { return req('DELETE', '/todos/' + id); },
 
     /* ── Admin ── */
-    getAdminUsers: () => req('GET', '/admin/users'),
-    getAdminStats: () => req('GET', '/admin/stats'),
+    getAdminUsers: function () { return req('GET', '/admin/users'); },
+    getAdminStats: function () { return req('GET', '/admin/stats'); },
   };
 })();

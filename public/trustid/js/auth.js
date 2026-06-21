@@ -1,34 +1,34 @@
 /* ── TrustID Auth Helper ── */
-const Auth = (() => {
-  const TOKEN_KEY = 'tid_token';
-  const USER_KEY  = 'tid_user';
+/* Uses var so it is accessible from every other <script> tag */
+var Auth = (function () {
+  var TOKEN_KEY = 'tid_token';
+  var USER_KEY  = 'tid_user';
 
   return {
-    getToken: () => localStorage.getItem(TOKEN_KEY),
+    getToken: function () { return localStorage.getItem(TOKEN_KEY); },
 
-    getUser: () => {
+    getUser: function () {
       try { return JSON.parse(localStorage.getItem(USER_KEY) || 'null'); }
-      catch { return null; }
+      catch (e) { return null; }
     },
 
-    setSession: (token, user) => {
+    setSession: function (token, user) {
       localStorage.setItem(TOKEN_KEY, token);
       localStorage.setItem(USER_KEY, JSON.stringify(user));
     },
 
-    clear: () => {
+    clear: function () {
       localStorage.removeItem(TOKEN_KEY);
       localStorage.removeItem(USER_KEY);
     },
 
-    logout: () => {
+    logout: function () {
       localStorage.removeItem(TOKEN_KEY);
       localStorage.removeItem(USER_KEY);
       window.location.href = '/trustid/login.html';
     },
 
-    /* Redirect to login if no token */
-    requireAuth: () => {
+    requireAuth: function () {
       if (!localStorage.getItem(TOKEN_KEY)) {
         window.location.replace('/trustid/login.html');
         return false;
@@ -36,31 +36,36 @@ const Auth = (() => {
       return true;
     },
 
-    /* Redirect to login if not admin */
-    requireAdmin: () => {
+    requireAdmin: function () {
       if (!localStorage.getItem(TOKEN_KEY)) {
         window.location.replace('/trustid/login.html');
         return false;
       }
       try {
-        const user = JSON.parse(localStorage.getItem(USER_KEY) || 'null');
+        var user = JSON.parse(localStorage.getItem(USER_KEY) || 'null');
         if (!user || user.role !== 'admin') {
           window.location.replace('/trustid/dashboard.html');
           return false;
         }
-      } catch { window.location.replace('/trustid/login.html'); return false; }
+      } catch (e) {
+        window.location.replace('/trustid/login.html');
+        return false;
+      }
       return true;
     },
 
-    /* Redirect logged-in users away from auth pages */
-    requireGuest: () => {
+    requireGuest: function () {
       if (localStorage.getItem(TOKEN_KEY)) {
         try {
-          const user = JSON.parse(localStorage.getItem(USER_KEY) || 'null');
-          window.location.replace(user && user.role === 'admin'
-            ? '/trustid/admin/dashboard.html'
-            : '/trustid/dashboard.html');
-        } catch { window.location.replace('/trustid/dashboard.html'); }
+          var user = JSON.parse(localStorage.getItem(USER_KEY) || 'null');
+          window.location.replace(
+            user && user.role === 'admin'
+              ? '/trustid/admin/dashboard.html'
+              : '/trustid/dashboard.html'
+          );
+        } catch (e) {
+          window.location.replace('/trustid/dashboard.html');
+        }
         return false;
       }
       return true;
