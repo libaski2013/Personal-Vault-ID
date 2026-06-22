@@ -53,6 +53,7 @@ var Layout = (function () {
         { id:'admin-users',     icon:'👥', label:'Users',              href:'/trustid/admin/users.html' },
         { id:'admin-docs',      icon:'📋', label:'Verification Queue', href:'/trustid/admin/docs.html' },
         { id:'admin-trustids',  icon:'🛡️', label:'ID Registry',       href:'/trustid/admin/trustids.html' },
+        { id:'admin-features',  icon:'🔧', label:'Feature Control',    href:'/trustid/admin/features.html' },
       ],
     },
   ];
@@ -79,7 +80,7 @@ var Layout = (function () {
     legacy:'Digital Legacy', chat:'Messages', share:'Share My Vault',
     profile:'Profile', settings:'Settings',
     'admin-dashboard':'Platform Overview', 'admin-users':'User Management',
-    'admin-docs':'Verification Queue', 'admin-trustids':'ID Registry',
+    'admin-docs':'Verification Queue', 'admin-trustids':'ID Registry', 'admin-features':'Feature Control',
   };
 
   /* Collapse state persisted in localStorage */

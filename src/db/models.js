@@ -20,6 +20,8 @@ const userSchema = new Schema({
     issuedAt: { type: Date, default: Date.now },
   },
   phone:        { type: String, default: '', trim: true, sparse: true },
+  tier:         { type: String, enum: ['free','paid','premium'], default: 'free' },
+  notes:        { type: String, default: '' },   /* admin notes on this user */
   vaultPinHash: { type: String, default: null },
   homeAddress: {
     label: String, street: String, city: String, state: String,
@@ -149,6 +151,17 @@ const legacySchema = new Schema({
   disclosedAt:    Date,
 }, { timestamps: true });
 
+/* ── Feature Flags (admin-controlled per tier) ── */
+const featureSchema = new Schema({
+  name:        { type: String, required: true, unique: true },
+  label:       { type: String, required: true },
+  icon:        { type: String, default: '⚙️' },
+  description: { type: String, default: '' },
+  href:        { type: String, default: '' },
+  enabled:     { type: Boolean, default: true },
+  tiers:       [{ type: String, enum: ['free','paid','premium'] }],
+}, { timestamps: true });
+
 /* ── Vault Share Card ── */
 const shareSchema = new Schema({
   userId:        { type: OID, ref: 'pvusers', required: true },
@@ -191,6 +204,7 @@ const anonChatSchema = new Schema({
 
 module.exports = {
   User:         mongoose.model('pvusers',         userSchema),
+  Feature:      mongoose.model('pvfeatures',      featureSchema),
   Conversation: mongoose.model('pvconversations', conversationSchema),
   Message:      mongoose.model('pvmessages',      messageSchema),
   ShareCard:    mongoose.model('pvsharecards',    shareSchema),

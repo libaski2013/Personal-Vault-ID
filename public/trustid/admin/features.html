@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Personal Vault Admin — Features</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="icon" href="../icon.svg">
+  <link rel="stylesheet" href="../css/styles.css">
+  <style>
+    .feat-table { width:100%;border-collapse:collapse; }
+    .feat-table th { padding:12px 16px;text-align:left;font-size:11px;font-weight:700;color:#64748B;background:#F8FAFC;border-bottom:2px solid #E8ECF4; }
+    .feat-table td { padding:14px 16px;border-bottom:1px solid #F1F5F9;vertical-align:middle; }
+    .feat-name    { display:flex;align-items:center;gap:10px; }
+    .feat-icon-w  { width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0; }
+    .tier-check   { display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:100px;font-size:11px;font-weight:700;cursor:pointer;border:1.5px solid;transition:all 0.15s;user-select:none; }
+    .tier-check.on-free    { background:#3B82F618;color:#1D4ED8;border-color:#3B82F640; }
+    .tier-check.on-paid    { background:#22C55E18;color:#15803D;border-color:#22C55E40; }
+    .tier-check.on-premium { background:#EAB30818;color:#92400E;border-color:#EAB30840; }
+    .tier-check.off { background:#F1F5F9;color:#94A3B8;border-color:#E2E8F0; }
+    .toggle-sw  { position:relative;width:42px;height:22px; }
+    .toggle-sw input { opacity:0;width:0;height:0;position:absolute; }
+    .toggle-sw .sl { position:absolute;inset:0;border-radius:22px;background:#E2E8F0;cursor:pointer;transition:background 0.2s; }
+    .toggle-sw .sl::before { content:'';position:absolute;left:2px;top:2px;width:18px;height:18px;border-radius:50%;background:#fff;transition:transform 0.2s;box-shadow:0 1px 3px rgba(0,0,0,0.2); }
+    .toggle-sw input:checked + .sl { background:#7C3AED; }
+    .toggle-sw input:checked + .sl::before { transform:translateX(20px); }
+    .tier-legend { display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px; }
+    .legend-item { display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600; }
+    .legend-dot  { width:10px;height:10px;border-radius:50%; }
+  </style>
+</head>
+<body>
+<div class="app-shell">
+  <div id="sidebar"></div>
+  <div id="main">
+    <div id="topbar"></div>
+    <div class="page-content" id="content"><div id="loading"></div></div>
+  </div>
+</div>
+<script src="../js/auth.js"></script>
+<script>if(!Auth.requireAdmin()) throw '';</script>
+<script src="../js/api.js"></script>
+<script src="../js/layout.js"></script>
+<script>
+Layout.init('admin-features');
+document.getElementById('loading').innerHTML = Layout.spinner();
+var features = [];
+
+load();
+function load(){
+  fetch('../api/trustid/admin/features',{headers:{Authorization:'Bearer '+Auth.getToken()}})
+    .then(function(r){return r.json();})
+    .then(function(r){
+      if(r.success){ features=r.data; render(); }
+      else document.getElementById('content').innerHTML='<div class="empty">Failed to load features.</div>';
+    });
+}
+
+function render(){
+  var html =
+    '<div class="page-header">'
+    +'<div><h1 class="page-title">⚙️ Feature Control</h1><p class="page-sub">Enable or disable features and control which plan tiers can access them</p></div>'
+    +'<button onclick="initFeatures()" class="btn btn-ghost" style="width:auto">🔄 Reset Defaults</button>'
+    +'</div>'
+
+    /* Legend */
+    +'<div class="card" style="margin-bottom:20px">'
+    +'<h3 style="font-size:14px;font-weight:800;margin-bottom:12px">Plan Tiers</h3>'
+    +'<div class="tier-legend">'
+    +'<div class="legend-item"><div class="legend-dot" style="background:#3B82F6"></div><strong>Free</strong> — Default for all new users. Basic features.</div>'
+    +'<div class="legend-item"><div class="legend-dot" style="background:#22C55E"></div><strong>Paid</strong> — Full access. Admin upgrades users to this tier.</div>'
+    +'<div class="legend-item"><div class="legend-dot" style="background:#EAB308"></div><strong>Premium</strong> — Top tier. Priority access + all features.</div>'
+    +'</div>'
+    +'<p style="font-size:12px;color:#94A3B8;margin-top:10px">Toggle which tiers can access each feature. Changes take effect immediately for all users.</p>'
+    +'</div>'
+
+    /* Feature table */
+    +'<div class="card" style="padding:0;overflow:hidden">'
+    +'<table class="feat-table">'
+    +'<thead><tr>'
+    +'<th style="width:40%">Feature</th>'
+    +'<th style="width:12%">Enabled</th>'
+    +'<th>🆓 Free</th>'
+    +'<th>💎 Paid</th>'
+    +'<th>👑 Premium</th>'
+    +'<th style="width:120px">Impact</th>'
+    +'</tr></thead>'
+    +'<tbody>'
+    +features.map(function(f,i){
+        var tiers = f.tiers||[];
+        var hasFree    = tiers.includes('free');
+        var hasPaid    = tiers.includes('paid');
+        var hasPremium = tiers.includes('premium');
+        var impact = hasFree ? '<span style="font-size:11px;color:#3B82F6;font-weight:700">All users</span>'
+          : hasPaid ? '<span style="font-size:11px;color:#22C55E;font-weight:700">Paid only</span>'
+          : hasPremium ? '<span style="font-size:11px;color:#EAB308;font-weight:700">Premium only</span>'
+          : '<span style="font-size:11px;color:#EF4444;font-weight:700">Nobody</span>';
+
+        return '<tr id="frow-'+f.name+'">'
+          +'<td><div class="feat-name">'
+          +'<div class="feat-icon-w" style="background:'+(f.enabled?'#7C3AED18':'#F1F5F9')+'">'+f.icon+'</div>'
+          +'<div><div style="font-size:13px;font-weight:700;color:'+(f.enabled?'#0F172A':'#94A3B8')+'">'+f.label+'</div>'
+          +'<div style="font-size:11px;color:#94A3B8">'+f.name+'</div></div>'
+          +'</div></td>'
+          +'<td><label class="toggle-sw"><input type="checkbox" '+(f.enabled?'checked':'')+' onchange="toggleEnabled(\''+f.name+'\',this.checked)"><span class="sl"></span></label></td>'
+          +'<td><span class="tier-check '+(hasFree?'on-free':'off')+'" onclick="toggleTier(\''+f.name+'\',\'free\','+hasFree+')">'+(hasFree?'✓ On':'× Off')+'</span></td>'
+          +'<td><span class="tier-check '+(hasPaid?'on-paid':'off')+'" onclick="toggleTier(\''+f.name+'\',\'paid\','+hasPaid+')">'+(hasPaid?'✓ On':'× Off')+'</span></td>'
+          +'<td><span class="tier-check '+(hasPremium?'on-premium':'off')+'" onclick="toggleTier(\''+f.name+'\',\'premium\','+hasPremium+')">'+(hasPremium?'✓ On':'× Off')+'</span></td>'
+          +'<td>'+impact+'</td>'
+          +'</tr>';
+      }).join('')
+    +'</tbody></table></div>'
+
+    /* Summary */
+    +'<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:20px">'
+    +['free','paid','premium'].map(function(tier){
+        var count = features.filter(function(f){ return f.enabled&&(f.tiers||[]).includes(tier); }).length;
+        var colors={free:'#3B82F6',paid:'#22C55E',premium:'#EAB308'};
+        var icons={free:'🆓',paid:'💎',premium:'👑'};
+        var labels={free:'Free Plan',paid:'Paid Plan',premium:'Premium Plan'};
+        return '<div class="card" style="text-align:center">'
+          +'<div style="font-size:28px;margin-bottom:8px">'+icons[tier]+'</div>'
+          +'<div style="font-size:28px;font-weight:900;color:'+colors[tier]+';margin-bottom:4px">'+count+'</div>'
+          +'<div style="font-size:12px;color:#64748B">'+labels[tier]+' features enabled</div>'
+          +'</div>';
+      }).join('')
+    +'</div>';
+
+  document.getElementById('content').innerHTML = html;
+}
+
+async function toggleEnabled(name, enabled){
+  var r = await fetch('../api/trustid/admin/features/'+name,{
+    method:'PUT', headers:{'Content-Type':'application/json',Authorization:'Bearer '+Auth.getToken()},
+    body:JSON.stringify({enabled})
+  }).then(function(x){return x.json();});
+  if(r.success){
+    var f = features.find(function(x){return x.name===name;});
+    if(f) f.enabled=enabled;
+    render();
+    Layout.toast((enabled?'Feature enabled':'Feature disabled')+': '+name,'success');
+  } else Layout.toast(r.message||'Error','error');
+}
+
+async function toggleTier(name, tier, currentlyOn){
+  var f = features.find(function(x){return x.name===name;});
+  if(!f) return;
+  var tiers = (f.tiers||[]).slice();
+  if(currentlyOn) tiers = tiers.filter(function(t){return t!==tier;});
+  else if(!tiers.includes(tier)) tiers.push(tier);
+  var r = await fetch('../api/trustid/admin/features/'+name,{
+    method:'PUT', headers:{'Content-Type':'application/json',Authorization:'Bearer '+Auth.getToken()},
+    body:JSON.stringify({tiers})
+  }).then(function(x){return x.json();});
+  if(r.success){ f.tiers=tiers; render(); Layout.toast('Updated access for '+name,'success'); }
+  else Layout.toast(r.message||'Error','error');
+}
+
+async function initFeatures(){
+  if(!confirm('Reset all feature flags to defaults?')) return;
+  var r = await fetch('../api/trustid/admin/features/init',{method:'POST',headers:{Authorization:'Bearer '+Auth.getToken()}}).then(function(x){return x.json();});
+  if(r.success){ Layout.toast('Feature flags reset to defaults','success'); load(); }
+  else Layout.toast(r.message||'Error','error');
+}
+</script>
+</body>
+</html>

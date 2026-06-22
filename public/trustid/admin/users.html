@@ -24,6 +24,28 @@ Layout.init('admin-users');
 document.getElementById('loading').innerHTML = Layout.spinner();
 
 var allUsers = [];
+var tierColors = { free:'#3B82F6', paid:'#22C55E', premium:'#EAB308' };
+var tierIcons  = { free:'🆓', paid:'💎', premium:'👑' };
+
+async function suspendUser(id){
+  var reason = prompt('Reason for suspension (optional):') || '';
+  var r = await fetch('../api/trustid/admin/users/'+id+'/status',{method:'PUT',headers:{'Content-Type':'application/json',Authorization:'Bearer '+Auth.getToken()},body:JSON.stringify({status:'suspended',reason})}).then(function(x){return x.json();});
+  if(r.success){ allUsers=allUsers.map(function(u){return u._id===id?Object.assign({},u,{status:'suspended'}):u;}); renderUsers(document.getElementById('searchInput').value||''); Layout.toast('User suspended','warning'); }
+  else Layout.toast(r.message||'Error','error');
+}
+
+async function activateUser(id){
+  var r = await fetch('../api/trustid/admin/users/'+id+'/status',{method:'PUT',headers:{'Content-Type':'application/json',Authorization:'Bearer '+Auth.getToken()},body:JSON.stringify({status:'active'})}).then(function(x){return x.json();});
+  if(r.success){ allUsers=allUsers.map(function(u){return u._id===id?Object.assign({},u,{status:'active'}):u;}); renderUsers(document.getElementById('searchInput').value||''); Layout.toast('User activated ✅','success'); }
+  else Layout.toast(r.message||'Error','error');
+}
+
+async function deleteUser(id, email){
+  if(!confirm('Delete user '+email+'?\n\nThis permanently deletes their account and ALL data.')) return;
+  var r = await fetch('../api/trustid/admin/users/'+id,{method:'DELETE',headers:{Authorization:'Bearer '+Auth.getToken()}}).then(function(x){return x.json();});
+  if(r.success){ allUsers=allUsers.filter(function(u){return u._id!==id;}); renderUsers(''); Layout.toast('User deleted','info'); }
+  else Layout.toast(r.message||'Error','error');
+}
 
 function renderUsers(search) {
   search = (search || '').toLowerCase();
@@ -54,10 +76,20 @@ function renderUsers(search) {
       + '<td><span style="display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:100px;background:' + col + '15;border:1px solid ' + col + '30;color:' + col + ';font-size:11px;font-weight:700">🛡 L' + level + ' · ' + lbl + '</span></td>'
       + '<td style="font-weight:700;color:' + col + ';font-size:13px">' + score + '</td>'
       + '<td style="color:#64748B;font-size:13px">' + (u.docsCount||0) + '</td>'
-      + '<td>' + Layout.badge(u.status||'active') + '</td>'
-      + '<td style="font-size:12px;color:#64748B">' + Layout.fmtShort(u.joinedAt) + '</td>'
-      + '<td><button style="padding:4px 10px;border-radius:7px;background:#F1F5F9;border:none;cursor:pointer;font-size:11px;color:#64748B;font-weight:600">View</button></td>'
-      + '</tr>';
+      + '<td><span style="padding:3px 8px;border-radius:100px;font-size:10px;font-weight:700;background:'+tierColors[u.tier||\'free\']+\'18;color:\'+tierColors[u.tier||\'free\']+\'">\'+(tierIcons[u.tier||\'free\']||\'\')+\' \'+(u.tier||\'free\')+\'</span></td>\'
+      + \'<td>\' + Layout.badge(u.status||\'active\') + \'</td>\'
+      + \'<td style="font-size:11px;color:#64748B">\' + Layout.fmtShort(u.joinedAt) + \'</td>\'
+      + \'<td><div style="display:flex;gap:5px;flex-wrap:wrap">\'
+      + \'<a href="./user-profile.html?id=\'+u._id+\'" style="padding:4px 8px;border-radius:7px;background:#7C3AED18;border:none;cursor:pointer;font-size:11px;color:#7C3AED;font-weight:600;text-decoration:none">👤 View</a>\'
+      + (u.status===\'active\'
+          ? \'<button onclick="suspendUser(\\\'"+u._id+"\\\')" style="padding:4px 8px;border-radius:7px;background:#F9731618;border:1px solid #F9731640;cursor:pointer;font-size:11px;color:#F97316;font-weight:600">🚫 Suspend</button>\'
+          : \'<button onclick="activateUser(\\\'"+u._id+"\\\')" style="padding:4px 8px;border-radius:7px;background:#22C55E18;border:1px solid #22C55E40;cursor:pointer;font-size:11px;color:#22C55E;font-weight:600">✅ Activate</button>\'
+        )
+      + (u.role!==\'admin\'
+          ? \'<button onclick="deleteUser(\\\'"+u._id+"\\\',\\\'"+u.email+"\\\')" style="padding:4px 8px;border-radius:7px;background:#EF444418;border:1px solid #EF444440;cursor:pointer;font-size:11px;color:#EF4444;font-weight:600">🗑</button>\'
+          : \'\')
+      + \'</div></td>\'
+      + \'</tr>\';
   }).join('');
 }
 
@@ -75,7 +107,7 @@ Api.getAdminUsers().then(function(res) {
     +     '<input id="searchInput" class="input" placeholder="🔍 Search by name or email…" oninput="renderUsers(this.value)" style="max-width:360px">'
     +   '</div>'
     +   '<div class="table-wrap"><table>'
-    +   '<thead><tr><th>User</th><th>Email</th><th>Trust Level</th><th>Score</th><th>Docs</th><th>Status</th><th>Joined</th><th></th></tr></thead>'
+    +   '<thead><tr><th>User</th><th>Email</th><th>Trust Level</th><th>Score</th><th>Docs</th><th>Plan</th><th>Status</th><th>Joined</th><th>Actions</th></tr></thead>'
     +   '<tbody id="usersBody"></tbody>'
     +   '</table></div>'
     + '</div>';

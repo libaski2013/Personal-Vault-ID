@@ -57,6 +57,14 @@ fastify.register(require('./routes/expenses'),   { prefix:'/api/trustid/expenses
 fastify.register(require('./routes/reminders'),  { prefix:'/api/trustid/reminders' });
 fastify.register(require('./routes/todos'),      { prefix:'/api/trustid/todos' });
 fastify.register(require('./routes/admin'),      { prefix:'/api/trustid/admin' });
+/* Public feature flags (used by client for feature gating) */
+fastify.get('/api/trustid/features', async () => {
+  try {
+    const { Feature } = require('./db/models');
+    const features = await Feature.find().select('name enabled tiers icon label href');
+    return { success:true, data:features };
+  } catch { return { success:true, data:[] }; }
+});
 fastify.register(require('./routes/academics'),  { prefix:'/api/trustid/academics' });
 fastify.register(require('./routes/vault'),      { prefix:'/api/trustid/vault' });
 fastify.register(require('./routes/lifestory'),  { prefix:'/api/trustid/life' });

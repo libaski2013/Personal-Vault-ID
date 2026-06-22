@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Personal Vault Admin — User Profile</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="icon" href="../icon.svg">
+  <link rel="stylesheet" href="../css/styles.css">
+  <style>
+    .profile-hero { background:linear-gradient(135deg,#0F0E2A,#1E1B4B);border-radius:20px;padding:28px;color:#fff;margin-bottom:20px;display:flex;align-items:center;gap:20px;flex-wrap:wrap; }
+    .hero-avatar  { width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,#7C3AED,#8B5CF6);display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:900;color:#fff;flex-shrink:0; }
+    .tier-pill  { display:inline-flex;align-items:center;gap:5px;padding:4px 12px;border-radius:100px;font-size:12px;font-weight:700;border:1px solid; }
+    .tier-free    { background:#3B82F618;color:#3B82F6;border-color:#3B82F640; }
+    .tier-paid    { background:#22C55E18;color:#22C55E;border-color:#22C55E40; }
+    .tier-premium { background:#EAB30818;color:#92400E;border-color:#EAB30840; }
+    .action-row   { display:flex;gap:10px;flex-wrap:wrap;margin-top:14px; }
+    .count-grid   { display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px; }
+    .count-card   { background:#fff;border-radius:12px;border:1px solid #E8ECF4;padding:16px;text-align:center; }
+    .count-val    { font-size:24px;font-weight:900;color:#7C3AED; }
+    .count-lbl    { font-size:11px;color:#64748B;margin-top:2px; }
+    .info-row     { display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #F8FAFC;font-size:13px; }
+    .info-key     { color:#64748B;font-weight:600; }
+    .info-val     { color:#0F172A;font-weight:600; }
+    .danger-zone  { background:#EF444408;border:1px solid #EF444430;border-radius:16px;padding:20px; }
+    .notes-area   { width:100%;min-height:80px;border-radius:10px;border:1.5px solid #E2E8F0;padding:10px;font-size:13px;font-family:inherit;resize:vertical;outline:none; }
+    .notes-area:focus { border-color:#7C3AED; }
+  </style>
+</head>
+<body>
+<div class="app-shell">
+  <div id="sidebar"></div>
+  <div id="main">
+    <div id="topbar"></div>
+    <div class="page-content" id="content"><div id="loading"></div></div>
+  </div>
+</div>
+<script src="../js/auth.js"></script>
+<script>if(!Auth.requireAdmin()) throw '';</script>
+<script src="../js/api.js"></script>
+<script src="../js/layout.js"></script>
+<script>
+Layout.init('admin-users');
+var userId = new URLSearchParams(window.location.search).get('id');
+if(!userId){ document.getElementById('content').innerHTML='<div class="empty">No user ID provided.</div>'; }
+else {
+  document.getElementById('loading').innerHTML = Layout.spinner();
+  loadProfile();
+}
+
+var userData = null;
+
+function loadProfile(){
+  fetch('../api/trustid/admin/users/'+userId,{ headers:{Authorization:'Bearer '+Auth.getToken()} })
+    .then(function(r){return r.json();})
+    .then(function(r){
+      if(!r.success){ document.getElementById('content').innerHTML='<div class="empty">User not found.</div>'; return; }
+      userData = r.data;
+      render();
+    });
+}
+
+function render(){
+  var u = userData;
+  var ini = ((u.firstName||'')[0]||'U').toUpperCase()+((u.lastName||'')[0]||'').toUpperCase();
+  var c   = u.counts||{};
+  var tierCls = { free:'tier-free', paid:'tier-paid', premium:'tier-premium' };
+  var tierIcon = { free:'🆓', paid:'💎', premium:'👑' };
+  var statusColor = u.status==='active'?'#22C55E':u.status==='suspended'?'#EF4444':'#F97316';
+
+  var html =
+    '<div class="page-header" style="flex-wrap:wrap;gap:10px">'
+    +'<div style="display:flex;align-items:center;gap:10px"><a href="./users.html" style="color:#94A3B8;font-size:20px;text-decoration:none">←</a><div><h1 class="page-title">User Profile</h1><p class="page-sub">Admin view</p></div></div>'
+    +'</div>'
+
+    /* Hero card */
+    +'<div class="profile-hero">'
+    +'<div class="hero-avatar">'+ini+'</div>'
+    +'<div style="flex:1">'
+    +'<div style="font-size:22px;font-weight:900;margin-bottom:6px">'+(u.firstName||'')+' '+(u.middleName?u.middleName+' ':'')+( u.lastName||'')+'</div>'
+    +'<div style="font-size:13px;opacity:0.6;margin-bottom:8px">'+u.email+(u.phone?' · '+u.phone:'')+'</div>'
+    +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
+    +'<span class="tier-pill '+tierCls[u.tier||'free']+'">'+tierIcon[u.tier||'free']+' '+(u.tier||'free').charAt(0).toUpperCase()+(u.tier||'free').slice(1)+' Plan</span>'
+    +'<span style="padding:4px 12px;border-radius:100px;font-size:12px;font-weight:700;background:'+statusColor+'18;color:'+statusColor+';border:1px solid '+statusColor+'40">● '+(u.status||'active').charAt(0).toUpperCase()+(u.status||'active').slice(1)+'</span>'
+    +(u.role==='admin'?'<span style="padding:4px 12px;border-radius:100px;font-size:12px;font-weight:700;background:#7C3AED18;color:#7C3AED;border:1px solid #7C3AED40">👑 Admin</span>':'')
+    +'</div>'
+    +'</div>'
+    +'</div>'
+
+    /* Data counts */
+    +'<div class="count-grid">'
+    +[['📁','Documents',c.docs||0],['💰','Expenses',c.expenses||0],['📖','Life Entries',c.lifeEntries||0],['🎓','Academics',c.academics||0],['🔔','Reminders',c.reminders||0],['✅','Todos',c.todos||0],['🔐','Vault Items',c.vaultItems||0],['📤','Share Cards',c.shareCards||0]].map(function(s){
+        return '<div class="count-card"><div class="count-val">'+s[2]+'</div><div class="count-lbl">'+s[0]+' '+s[1]+'</div></div>';
+      }).join('')
+    +'</div>'
+
+    +'<div style="display:grid;grid-template-columns:1fr 340px;gap:20px">'
+
+    /* Left column */
+    +'<div style="display:flex;flex-direction:column;gap:18px">'
+
+    /* Account info */
+    +'<div class="card">'
+    +'<h3 style="font-size:15px;font-weight:800;margin-bottom:14px">Account Information</h3>'
+    +infoRow('User ID', u._id)
+    +infoRow('Full Name', [u.firstName,u.middleName,u.lastName].filter(Boolean).join(' '))
+    +infoRow('Email', u.email)
+    +infoRow('Phone', u.phone||'—')
+    +infoRow('Role', u.role||'user')
+    +infoRow('Status', u.status||'active')
+    +infoRow('Tier', (u.tier||'free')+' plan')
+    +infoRow('Joined', Layout.fmtDate(u.joinedAt))
+    +infoRow('Last Active', Layout.fmtDate(u.lastActivity))
+    +infoRow('Trust Score', (u.trustId&&u.trustId.score)||100)
+    +infoRow('TrustID', (u.trustId&&u.trustId.id)||'—')
+    +'</div>'
+
+    /* Admin notes */
+    +'<div class="card"><h3 style="font-size:15px;font-weight:800;margin-bottom:12px">📝 Admin Notes</h3>'
+    +'<textarea class="notes-area" id="notesArea" placeholder="Private admin notes about this user…">'+(u.notes||'')+'</textarea>'
+    +'<button onclick="saveNotes()" class="btn btn-ghost btn-sm" style="width:auto;margin-top:8px">Save Notes</button>'
+    +'</div>'
+
+    /* Danger zone */
+    +'<div class="danger-zone"><h3 style="font-size:15px;font-weight:800;color:#EF4444;margin-bottom:12px">⚠️ Danger Zone</h3>'
+    +'<div style="font-size:13px;color:#64748B;margin-bottom:14px;line-height:1.6">Deleting a user permanently removes their account and ALL associated data including documents, vault items, life story, expenses and more. This cannot be undone.</div>'
+    +'<button onclick="deleteUser()" style="background:#EF4444;color:#fff;border:none;border-radius:10px;padding:10px 20px;font-size:13px;font-weight:700;cursor:pointer">🗑 Permanently Delete User</button>'
+    +'</div>'
+    +'</div>'
+
+    /* Right column — actions */
+    +'<div style="display:flex;flex-direction:column;gap:16px">'
+
+    /* Status control */
+    +'<div class="card"><h3 style="font-size:14px;font-weight:800;margin-bottom:12px">⚡ Account Status</h3>'
+    +(u.status==='active'
+      ?'<div style="font-size:13px;color:#64748B;margin-bottom:12px">This user is currently <strong style="color:#22C55E">active</strong> and can use the app normally.</div>'
+       +'<div class="field"><label class="label">Reason for suspension</label><input id="suspendReason" class="input" placeholder="e.g. Violation of terms"></div>'
+       +'<button onclick="setStatus(\'suspended\')" class="btn btn-danger btn-full" style="margin-top:10px">🚫 Suspend User</button>'
+      :'<div style="font-size:13px;color:#64748B;margin-bottom:12px">This user is currently <strong style="color:#EF4444">suspended</strong> and cannot access the app.</div>'
+       +'<button onclick="setStatus(\'active\')" class="btn btn-primary btn-full" style="background:linear-gradient(135deg,#22C55E,#16A34A)">✅ Activate User</button>'
+    )
+    +'</div>'
+
+    /* Tier control */
+    +'<div class="card"><h3 style="font-size:14px;font-weight:800;margin-bottom:12px">💎 Subscription Tier</h3>'
+    +'<p style="font-size:12px;color:#64748B;margin-bottom:14px">Controls which features this user can access</p>'
+    +'<div style="display:flex;flex-direction:column;gap:8px">'
+    +['free','paid','premium'].map(function(t){
+        var labels={free:'🆓 Free — Basic features',paid:'💎 Paid — Full access',premium:'👑 Premium — Priority + all features'};
+        var sel = (u.tier||'free')===t;
+        return '<button onclick="setTier(\''+t+'\')" style="padding:12px;border-radius:12px;border:2px solid '+(sel?'#7C3AED':'#E2E8F0')+';background:'+(sel?'#7C3AED08':'#fff')+';text-align:left;font-size:13px;font-weight:'+(sel?'700':'400')+';cursor:pointer;color:'+(sel?'#7C3AED':'#334155')+'">'
+          +labels[t]+(sel?' ✓':'')+'</button>';
+      }).join('')
+    +'</div></div>'
+
+    +'</div></div>';
+
+  document.getElementById('content').innerHTML = html;
+}
+
+function infoRow(key, val){
+  return '<div class="info-row"><span class="info-key">'+key+'</span><span class="info-val">'+val+'</span></div>';
+}
+
+async function setStatus(status){
+  var reason = status==='suspended' ? (document.getElementById('suspendReason').value.trim()||'') : '';
+  var r = await fetch('../api/trustid/admin/users/'+userId+'/status',{
+    method:'PUT', headers:{'Content-Type':'application/json',Authorization:'Bearer '+Auth.getToken()},
+    body:JSON.stringify({status,reason})
+  }).then(function(x){return x.json();});
+  if(r.success){ userData.status=status; userData.notes=r.data&&r.data.notes||userData.notes; render(); Layout.toast('User '+(status==='active'?'activated ✅':'suspended 🚫'),'success'); }
+  else Layout.toast(r.message||'Error','error');
+}
+
+async function setTier(tier){
+  var r = await fetch('../api/trustid/admin/users/'+userId+'/tier',{
+    method:'PUT', headers:{'Content-Type':'application/json',Authorization:'Bearer '+Auth.getToken()},
+    body:JSON.stringify({tier})
+  }).then(function(x){return x.json();});
+  if(r.success){ userData.tier=tier; render(); Layout.toast('Tier changed to '+tier+' 💎','success'); }
+  else Layout.toast(r.message||'Error','error');
+}
+
+async function saveNotes(){
+  var notes = document.getElementById('notesArea').value;
+  var r = await fetch('../api/trustid/admin/users/'+userId+'/notes',{
+    method:'PUT', headers:{'Content-Type':'application/json',Authorization:'Bearer '+Auth.getToken()},
+    body:JSON.stringify({notes})
+  }).then(function(x){return x.json();});
+  if(r.success){ Layout.toast('Notes saved','success'); }
+  else Layout.toast('Error saving notes','error');
+}
+
+async function deleteUser(){
+  if(!confirm('DELETE USER\n\nThis will permanently delete the user account and ALL their data.\n\nType YES to confirm.')) return;
+  var typed = prompt('Type DELETE to confirm permanently deleting this user:');
+  if((typed||'').trim()!=='DELETE'){ Layout.toast('Cancelled','info'); return; }
+  var r = await fetch('../api/trustid/admin/users/'+userId,{
+    method:'DELETE', headers:{Authorization:'Bearer '+Auth.getToken()}
+  }).then(function(x){return x.json();});
+  if(r.success){ Layout.toast(r.message,'success'); setTimeout(function(){ window.location.href='./users.html'; },1500); }
+  else Layout.toast(r.message||'Error','error');
+}
+</script>
+</body>
+</html>
