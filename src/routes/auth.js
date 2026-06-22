@@ -9,7 +9,17 @@ const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
 
 /* ── Helpers ── */
 function cleanEmail(e) { return (e||'').toLowerCase().trim(); }
-function cleanPhone(p) { return (p||'').replace(/\s+/g,'').trim(); }
+function cleanPhone(p) { return (p||'').replace(/[\s\-().]/g,'').trim(); }
+
+function isValidPhone(p) {
+  const c = cleanPhone(p);
+  /* International format: starts with + then 7–15 digits */
+  return /^\+[1-9]\d{6,14}$/.test(c);
+}
+
+function isValidEmail(e) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(cleanEmail(e));
+}
 
 /* Check for any existing field that would cause a duplicate */
 async function checkDuplicates(email, phone) {
@@ -68,45 +78,81 @@ module.exports = async function authRoutes(fastify) {
 
   /* POST /api/trustid/auth/request-otp — step 1 of registration */
   fastify.post('/request-otp', async (req, reply) => {
-    const { firstName, middleName, lastName, email: rawEmail, phone, password } = req.body || {};
-    const addr = cleanEmail(rawEmail);
+    const { firstName, middleName, lastName, email: rawEmail, phone: rawPhone, password } = req.body || {};
+    const addr  = cleanEmail(rawEmail);
+    const phone = cleanPhone(rawPhone || '');
 
+    /* ── Input validation ── */
     if (!firstName || !firstName.trim())
       return reply.code(400).send({ success:false, field:'firstName', message:'First name is required' });
-    if (!addr)
-      return reply.code(400).send({ success:false, field:'email', message:'Email address is required' });
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(addr))
-      return reply.code(400).send({ success:false, field:'email', message:'Please enter a valid email address' });
+    if (!addr || !isValidEmail(addr))
+      return reply.code(400).send({ success:false, field:'email', message:'Enter a valid email address (e.g. ali.baba@gmail.com)' });
     if (!password || password.length < 8)
       return reply.code(400).send({ success:false, field:'password', message:'Password must be at least 8 characters' });
 
+    /* Phone is optional but if provided must be valid international format */
+    if (phone && !isValidPhone(phone))
+      return reply.code(400).send({ success:false, field:'phone', message:'Enter phone in international format: +233241234567' });
+
+    /* Duplicate check */
     const dup = await checkDuplicates(addr, phone);
     if (dup) return reply.code(409).send({ success:false, ...dup });
 
-    const code = otp.generate(addr, { firstName, middleName:middleName||'', lastName:lastName||'', email:addr, phone:phone||'', password });
+    /* Generate OTP — ONE code sent to both channels */
+    const code = otp.generate(addr, { firstName:firstName.trim(), middleName:middleName||'', lastName:lastName||'', email:addr, phone, password });
 
-    const emailConfigured = !!(process.env.SMTP_USER && process.env.SMTP_PASS);
+    /* ── Try all channels in parallel ── */
+    const emailConfigured = !!(process.env.SMTP_USER && process.env.SMTP_PASS) || !!(process.env.RESEND_API_KEY);
+    const smsConfigured   = !!(process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_FROM_PHONE);
+
+    let emailSent = false, smsSent = false, emailError = null, smsError = null;
+
+    const tasks = [];
 
     if (emailConfigured) {
-      try {
-        await email.sendOTP(addr, firstName, code);
-        return { success:true, message:'Verification code sent to '+addr, emailSent:true };
-      } catch (emailErr) {
-        /* Email send failed (bad credentials, network, etc.) — fall back to on-screen code */
-        console.error('[OTP] Email send failed:', emailErr.message);
-        console.log(`[OTP] Fallback code for ${addr} → ${code}`);
-        return {
-          success: true,
-          emailSent: false,
-          devCode: code,
-          message: 'Email delivery failed (' + emailErr.message.slice(0, 80) + '). Use the code shown on screen instead.',
-        };
-      }
-    } else {
-      /* No SMTP configured — return code directly */
-      console.log(`[OTP] ${addr} → ${code}`);
-      return { success:true, message:'Email not configured. Use the code shown on screen.', emailSent:false, devCode:code };
+      tasks.push(
+        email.sendOTP(addr, firstName, code)
+          .then(()  => { emailSent = true; })
+          .catch(e  => { emailError = e.message.slice(0, 100); console.error('[OTP-email]', e.message); })
+      );
     }
+
+    if (phone && smsConfigured) {
+      tasks.push(
+        sms.sendOTP(phone, firstName, code)
+          .then(()  => { smsSent = true; })
+          .catch(e  => { smsError = e.message.slice(0, 100); console.error('[OTP-sms]', e.message); })
+      );
+    }
+
+    if (tasks.length) await Promise.allSettled(tasks);
+
+    /* If nothing was delivered, return code on screen */
+    const anyDelivered = emailSent || smsSent;
+    if (!anyDelivered) {
+      console.log(`[OTP-fallback] ${addr}/${phone} → ${code}`);
+    }
+
+    /* Build human-readable delivery summary */
+    const channels = [];
+    if (emailSent) channels.push('📧 '+addr);
+    if (smsSent)   channels.push('📱 '+phone);
+
+    return {
+      success:       true,
+      emailSent,
+      smsSent,
+      anyDelivered,
+      devCode:       anyDelivered ? undefined : code,   /* only show on screen if both failed */
+      channels,
+      message: anyDelivered
+        ? 'Verification code sent to: ' + channels.join(' & ')
+        : (emailError || smsError)
+          ? 'Delivery failed — use the code shown on screen.'
+          : 'OTP not configured — use the code shown on screen.',
+      _emailError: emailError,
+      _smsError:   smsError,
+    };
   });
 
   /* POST /api/trustid/auth/verify-otp — step 2: verify and create account */

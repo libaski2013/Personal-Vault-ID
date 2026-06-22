@@ -121,8 +121,9 @@
         <input type="email" id="email" placeholder="ali.baba@example.com" autocomplete="email">
       </div>
       <div class="field">
-        <label>Phone Number</label>
-        <input type="tel" id="phone" placeholder="+233241234567" autocomplete="tel">
+        <label>Phone Number <span style="font-weight:400;color:#94A3B8;font-size:11px">(optional — OTP will also be sent here)</span></label>
+        <input type="tel" id="phone" placeholder="+233241234567" autocomplete="tel" oninput="validatePhoneLive(this)">
+        <div id="phoneHint" style="font-size:11px;margin-top:4px;display:none"></div>
       </div>
       <div class="grid-2">
         <div class="field">
@@ -146,8 +147,9 @@
     <!-- STEP 2: OTP verification -->
     <div id="step2" style="display:none">
       <a href="#" class="back-link" onclick="goBack();return false">← Back</a>
-      <h1>Verify Your Email</h1>
-      <p class="sub" id="otpSub">Enter the 6-digit code we sent to your email</p>
+      <h1 id="otpHeading">Verify Your Account</h1>
+      <p class="sub" id="otpSub">Enter the 6-digit code we sent to you</p>
+      <div id="otpChannels" style="display:none;margin-bottom:14px;padding:10px 14px;border-radius:10px;background:#22C55E12;border:1px solid #22C55E30;font-size:12px;color:#15803D;line-height:1.6"></div>
 
       <div class="step-indicator">
         <div><div class="step done" id="s1dot2">✓</div><div class="step-label">Details</div></div>
@@ -208,6 +210,23 @@
 
   var _email='', _firstName='';
 
+  /* Live phone validation */
+  function validatePhoneLive(inp){
+    var val = inp.value.trim();
+    var hint = document.getElementById('phoneHint');
+    if(!val){ hint.style.display='none'; return; }
+    hint.style.display='block';
+    if(/^\+[1-9]\d{6,14}$/.test(val.replace(/[\s\-().]/g,''))){
+      hint.style.color='#22C55E'; hint.textContent='✅ Valid format';
+    } else if(val.length>0 && !val.startsWith('+')){
+      hint.style.color='#F97316'; hint.textContent='⚠️ Must start with + and country code (e.g. +233...)';
+    } else if(val.length < 8){
+      hint.style.color='#94A3B8'; hint.textContent='Keep typing…';
+    } else {
+      hint.style.color='#EF4444'; hint.textContent='❌ Invalid format — use +countrycode+number (e.g. +233241234567)';
+    }
+  }
+
   function showErr(id, msg){ var el=document.getElementById(id); el.innerHTML=msg; el.style.display='block'; }
   function hideErr(id){ document.getElementById(id).style.display='none'; }
   function setLoading(btnId, spId, txtId, loading, label){
@@ -226,7 +245,13 @@
     hideErr('err1');
     /* Client-side validation */
     if(!firstName){ showErr('err1','First name is required.'); document.getElementById('firstName').focus(); return; }
-    if(!email||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ showErr('err1','Enter a valid email address.'); document.getElementById('email').focus(); return; }
+    if(!email||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ showErr('err1','Enter a valid email address (e.g. ali.baba@gmail.com).'); document.getElementById('email').focus(); return; }
+    /* Phone optional but if filled must be valid */
+    var phoneRaw=document.getElementById('phone')?document.getElementById('phone').value.trim():'';
+    if(phoneRaw&&!/^\+[1-9]\d{6,14}$/.test(phoneRaw.replace(/[\s\-().]/g,''))){
+      showErr('err1','Phone number format is invalid. Use international format: +233241234567 (start with + and country code).');
+      document.getElementById('phone').focus(); return;
+    }
     if(!password){ showErr('err1','Password is required.'); return; }
     if(password.length<8){ showErr('err1','Password must be at least 8 characters.'); return; }
     if(password!==confirm){ showErr('err1','Passwords do not match — re-enter them.'); return; }
@@ -237,34 +262,51 @@
       var res=await fetch('/api/trustid/auth/request-otp',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({firstName,middleName,lastName,email,phone,password})});
       var data=await res.json();
       if(data.success){
-        if(data.emailSent){
-          /* Email was sent — go to OTP step */
-          _email=email; _firstName=firstName;
+        _email=email; _firstName=firstName;
+
+        if(data.anyDelivered){
+          /* OTP delivered to email and/or phone — show which channels */
           document.getElementById('step1').style.display='none';
           document.getElementById('step2').style.display='block';
-          document.getElementById('otpSub').textContent='We sent a 6-digit code to '+email;
           document.getElementById('devCodeBox').style.display='none';
+
+          /* Update heading based on channels */
+          var ch = data.channels||[];
+          document.getElementById('otpHeading').textContent='Verify Your Account';
+          document.getElementById('otpSub').textContent='Enter the 6-digit code we sent you';
+          var chDiv=document.getElementById('otpChannels');
+          chDiv.style.display='block';
+          var chHtml='✅ Code sent to:<br>';
+          if(data.emailSent) chHtml+='📧 <strong>'+email+'</strong><br>';
+          if(data.smsSent)   chHtml+='📱 <strong>'+( document.getElementById('phone').value.trim()|| phone)+'</strong><br>';
+          if(data._emailError&&!data.emailSent) chHtml+='⚠️ Email failed: '+data._emailError+'<br>';
+          if(data._smsError&&!data.smsSent)     chHtml+='⚠️ SMS failed: '+data._smsError+'<br>';
+          chDiv.innerHTML=chHtml;
           document.querySelector('.otp-digit').focus();
+
         } else {
-          /* No email configured — register directly using the code returned */
-          var code=data.devCode||'';
-          var vRes=await fetch('/api/trustid/auth/verify-otp',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,code})});
-          var vData=await vRes.json();
-          if(vData.success&&vData.token){
-            localStorage.setItem('tid_token',vData.token);
-            localStorage.setItem('tid_user',JSON.stringify(vData.user));
-            document.getElementById('step1').style.display='none';
-            document.getElementById('step3').style.display='block';
-          } else {
-            /* Fallback: show OTP step with code on screen */
-            _email=email; _firstName=firstName;
-            document.getElementById('step1').style.display='none';
-            document.getElementById('step2').style.display='block';
-            document.getElementById('otpSub').textContent='Use the code below to complete registration:';
-            document.getElementById('devCodeBox').style.display='block';
-            document.getElementById('devCode').textContent=code;
-            if(code){ var digs=document.querySelectorAll('.otp-digit'); String(code).split('').forEach(function(c,i){if(digs[i])digs[i].value=c;}); }
-            document.querySelector('.otp-digit').focus();
+          /* Nothing delivered — show code on screen and auto-fill */
+          var fallbackCode=data.devCode||'';
+          if(fallbackCode){
+            /* Auto-verify silently */
+            var vRes=await fetch('/api/trustid/auth/verify-otp',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,code:fallbackCode})});
+            var vData=await vRes.json();
+            if(vData.success&&vData.token){
+              localStorage.setItem('tid_token',vData.token);
+              localStorage.setItem('tid_user',JSON.stringify(vData.user));
+              document.getElementById('step1').style.display='none';
+              document.getElementById('step3').style.display='block';
+            } else {
+              /* Show fallback code on screen */
+              document.getElementById('step1').style.display='none';
+              document.getElementById('step2').style.display='block';
+              document.getElementById('devCodeBox').style.display='block';
+              document.getElementById('devCode').textContent=fallbackCode;
+              document.getElementById('otpSub').textContent='No email/SMS configured — use this code:';
+              var digs=document.querySelectorAll('.otp-digit');
+              String(fallbackCode).split('').forEach(function(c,i){if(digs[i])digs[i].value=c;});
+              document.querySelector('.otp-digit').focus();
+            }
           }
         }
       } else {
