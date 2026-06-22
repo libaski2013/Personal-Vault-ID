@@ -111,6 +111,23 @@ const todoSchema = new Schema({
   category: { type: String, default: 'General' },
 }, { timestamps: true });
 
+/* ── Chat ── */
+const conversationSchema = new Schema({
+  participants:  [{ type: OID, ref: 'pvusers' }],
+  lastMessage:   { type: String, default: '' },
+  lastSenderId:  { type: OID, ref: 'pvusers' },
+  lastActivity:  { type: Date, default: Date.now },
+  unreadCounts:  { type: Map, of: Number, default: {} },   /* userId → count */
+}, { timestamps: true });
+
+const messageSchema = new Schema({
+  conversationId: { type: OID, ref: 'pvconversations', required: true },
+  from:  { type: OID, ref: 'pvusers', required: true },
+  to:    { type: OID, ref: 'pvusers', required: true },
+  text:  { type: String, required: true, trim: true },
+  read:  { type: Boolean, default: false },
+}, { timestamps: true });
+
 /* ── Digital Legacy (Dead Man's Switch) ── */
 const legacySchema = new Schema({
   userId:         { type: OID, ref: 'pvusers', required: true, unique: true },
@@ -172,8 +189,10 @@ const anonChatSchema = new Schema({
 }, { timestamps: true });
 
 module.exports = {
-  User:      mongoose.model('pvusers',     userSchema),
-  ShareCard: mongoose.model('pvsharecards', shareSchema),
+  User:         mongoose.model('pvusers',         userSchema),
+  Conversation: mongoose.model('pvconversations', conversationSchema),
+  Message:      mongoose.model('pvmessages',      messageSchema),
+  ShareCard:    mongoose.model('pvsharecards',    shareSchema),
   SocialSession: mongoose.model('pvsocialsessions', socialSessionSchema),
   AnonChat:  mongoose.model('pvanonchats', anonChatSchema),
   Document:  mongoose.model('pvdocuments', documentSchema),
