@@ -192,5 +192,107 @@ var Layout = (function () {
     return '<img src="https://api.qrserver.com/v1/create-qr-code/?size='+size+'x'+size+'&data='+encodeURIComponent(text)+'" alt="QR Code" style="border-radius:12px;width:'+size+'px;height:'+size+'px">';
   }
 
-  return { init, toggle, fmtDate, fmtShort, badge, tlN, tlColor, statCard, spinner, toast, qrImg };
+  /* ── Auto-logout after 5 minutes of inactivity ── */
+  function startInactivityTimer() {
+    var TIMEOUT_MS  = 5 * 60 * 1000;   /* 5 minutes total */
+    var WARN_MS     = 4 * 60 * 1000;   /* show warning after 4 min (1 min left) */
+    var logoutTimer = null;
+    var warnTimer   = null;
+    var warnEl      = null;
+    var countdown   = null;
+    var secsLeft    = 60;
+
+    function createWarning() {
+      if (warnEl) return;
+      warnEl = document.createElement('div');
+      warnEl.id = 'inactivity-warn';
+      warnEl.style.cssText =
+        'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:9999;'
+        +'background:#1E1B4B;color:#fff;border-radius:16px;padding:18px 24px;'
+        +'box-shadow:0 8px 32px rgba(0,0,0,0.3);display:flex;align-items:center;gap:14px;'
+        +'min-width:320px;border:1px solid rgba(255,255,255,0.12);animation:slideUp 0.3s ease';
+      warnEl.innerHTML =
+        '<span style="font-size:24px">⏱️</span>'
+        +'<div style="flex:1">'
+        +  '<div style="font-weight:700;font-size:14px;margin-bottom:2px">Session expiring soon</div>'
+        +  '<div style="font-size:12px;opacity:0.7">You will be logged out in <strong id="iact-secs">60</strong>s due to inactivity</div>'
+        +'</div>'
+        +'<button onclick="Layout.resetInactivity()" style="background:linear-gradient(135deg,#7C3AED,#8B5CF6);border:none;color:#fff;padding:8px 16px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap">'
+        +'Stay logged in'
+        +'</button>';
+      document.body.appendChild(warnEl);
+
+      /* Countdown every second */
+      secsLeft = 60;
+      countdown = setInterval(function() {
+        secsLeft--;
+        var el = document.getElementById('iact-secs');
+        if (el) el.textContent = secsLeft;
+        if (secsLeft <= 0) clearInterval(countdown);
+      }, 1000);
+    }
+
+    function removeWarning() {
+      if (warnEl) { warnEl.remove(); warnEl = null; }
+      if (countdown) { clearInterval(countdown); countdown = null; }
+      secsLeft = 60;
+    }
+
+    function scheduleLogout() {
+      clearTimeout(logoutTimer);
+      clearTimeout(warnTimer);
+      removeWarning();
+
+      warnTimer   = setTimeout(createWarning,  WARN_MS);
+      logoutTimer = setTimeout(function() {
+        removeWarning();
+        /* Save current path so user can return after login */
+        sessionStorage.setItem('pv_return', window.location.pathname + window.location.search);
+        Auth.logout();
+      }, TIMEOUT_MS);
+    }
+
+    /* Public reset — called from "Stay logged in" button */
+    function reset() {
+      scheduleLogout();
+    }
+
+    /* Listen for any user activity */
+    var EVENTS = ['mousemove','mousedown','keydown','touchstart','scroll','click','wheel'];
+    var throttled = false;
+    EVENTS.forEach(function(ev) {
+      document.addEventListener(ev, function() {
+        if (throttled) return;
+        throttled = true;
+        setTimeout(function() { throttled = false; }, 10000); /* throttle resets to every 10s */
+        scheduleLogout();
+      }, { passive: true });
+    });
+
+    scheduleLogout(); /* start timer immediately */
+    return { reset: reset };
+  }
+
+  var _inactivity = null;
+
+  return {
+    init,
+    toggle,
+    fmtDate, fmtShort,
+    badge, tlN, tlColor,
+    statCard, spinner, toast, qrImg,
+    resetInactivity: function() { if (_inactivity) _inactivity.reset(); },
+    _startInactivity: function() { _inactivity = startInactivityTimer(); },
+  };
+})();
+
+/* Start inactivity timer as soon as layout.js loads (only on authenticated pages) */
+(function() {
+  /* Only run if user has a valid session token */
+  try {
+    if (localStorage.getItem('tid_token')) {
+      /* Small delay so Auth + Layout are fully initialised */
+      setTimeout(function() { Layout._startInactivity(); }, 500);
+    }
+  } catch(e) {}
 })();
