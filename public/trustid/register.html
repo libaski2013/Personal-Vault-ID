@@ -208,7 +208,7 @@
 
   var _email='', _firstName='';
 
-  function showErr(id, msg){ var el=document.getElementById(id); el.textContent=msg; el.style.display='block'; }
+  function showErr(id, msg){ var el=document.getElementById(id); el.innerHTML=msg; el.style.display='block'; }
   function hideErr(id){ document.getElementById(id).style.display='none'; }
   function setLoading(btnId, spId, txtId, loading, label){
     var btn=document.getElementById(btnId), sp=document.getElementById(spId), txt=document.getElementById(txtId);
@@ -224,9 +224,12 @@
     var password=document.getElementById('password').value;
     var confirm=document.getElementById('confirm').value;
     hideErr('err1');
-    if(!firstName||!email||!password){showErr('err1','First name, email and password are required.');return;}
-    if(password!==confirm){showErr('err1','Passwords do not match.');return;}
-    if(password.length<8){showErr('err1','Password must be at least 8 characters.');return;}
+    /* Client-side validation */
+    if(!firstName){ showErr('err1','First name is required.'); document.getElementById('firstName').focus(); return; }
+    if(!email||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ showErr('err1','Enter a valid email address.'); document.getElementById('email').focus(); return; }
+    if(!password){ showErr('err1','Password is required.'); return; }
+    if(password.length<8){ showErr('err1','Password must be at least 8 characters.'); return; }
+    if(password!==confirm){ showErr('err1','Passwords do not match — re-enter them.'); return; }
     setLoading('btn1','sp1','bt1',true,'Creating account…');
     try{
       /* Try request-otp first to check if email is configured */
@@ -264,7 +267,16 @@
             document.querySelector('.otp-digit').focus();
           }
         }
-      } else showErr('err1',data.message||'Failed. Try again.');
+      } else {
+        var msg = data.message||'Registration failed. Please try again.';
+        /* If duplicate email, offer sign-in link */
+        if(data.field==='email'||msg.toLowerCase().includes('email')){
+          msg += ' <a href="./login.html" style="color:#7C3AED;font-weight:700">Sign in instead →</a>';
+        }
+        showErr('err1',msg);
+        /* Focus the offending field if we know which one */
+        if(data.field){ var f=document.getElementById(data.field); if(f) f.focus(); }
+      }
     }catch(e){showErr('err1','Network error. Please try again.');}
     setLoading('btn1','sp1','bt1',false,'Create Account →');
   }

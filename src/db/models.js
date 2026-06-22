@@ -8,7 +8,7 @@ const userSchema = new Schema({
   firstName:    { type: String, required: true, trim: true },
   middleName:   { type: String, default: '', trim: true },
   lastName:     { type: String, default: '', trim: true },
-  email:        { type: String, required: true, unique: true, lowercase: true, trim: true },
+  email:        { type: String, required: true, unique: true, lowercase: true, trim: true, index: true },
   phone:        { type: String, default: '', trim: true },
   profilePhoto: { type: String, default: '' },
   passwordHash: { type: String, required: true },
@@ -19,6 +19,7 @@ const userSchema = new Schema({
     score: { type: Number, default: 100 }, status: { type: String, default: 'active' },
     issuedAt: { type: Date, default: Date.now },
   },
+  phone:        { type: String, default: '', trim: true, sparse: true },
   vaultPinHash: { type: String, default: null },
   homeAddress: {
     label: String, street: String, city: String, state: String,

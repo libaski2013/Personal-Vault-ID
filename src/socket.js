@@ -39,8 +39,8 @@ module.exports = function attachSocket(httpServer, jwtDecode) {
       let dist = null;
       if (lat != null && lng != null && d.lat != null && d.lng != null)
         dist = haversineM(lat, lng, d.lat, d.lng);
-      if (sameNet || (dist !== null && dist <= 150)) {
-        nearby.push({ uid:id, name:d.name, ini:d.ini, sameNetwork:sameNet, distanceM: dist ? Math.round(dist) : null });
+      if (sameNet || (dist !== null && dist <= 5000)) {   /* 5 km radius */
+        nearby.push({ uid:id, name:d.name, ini:d.ini, sameNetwork:sameNet, distanceM: dist ? Math.round(dist) : null, distanceKm: dist ? (dist/1000).toFixed(1) : null });
       }
     }
     return nearby;

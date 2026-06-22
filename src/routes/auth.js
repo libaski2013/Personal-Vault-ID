@@ -7,6 +7,46 @@ const sms     = require('../services/sms');
 
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
 
+/* ── Helpers ── */
+function cleanEmail(e) { return (e||'').toLowerCase().trim(); }
+function cleanPhone(p) { return (p||'').replace(/\s+/g,'').trim(); }
+
+/* Check for any existing field that would cause a duplicate */
+async function checkDuplicates(email, phone) {
+  const normEmail = cleanEmail(email);
+  if (!normEmail) return { field:'email', message:'Email address is required' };
+
+  const byEmail = await User.findOne({ email: normEmail });
+  if (byEmail) return { field:'email', message:'An account with this email address already exists. Please sign in instead.' };
+
+  if (phone && cleanPhone(phone).length >= 7) {
+    const byPhone = await User.findOne({ phone: cleanPhone(phone) });
+    if (byPhone) return { field:'phone', message:'This phone number is already linked to another account.' };
+  }
+  return null;
+}
+
+/* Generate a unique TrustID with retry */
+async function genTrustId() {
+  let id, tries = 0;
+  do {
+    id = 'TID-'+new Date().getFullYear()+'-'+Math.random().toString(36).slice(2,6).toUpperCase()+'-'+Math.random().toString(36).slice(2,6).toUpperCase();
+    tries++;
+  } while (tries < 5 && await User.findOne({ 'trustId.id': id }));
+  return id;
+}
+
+/* Friendly message for MongoDB duplicate-key errors (race condition safety net) */
+function friendlyDupError(err) {
+  if (err.code === 11000 || err.code === 11001) {
+    const key = Object.keys(err.keyPattern || {})[0] || '';
+    if (key.includes('email')) return 'This email is already registered. Please sign in.';
+    if (key.includes('phone')) return 'This phone number is already in use.';
+    return 'This account already exists. Please sign in.';
+  }
+  return null;
+}
+
 module.exports = async function authRoutes(fastify) {
 
   /* POST /api/trustid/auth/login */
@@ -28,14 +68,20 @@ module.exports = async function authRoutes(fastify) {
 
   /* POST /api/trustid/auth/request-otp — step 1 of registration */
   fastify.post('/request-otp', async (req, reply) => {
-    const { firstName, middleName, lastName, email: addr, phone, password } = req.body || {};
+    const { firstName, middleName, lastName, email: rawEmail, phone, password } = req.body || {};
+    const addr = cleanEmail(rawEmail);
 
-    if (!firstName || !addr || !password)
-      return reply.code(400).send({ success:false, message:'First name, email and password are required' });
-    if (password.length < 8)
-      return reply.code(400).send({ success:false, message:'Password must be at least 8 characters' });
-    if (await User.findOne({ email: addr }))
-      return reply.code(409).send({ success:false, message:'An account with this email already exists' });
+    if (!firstName || !firstName.trim())
+      return reply.code(400).send({ success:false, field:'firstName', message:'First name is required' });
+    if (!addr)
+      return reply.code(400).send({ success:false, field:'email', message:'Email address is required' });
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(addr))
+      return reply.code(400).send({ success:false, field:'email', message:'Please enter a valid email address' });
+    if (!password || password.length < 8)
+      return reply.code(400).send({ success:false, field:'password', message:'Password must be at least 8 characters' });
+
+    const dup = await checkDuplicates(addr, phone);
+    if (dup) return reply.code(409).send({ success:false, ...dup });
 
     const code = otp.generate(addr, { firstName, middleName:middleName||'', lastName:lastName||'', email:addr, phone:phone||'', password });
 
@@ -65,47 +111,74 @@ module.exports = async function authRoutes(fastify) {
 
   /* POST /api/trustid/auth/verify-otp — step 2: verify and create account */
   fastify.post('/verify-otp', async (req, reply) => {
-    const { email: addr, code } = req.body || {};
+    const { email: rawEmail, code } = req.body || {};
+    const addr = cleanEmail(rawEmail);
     if (!addr || !code)
-      return reply.code(400).send({ success:false, message:'Email and code required' });
+      return reply.code(400).send({ success:false, message:'Email and verification code required' });
 
     const data = otp.verify(addr, code);
     if (!data)
-      return reply.code(400).send({ success:false, message:'Invalid or expired verification code' });
+      return reply.code(400).send({ success:false, message:'Incorrect or expired verification code. Request a new one.' });
 
-    if (await User.findOne({ email: addr }))
-      return reply.code(409).send({ success:false, message:'Account already exists' });
+    /* Final duplicate check (race condition guard) */
+    const dup = await checkDuplicates(addr, data.phone);
+    if (dup) return reply.code(409).send({ success:false, ...dup });
 
-    const passwordHash = await bcrypt.hash(data.password, 12);
-    const tid = 'TID-'+new Date().getFullYear()+'-'+Math.random().toString(36).slice(2,6).toUpperCase()+'-'+Math.random().toString(36).slice(2,6).toUpperCase();
-    const user = await User.create({
-      firstName:data.firstName, middleName:data.middleName||'', lastName:data.lastName||'',
-      email:addr, phone:data.phone||'', passwordHash,
-      trustId:{ id:tid, level:1, score:100, status:'active', issuedAt:new Date() },
-    });
-
-    const token = fastify.jwt.sign({ userId:user._id, role:user.role }, { expiresIn:JWT_EXPIRES_IN });
-    return reply.code(201).send({ success:true, token, user:user.safeUser() });
+    try {
+      const passwordHash = await bcrypt.hash(data.password, 12);
+      const tid  = await genTrustId();
+      const user = await User.create({
+        firstName: data.firstName.trim(),
+        middleName:(data.middleName||'').trim(),
+        lastName:  (data.lastName||'').trim(),
+        email:     addr,
+        phone:     cleanPhone(data.phone||''),
+        passwordHash,
+        trustId:{ id:tid, level:1, score:100, status:'active', issuedAt:new Date() },
+      });
+      const token = fastify.jwt.sign({ userId:user._id, role:user.role }, { expiresIn:JWT_EXPIRES_IN });
+      return reply.code(201).send({ success:true, token, user:user.safeUser() });
+    } catch (err) {
+      const friendly = friendlyDupError(err);
+      if (friendly) return reply.code(409).send({ success:false, message:friendly });
+      throw err;
+    }
   });
 
-  /* POST /api/trustid/auth/register — direct registration (no OTP, used as fallback) */
+  /* POST /api/trustid/auth/register — direct registration (no OTP, fallback) */
   fastify.post('/register', async (req, reply) => {
-    const { firstName, middleName, lastName, email: addr, password } = req.body || {};
-    if (!firstName || !addr || !password)
-      return reply.code(400).send({ success:false, message:'First name, email and password are required' });
-    if (password.length < 8)
-      return reply.code(400).send({ success:false, message:'Password must be at least 8 characters' });
-    if (await User.findOne({ email: addr }))
-      return reply.code(409).send({ success:false, message:'An account with this email already exists' });
+    const { firstName, middleName, lastName, email: rawEmail, phone, password } = req.body || {};
+    const addr = cleanEmail(rawEmail);
 
-    const passwordHash = await bcrypt.hash(password, 12);
-    const tid = 'TID-'+new Date().getFullYear()+'-'+Math.random().toString(36).slice(2,6).toUpperCase()+'-'+Math.random().toString(36).slice(2,6).toUpperCase();
-    const user = await User.create({
-      firstName, middleName:middleName||'', lastName:lastName||'', email:addr, passwordHash,
-      trustId:{ id:tid, level:1, score:100, status:'active', issuedAt:new Date() },
-    });
-    const token = fastify.jwt.sign({ userId:user._id, role:user.role }, { expiresIn:JWT_EXPIRES_IN });
-    return reply.code(201).send({ success:true, token, user:user.safeUser() });
+    if (!firstName || !firstName.trim())
+      return reply.code(400).send({ success:false, field:'firstName', message:'First name is required' });
+    if (!addr || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(addr))
+      return reply.code(400).send({ success:false, field:'email', message:'A valid email address is required' });
+    if (!password || password.length < 8)
+      return reply.code(400).send({ success:false, field:'password', message:'Password must be at least 8 characters' });
+
+    const dup = await checkDuplicates(addr, phone);
+    if (dup) return reply.code(409).send({ success:false, ...dup });
+
+    try {
+      const passwordHash = await bcrypt.hash(password, 12);
+      const tid  = await genTrustId();
+      const user = await User.create({
+        firstName: firstName.trim(),
+        middleName:(middleName||'').trim(),
+        lastName:  (lastName||'').trim(),
+        email:     addr,
+        phone:     cleanPhone(phone||''),
+        passwordHash,
+        trustId:{ id:tid, level:1, score:100, status:'active', issuedAt:new Date() },
+      });
+      const token = fastify.jwt.sign({ userId:user._id, role:user.role }, { expiresIn:JWT_EXPIRES_IN });
+      return reply.code(201).send({ success:true, token, user:user.safeUser() });
+    } catch (err) {
+      const friendly = friendlyDupError(err);
+      if (friendly) return reply.code(409).send({ success:false, message:friendly });
+      throw err;
+    }
   });
 
   /* POST /api/trustid/auth/seed-admin */
