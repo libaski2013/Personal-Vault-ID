@@ -1,7 +1,7 @@
 require('dotenv').config();
 const path    = require('path');
 const Fastify = require('fastify');
-const { Server } = require('socket.io');
+const attachSocket = require('./socket');
 const connectDB = require('./db/mongoose');
 
 const PORT         = parseInt(process.env.PORT || '5000', 10);
@@ -89,97 +89,8 @@ const start = async () => {
   await fastify.listen({ port:PORT, host:'0.0.0.0' });
   console.log(`Personal Vault running on port ${PORT} [${NODE_ENV}]`);
 
-  /* ── Socket.io — attach after HTTP server is ready ── */
-  const io = new Server(fastify.server, {
-    cors: { origin:'*', methods:['GET','POST'] },
-    transports: ['websocket', 'polling'],
-    pingTimeout:  20000,
-    pingInterval: 10000,
-  });
-
-  /* Online users map: userId → socketId */
-  const online = new Map();
-
-  io.on('connection', (socket) => {
-
-    /* User identifies themselves with their JWT token */
-    socket.on('chat:join', async (token) => {
-      try {
-        const payload = fastify.jwt.decode(token);
-        if (!payload || !payload.userId) return;
-        const userId = String(payload.userId);
-        socket.data.userId = userId;
-        socket.join('user:' + userId);
-        online.set(userId, socket.id);
-        /* Tell everyone this user is online */
-        io.emit('chat:online', { userId, online: true });
-        console.log('[socket] user joined:', userId);
-      } catch (e) { console.error('[socket] join error:', e.message); }
-    });
-
-    /* Send a message */
-    socket.on('chat:send', async ({ conversationId, to, text }) => {
-      try {
-        const fromId = socket.data.userId;
-        if (!fromId || !text || !text.trim()) return;
-
-        const { Conversation, Message } = require('./db/models');
-
-        /* Save message to DB */
-        const msg = await Message.create({
-          conversationId, from: fromId, to, text: text.trim(),
-        });
-
-        /* Update conversation metadata */
-        const incKey = `unreadCounts.${to}`;
-        const upd = { lastMessage: text.trim(), lastSenderId: fromId, lastActivity: new Date() };
-        upd[incKey] = 1;   /* will use $inc below */
-        await Conversation.findByIdAndUpdate(conversationId, {
-          $set: { lastMessage: text.trim(), lastSenderId: fromId, lastActivity: new Date() },
-          $inc: { [incKey]: 1 },
-        });
-
-        const outMsg = { ...msg.toObject(), _id: msg._id.toString() };
-
-        /* Deliver to recipient instantly */
-        io.to('user:' + to).emit('chat:message', outMsg);
-        /* Echo back to sender (confirmation) */
-        socket.emit('chat:message:sent', outMsg);
-
-      } catch (e) { console.error('[socket] send error:', e.message); }
-    });
-
-    /* Typing indicator */
-    socket.on('chat:typing', ({ to, conversationId }) => {
-      io.to('user:' + to).emit('chat:typing', {
-        from: socket.data.userId, conversationId, ts: Date.now(),
-      });
-    });
-
-    /* Mark read */
-    socket.on('chat:read', async ({ conversationId, from }) => {
-      try {
-        const uid = socket.data.userId;
-        const { Message, Conversation } = require('./db/models');
-        await Message.updateMany({ conversationId, to: uid, read:false }, { $set:{ read:true } });
-        const key = `unreadCounts.${uid}`;
-        await Conversation.findByIdAndUpdate(conversationId, { $set:{ [key]: 0 } });
-        /* Notify sender that messages were read */
-        io.to('user:' + from).emit('chat:read', { conversationId, by: uid });
-      } catch {}
-    });
-
-    socket.on('disconnect', () => {
-      const uid = socket.data.userId;
-      if (uid) {
-        online.delete(uid);
-        io.emit('chat:online', { userId: uid, online: false });
-      }
-    });
-  });
-
-  /* Expose io globally for routes if needed */
-  global._pvIo = io;
+  /* ── Socket.io — ephemeral real-time chat ── */
+  attachSocket(fastify.server, (token) => fastify.jwt.decode(token));
 
   /* Connect DB */
   connectDB().catch(err => {
