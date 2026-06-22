@@ -146,11 +146,94 @@ Promise.all([Api.getAdminStats(), Api.getAllDocs()]).then(function(results) {
     +   (docs.length === 0 ? '<div class="empty">No documents yet</div>' : recentHTML)
     + '</div>'
 
+    + '</div>'
+
+    /* ── System Control Panel ── */
+    + '<div style="margin-top:28px;background:linear-gradient(135deg,#0F0E2A,#1E1B4B);border-radius:20px;padding:28px;color:#fff">'
+    +   '<div style="display:flex;align-items:center;gap:12px;margin-bottom:6px">'
+    +     '<span style="font-size:24px">⚙️</span>'
+    +     '<h3 style="font-size:16px;font-weight:900">System Control Panel</h3>'
+    +     '<span style="font-size:11px;background:#F9731618;color:#F97316;padding:3px 10px;border-radius:100px;font-weight:700;border:1px solid #F9731640">ADMIN ONLY</span>'
+    +   '</div>'
+    +   '<p style="font-size:13px;color:rgba(255,255,255,0.55);margin-bottom:24px">Use these controls to manage the system. Actions here are irreversible.</p>'
+    +   '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">'
+
+    /* Change admin password */
+    +   '<div style="background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:14px;padding:18px">'
+    +     '<div style="font-size:18px;margin-bottom:8px">🔑</div>'
+    +     '<div style="font-weight:700;margin-bottom:4px">Change Admin Password</div>'
+    +     '<div style="font-size:12px;color:rgba(255,255,255,0.5);margin-bottom:14px">Update your super admin password from the default</div>'
+    +     '<a href="../settings.html" style="display:inline-block;padding:8px 16px;border-radius:10px;background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.25);color:#fff;font-size:13px;font-weight:600;text-decoration:none">Go to Settings →</a>'
+    +   '</div>'
+
+    /* Clear test data */
+    +   '<div style="background:#EF444410;border:1px solid #EF444430;border-radius:14px;padding:18px">'
+    +     '<div style="font-size:18px;margin-bottom:8px">🗑️</div>'
+    +     '<div style="font-weight:700;margin-bottom:4px;color:#fff">Clear All Test Data</div>'
+    +     '<div style="font-size:12px;color:rgba(255,255,255,0.5);margin-bottom:14px" id="clearSubText">Permanently delete all test users and their data. Admin accounts are kept.</div>'
+    +     '<button onclick="previewClear()" style="padding:8px 16px;border-radius:10px;background:#EF4444;border:none;color:#fff;font-size:13px;font-weight:700;cursor:pointer" id="clearBtn">🗑 Review &amp; Clear</button>'
+    +   '</div>'
+
+    +   '</div>'
     + '</div>';
 
 }).catch(function() {
   document.getElementById('content').innerHTML = '<div class="empty">Failed to load admin data. Please refresh.</div>';
 });
+
+/* ── Clear test data flow ── */
+async function previewClear() {
+  var btn = document.getElementById('clearBtn');
+  btn.textContent = 'Loading…';
+  btn.disabled = true;
+
+  var res = await fetch('../api/trustid/admin/data-counts', { headers:{ Authorization:'Bearer '+Auth.getToken() } }).then(function(r){return r.json();});
+
+  if (!res.success) { Layout.toast(res.message||'Error loading counts', 'error'); btn.textContent='🗑 Review & Clear'; btn.disabled=false; return; }
+
+  var d = res.data;
+  var confirmed = confirm(
+    '⚠️  CLEAR ALL TEST DATA\n\n' +
+    'This will permanently delete:\n' +
+    '  • ' + d.testUsers      + ' test users\n' +
+    '  • ' + d.docs           + ' documents\n' +
+    '  • ' + d.expenses       + ' expenses\n' +
+    '  • ' + d.reminders      + ' reminders\n' +
+    '  • ' + d.todos          + ' to-do items\n' +
+    '  • ' + d.academics      + ' academic records\n' +
+    '  • ' + d.lifeEntries    + ' life story entries\n' +
+    '  • ' + d.vaultItems     + ' vault items\n' +
+    '  • ' + d.shareCards     + ' share cards\n\n' +
+    'TOTAL: ' + d.total + ' records\n\n' +
+    '✅ Admin accounts are KEPT.\n\n' +
+    'Click OK to permanently delete all test data.'
+  );
+
+  if (!confirmed) { btn.textContent='🗑 Review & Clear'; btn.disabled=false; return; }
+
+  /* Second confirmation */
+  var typed = prompt('Type  CLEAR ALL  to confirm:');
+  if ((typed||'').trim() !== 'CLEAR ALL') {
+    Layout.toast('Cancelled — confirmation text did not match', 'warning');
+    btn.textContent='🗑 Review & Clear'; btn.disabled=false; return;
+  }
+
+  btn.textContent = 'Clearing…';
+  var del = await fetch('../api/trustid/admin/clear-test-data', {
+    method: 'DELETE',
+    headers:{ 'Content-Type':'application/json', Authorization:'Bearer '+Auth.getToken() },
+    body: JSON.stringify({ confirm:'CLEAR ALL TEST DATA' })
+  }).then(function(r){return r.json();});
+
+  if (del.success) {
+    document.getElementById('clearSubText').textContent = '✅ Cleared! ' + JSON.stringify(del.deleted);
+    Layout.toast('All test data cleared successfully. System is ready for live use.', 'success');
+    setTimeout(function(){ location.reload(); }, 2000);
+  } else {
+    Layout.toast(del.message||'Clear failed', 'error');
+  }
+  btn.textContent='🗑 Review & Clear'; btn.disabled=false;
+}
 </script>
 </body>
 </html>

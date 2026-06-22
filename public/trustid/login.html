@@ -115,6 +115,16 @@
     <div class="register-link">
       No account? <a href="./register.html">Create one free →</a>
     </div>
+
+    <!-- Admin quick-login helper (hidden by default) -->
+    <div id="adminHelper" style="display:none;margin-top:20px;padding:14px;border-radius:12px;background:#7C3AED10;border:1px solid #7C3AED30;text-align:center">
+      <div style="font-size:12px;font-weight:700;color:#7C3AED;margin-bottom:8px">👑 Admin Account</div>
+      <div style="font-size:12px;color:#334155;margin-bottom:10px">Email: <strong>admin@trustid.com</strong> | Password: <strong>admin123</strong></div>
+      <button onclick="seedAndLogin()" style="background:linear-gradient(135deg,#7C3AED,#5B21B6);color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:12px;font-weight:700;cursor:pointer" id="seedBtn">Create Admin &amp; Sign In</button>
+    </div>
+    <div style="text-align:center;margin-top:12px">
+      <span onclick="document.getElementById('adminHelper').style.display=document.getElementById('adminHelper').style.display==='none'?'block':'none'" style="font-size:11px;color:#94A3B8;cursor:pointer">Admin setup</span>
+    </div>
   </div>
 </div>
 
@@ -202,6 +212,21 @@
   document.getElementById('password').addEventListener('keydown', function(e) {
     if (e.key === 'Enter') doLogin();
   });
+
+  /* ── Admin helper ── */
+  async function seedAndLogin() {
+    var btn = document.getElementById('seedBtn');
+    btn.textContent = 'Setting up…';
+    btn.disabled = true;
+    /* Try to create admin (ok if already exists) */
+    await fetch('/api/trustid/auth/seed-admin', { method:'POST' }).catch(function(){});
+    /* Fill credentials and login */
+    document.getElementById('email').value    = 'admin@trustid.com';
+    document.getElementById('password').value = 'admin123';
+    btn.textContent = 'Create Admin & Sign In';
+    btn.disabled = false;
+    doLogin();
+  }
 
   var resetChannel = 'email';
   var resetTarget = '';

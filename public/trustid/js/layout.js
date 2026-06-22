@@ -97,7 +97,7 @@ var Layout = (function () {
     if (tb) {
       tb.innerHTML =
         '<div style="display:flex;align-items:center;gap:12px">'
-        + '<button class="mobile-menu-btn" onclick="Layout.toggle()" title="Toggle menu">☰</button>'
+        + '<button onclick="Layout.toggle()" title="Toggle menu" style="background:none;border:none;cursor:pointer;font-size:22px;color:#334155;padding:4px 6px;border-radius:8px;display:flex;align-items:center;justify-content:center" id="mobileMenuBtn">☰</button>'
         + '<span class="topbar-title">'+(TITLES[activePage]||'Personal Vault')+'</span>'
         + '</div>'
         + '<div style="display:flex;align-items:center;gap:12px">'
@@ -115,10 +115,29 @@ var Layout = (function () {
     var main = document.getElementById('main');
     var btn  = document.getElementById('sidebarToggle');
     if (!sb) return;
-    var hidden = sb.classList.toggle('sb-collapsed');
-    if (main) main.classList.toggle('sb-hidden', hidden);
-    if (btn)  btn.textContent = hidden ? '▶' : '◀';
-    localStorage.setItem('pv_sidebar_hidden', hidden);
+
+    var isMobile = window.innerWidth <= 900;
+
+    if (isMobile) {
+      /* On mobile: slide in/out as an overlay */
+      var isOpen = sb.classList.toggle('mobile-open');
+      /* Dim the background when open */
+      var overlay = document.getElementById('sb-overlay');
+      if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'sb-overlay';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:49;display:none';
+        overlay.addEventListener('click', function(){ toggle(); });
+        document.body.appendChild(overlay);
+      }
+      overlay.style.display = isOpen ? 'block' : 'none';
+    } else {
+      /* On desktop: collapse to icon rail */
+      var hidden = sb.classList.toggle('sb-collapsed');
+      if (main) main.classList.toggle('sb-hidden', hidden);
+      if (btn)  btn.textContent = hidden ? '▶' : '◀';
+      localStorage.setItem('pv_sidebar_hidden', hidden);
+    }
   }
 
   /* ── Utilities used by page scripts ── */
