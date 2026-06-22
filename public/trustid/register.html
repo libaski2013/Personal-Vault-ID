@@ -133,7 +133,7 @@
 
       <button class="btn-submit" id="btn1" onclick="sendOTP()">
         <div class="spinner" id="sp1"></div>
-        <span id="bt1">Send Verification Code →</span>
+        <span id="bt1">Create Account →</span>
       </button>
 
       <div class="login-link">Already have an account? <a href="./login.html">Sign in</a></div>
@@ -154,6 +154,14 @@
       </div>
 
       <div class="err-box" id="err2"></div>
+
+      <!-- Shown when email is not configured — code appears here -->
+      <div id="devCodeBox" style="display:none;margin-bottom:16px;padding:16px;background:#FEF3C7;border:2px solid #F59E0B;border-radius:14px;text-align:center">
+        <div style="font-size:12px;font-weight:700;color:#92400E;margin-bottom:6px">⚠️ Email service not configured</div>
+        <div style="font-size:13px;color:#78350F;margin-bottom:10px">Use this code to complete registration:</div>
+        <div id="devCode" style="font-size:36px;font-weight:900;letter-spacing:8px;font-family:monospace;color:#92400E"></div>
+        <div style="font-size:11px;color:#B45309;margin-top:6px">Enter this code in the boxes below</div>
+      </div>
 
       <div class="otp-row" id="otpRow">
         <input class="otp-digit" maxlength="1" type="text" inputmode="numeric" pattern="[0-9]">
@@ -214,19 +222,45 @@
     if(!firstName||!email||!password){showErr('err1','First name, email and password are required.');return;}
     if(password!==confirm){showErr('err1','Passwords do not match.');return;}
     if(password.length<8){showErr('err1','Password must be at least 8 characters.');return;}
-    setLoading('btn1','sp1','bt1',true,'Sending…');
+    setLoading('btn1','sp1','bt1',true,'Creating account…');
     try{
+      /* Try request-otp first to check if email is configured */
       var res=await fetch('/api/trustid/auth/request-otp',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({firstName,middleName,lastName,email,password})});
       var data=await res.json();
       if(data.success){
-        _email=email; _firstName=firstName;
-        document.getElementById('otpSub').textContent='We sent a 6-digit code to '+email;
-        document.getElementById('step1').style.display='none';
-        document.getElementById('step2').style.display='block';
-        document.querySelector('.otp-digit').focus();
-      } else showErr('err1',data.message||'Failed to send code. Try again.');
+        if(data.emailSent){
+          /* Email was sent — go to OTP step */
+          _email=email; _firstName=firstName;
+          document.getElementById('step1').style.display='none';
+          document.getElementById('step2').style.display='block';
+          document.getElementById('otpSub').textContent='We sent a 6-digit code to '+email;
+          document.getElementById('devCodeBox').style.display='none';
+          document.querySelector('.otp-digit').focus();
+        } else {
+          /* No email configured — register directly using the code returned */
+          var code=data.devCode||'';
+          var vRes=await fetch('/api/trustid/auth/verify-otp',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,code})});
+          var vData=await vRes.json();
+          if(vData.success&&vData.token){
+            localStorage.setItem('tid_token',vData.token);
+            localStorage.setItem('tid_user',JSON.stringify(vData.user));
+            document.getElementById('step1').style.display='none';
+            document.getElementById('step3').style.display='block';
+          } else {
+            /* Fallback: show OTP step with code on screen */
+            _email=email; _firstName=firstName;
+            document.getElementById('step1').style.display='none';
+            document.getElementById('step2').style.display='block';
+            document.getElementById('otpSub').textContent='Use the code below to complete registration:';
+            document.getElementById('devCodeBox').style.display='block';
+            document.getElementById('devCode').textContent=code;
+            if(code){ var digs=document.querySelectorAll('.otp-digit'); String(code).split('').forEach(function(c,i){if(digs[i])digs[i].value=c;}); }
+            document.querySelector('.otp-digit').focus();
+          }
+        }
+      } else showErr('err1',data.message||'Failed. Try again.');
     }catch(e){showErr('err1','Network error. Please try again.');}
-    setLoading('btn1','sp1','bt1',false,'Send Verification Code →');
+    setLoading('btn1','sp1','bt1',false,'Create Account →');
   }
 
   /* OTP digit auto-advance */
@@ -264,12 +298,22 @@
   }
 
   async function resendOTP(){
-    var firstName=document.getElementById('firstName').value.trim();
+    var firstName=document.getElementById('firstName').value.trim()||_firstName;
     var password=document.getElementById('password').value;
     try{
-      await fetch('/api/trustid/auth/request-otp',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({firstName,email:_email,password})});
+      var res=await fetch('/api/trustid/auth/request-otp',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({firstName,email:_email,password})});
+      var data=await res.json();
       document.getElementById('err2').style.display='none';
-      alert('New code sent to '+_email);
+      if(data.devCode){
+        /* Still no email — update the on-screen code */
+        document.getElementById('devCodeBox').style.display='block';
+        document.getElementById('devCode').textContent=data.devCode;
+        var digits=document.querySelectorAll('.otp-digit');
+        digits.forEach(function(d){d.value='';});
+        String(data.devCode).split('').forEach(function(c,i){ if(digits[i]) digits[i].value=c; });
+      } else {
+        alert('New code sent to '+_email);
+      }
     }catch(e){}
   }
 

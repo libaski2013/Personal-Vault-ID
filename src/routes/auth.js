@@ -36,9 +36,17 @@ module.exports = async function authRoutes(fastify) {
       return reply.code(409).send({ success:false, message:'An account with this email already exists' });
 
     const code = otp.generate(addr, { firstName, middleName:middleName||'', lastName:lastName||'', email:addr, password });
-    await email.sendOTP(addr, firstName, code);
 
-    return { success:true, message:'Verification code sent to '+addr };
+    const emailConfigured = !!(process.env.SMTP_USER && process.env.SMTP_PASS);
+
+    if (emailConfigured) {
+      await email.sendOTP(addr, firstName, code);
+      return { success:true, message:'Verification code sent to '+addr, emailSent:true };
+    } else {
+      /* No SMTP configured — return code directly so the user can still register */
+      console.log(`[OTP] ${addr} → ${code}`);
+      return { success:true, message:'Email service not configured. Use the code shown on screen.', emailSent:false, devCode:code };
+    }
   });
 
   /* POST /api/trustid/auth/verify-otp — step 2: verify and create account */
@@ -62,6 +70,26 @@ module.exports = async function authRoutes(fastify) {
       trustId:{ id:tid, level:1, score:100, status:'active', issuedAt:new Date() },
     });
 
+    const token = fastify.jwt.sign({ userId:user._id, role:user.role }, { expiresIn:JWT_EXPIRES_IN });
+    return reply.code(201).send({ success:true, token, user:user.safeUser() });
+  });
+
+  /* POST /api/trustid/auth/register — direct registration (no OTP, used as fallback) */
+  fastify.post('/register', async (req, reply) => {
+    const { firstName, middleName, lastName, email: addr, password } = req.body || {};
+    if (!firstName || !addr || !password)
+      return reply.code(400).send({ success:false, message:'First name, email and password are required' });
+    if (password.length < 8)
+      return reply.code(400).send({ success:false, message:'Password must be at least 8 characters' });
+    if (await User.findOne({ email: addr }))
+      return reply.code(409).send({ success:false, message:'An account with this email already exists' });
+
+    const passwordHash = await bcrypt.hash(password, 12);
+    const tid = 'TID-'+new Date().getFullYear()+'-'+Math.random().toString(36).slice(2,6).toUpperCase()+'-'+Math.random().toString(36).slice(2,6).toUpperCase();
+    const user = await User.create({
+      firstName, middleName:middleName||'', lastName:lastName||'', email:addr, passwordHash,
+      trustId:{ id:tid, level:1, score:100, status:'active', issuedAt:new Date() },
+    });
     const token = fastify.jwt.sign({ userId:user._id, role:user.role }, { expiresIn:JWT_EXPIRES_IN });
     return reply.code(201).send({ success:true, token, user:user.safeUser() });
   });
