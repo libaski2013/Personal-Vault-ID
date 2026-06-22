@@ -42,12 +42,24 @@ module.exports = async function authRoutes(fastify) {
     const emailConfigured = !!(process.env.SMTP_USER && process.env.SMTP_PASS);
 
     if (emailConfigured) {
-      await email.sendOTP(addr, firstName, code);
-      return { success:true, message:'Verification code sent to '+addr, emailSent:true };
+      try {
+        await email.sendOTP(addr, firstName, code);
+        return { success:true, message:'Verification code sent to '+addr, emailSent:true };
+      } catch (emailErr) {
+        /* Email send failed (bad credentials, network, etc.) — fall back to on-screen code */
+        console.error('[OTP] Email send failed:', emailErr.message);
+        console.log(`[OTP] Fallback code for ${addr} → ${code}`);
+        return {
+          success: true,
+          emailSent: false,
+          devCode: code,
+          message: 'Email delivery failed (' + emailErr.message.slice(0, 80) + '). Use the code shown on screen instead.',
+        };
+      }
     } else {
-      /* No SMTP configured — return code directly so the user can still register */
+      /* No SMTP configured — return code directly */
       console.log(`[OTP] ${addr} → ${code}`);
-      return { success:true, message:'Email service not configured. Use the code shown on screen.', emailSent:false, devCode:code };
+      return { success:true, message:'Email not configured. Use the code shown on screen.', emailSent:false, devCode:code };
     }
   });
 
