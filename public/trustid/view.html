@@ -26,6 +26,7 @@
     .profile-hero{background:linear-gradient(135deg,#0F0E2A,#312E81,#7C3AED);border-radius:24px;padding:32px;color:#fff;margin-bottom:20px;position:relative;overflow:hidden}
     .profile-hero::before{content:'';position:absolute;top:-40px;right:-40px;width:220px;height:220px;border-radius:50%;background:rgba(255,255,255,0.04)}
     .profile-avatar{width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,#7C3AED,#8B5CF6);display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:900;color:#fff;margin-bottom:14px;border:3px solid rgba(255,255,255,0.2)}
+    .profile-avatar img{width:100%;height:100%;border-radius:50%;object-fit:cover}
     .profile-name{font-size:24px;font-weight:900;margin-bottom:4px}
     .profile-sub{font-size:13px;color:rgba(255,255,255,0.55)}
 
@@ -154,9 +155,10 @@ function renderProfile(d) {
   html += '<div class="profile-hero">'
     +'<div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:16px">'
     +'<div>'
-    +'<div class="profile-avatar">'+ini+'</div>'
+    +'<div class="profile-avatar">'+(id.profilePhoto?'<img src="'+id.profilePhoto+'" alt="Profile picture">':ini)+'</div>'
     +'<div class="profile-name">'+(id.name||'Anonymous')+'</div>'
     +'<div class="profile-sub">Member since '+fmtDate(id.joinedAt)+'</div>'
+    +(id.bio?'<div style="max-width:430px;margin-top:12px;font-size:13px;color:rgba(255,255,255,.72);line-height:1.6">'+id.bio+'</div>':'')
     +'</div>'
     /* Score ring */
     +(tid.score?
@@ -188,8 +190,18 @@ function renderProfile(d) {
   if (sections.includes('contact') && d.contact) {
     html += '<div class="section-card">'
       +'<div class="section-head"><span class="section-head-icon">📧</span><span class="section-head-title">Contact</span></div>'
-      +'<div class="section-body"><div style="font-size:14px;color:#334155">'+d.contact.email+'</div></div>'
+      +'<div class="section-body"><div style="font-size:14px;color:#334155">'+d.contact.email+'</div>'
+      +(d.contact.phone?'<div style="font-size:14px;color:#334155;margin-top:8px">'+d.contact.phone+'</div>':'')+'</div>'
       +'</div>';
+  }
+
+  if (sections.includes('social') && d.socialHandles) {
+    var rows = Object.keys(d.socialHandles).filter(function(k){ return d.socialHandles[k]; });
+    if (rows.length) {
+      html += '<div class="section-card"><div class="section-head"><span class="section-head-icon">🌐</span><span class="section-head-title">Social Handles</span></div><div class="section-body">'
+        + rows.map(function(k){ return '<div style="display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px solid #F8FAFC"><span style="text-transform:capitalize;color:#64748B">'+k+'</span><strong style="color:#0F172A;word-break:break-all">'+d.socialHandles[k]+'</strong></div>'; }).join('')
+        + '</div></div>';
+    }
   }
 
   /* ── Address ── */
@@ -205,6 +217,17 @@ function renderProfile(d) {
       +(a.postalCode?'<div style="font-size:12px;color:#64748B">Postal: '+a.postalCode+'</div>':'')
       +'</div></div>'
       +'</div></div>';
+  }
+
+  if (sections.includes('previous-addresses') && d.previousAddresses && d.previousAddresses.length) {
+    html += '<div class="section-card"><div class="section-head"><span class="section-head-icon">📍</span><span class="section-head-title">Previous Addresses</span></div><div class="section-body">'
+      + d.previousAddresses.map(function(a){
+          var loc=[a.city,a.state,a.country].filter(Boolean).join(', ');
+          return '<div style="padding:10px 0;border-bottom:1px solid #F8FAFC"><div style="font-weight:700;color:#0F172A">'+(a.label||'Previous Address')+'</div><div style="font-size:13px;color:#64748B;margin-top:3px">'+loc+'</div>'
+            +((a.livedFrom||a.livedTo)?'<div style="font-size:12px;color:#94A3B8;margin-top:3px">'+(a.livedFrom||'?')+' - '+(a.livedTo||'Present')+'</div>':'')
+            +(a.mapUrl?'<a href="'+a.mapUrl+'" target="_blank" style="display:inline-block;margin-top:6px;font-size:12px;font-weight:700;color:#7C3AED">Open map</a>':'')+'</div>';
+        }).join('')
+      + '</div></div>';
   }
 
   /* ── Verified Documents ── */

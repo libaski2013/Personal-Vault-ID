@@ -30,7 +30,11 @@ var Api = (function () {
     /* ── Auth ── */
     login:          function (email, password) { return req('POST', '/auth/login',          { email: email, password: password }); },
     register:       function (form)            { return req('POST', '/auth/register',        form); },
+    requestPasswordReset: function (body)       { return req('POST', '/auth/request-password-reset', body); },
+    resetPassword:  function (body)             { return req('POST', '/auth/reset-password', body); },
     changePassword: function (cur, nw)         { return req('PUT',  '/auth/change-password', { currentPassword: cur, newPassword: nw }); },
+    updatePhone:    function (phone)           { return req('PUT',  '/auth/phone', { phone: phone }); },
+    updateProfile:  function (body)            { return req('PUT',  '/auth/profile', body); },
     seedAdmin:      function ()                { return req('POST', '/auth/seed-admin'); },
 
     /* ── Documents ── */
@@ -60,5 +64,16 @@ var Api = (function () {
     /* ── Admin ── */
     getAdminUsers: function () { return req('GET', '/admin/users'); },
     getAdminStats: function () { return req('GET', '/admin/stats'); },
+
+    /* ── Anonymous Social Network ── */
+    socialOn:     function (zone)       { return req('POST', '/social/discovery/on', { zone: zone || 'nearby' }); },
+    socialOff:    function ()           { return req('POST', '/social/discovery/off'); },
+    socialNearby: function (zone)       { return req('GET',  '/social/nearby?zone=' + encodeURIComponent(zone || 'nearby')); },
+    socialChats:  function ()           { return req('GET',  '/social/chats'); },
+    socialStart:  function (token)      { return req('POST', '/social/chats', { token: token }); },
+    socialSend:   function (id, text)   { return req('POST', '/social/chats/' + id + '/messages', { text: text }); },
+    socialDisconnect: function (id)     { return req('POST', '/social/chats/' + id + '/disconnect'); },
+    socialReport: function (id, reason) { return req('POST', '/social/chats/' + id + '/report', { reason: reason }); },
+    socialBlock:  function (token)      { return req('POST', '/social/block/' + encodeURIComponent(token)); },
   };
 })();

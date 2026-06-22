@@ -85,18 +85,36 @@ module.exports = async function shareRoutes(fastify) {
         name:     `${user.firstName} ${user.middleName || ''} ${user.lastName}`.replace(/\s+/g,' ').trim(),
         trustId:  user.trustId,
         joinedAt: user.joinedAt,
+        profilePhoto:user.profilePhoto || '',
+        bio:user.bio || '',
       };
     }
 
     /* Contact */
     if (sections.includes('contact')) {
-      payload.contact = { email: user.email };
+      payload.contact = { email: user.email, phone:user.phone || '' };
+    }
+
+    if (sections.includes('social')) {
+      payload.socialHandles = user.socialHandles || {};
     }
 
     /* Address (city/state/country only, not street) */
     if (sections.includes('address') && user.homeAddress) {
       const a = user.homeAddress;
-      payload.address = { city:a.city, state:a.state, country:a.country, postalCode:a.postalCode };
+      payload.address = {
+        label:a.label || 'Home',
+        city:a.city, state:a.state, country:a.country, postalCode:a.postalCode,
+        mapUrl:a.mapUrl || ''
+      };
+    }
+
+    if (sections.includes('previous-addresses')) {
+      payload.previousAddresses = (user.previousAddresses || []).map(a => ({
+        label:a.label, city:a.city, state:a.state, country:a.country,
+        postalCode:a.postalCode, livedFrom:a.livedFrom, livedTo:a.livedTo,
+        mapUrl:a.mapUrl || '',
+      }));
     }
 
     /* Verified documents only */

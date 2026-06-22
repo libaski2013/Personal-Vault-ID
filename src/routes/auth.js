@@ -2,6 +2,8 @@ const bcrypt  = require('bcryptjs');
 const { User } = require('../db/models');
 const otp     = require('../services/otp');
 const email   = require('../services/email');
+const resetOtp = require('../services/resetOtp');
+const sms     = require('../services/sms');
 
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
 
@@ -26,7 +28,7 @@ module.exports = async function authRoutes(fastify) {
 
   /* POST /api/trustid/auth/request-otp — step 1 of registration */
   fastify.post('/request-otp', async (req, reply) => {
-    const { firstName, middleName, lastName, email: addr, password } = req.body || {};
+    const { firstName, middleName, lastName, email: addr, phone, password } = req.body || {};
 
     if (!firstName || !addr || !password)
       return reply.code(400).send({ success:false, message:'First name, email and password are required' });
@@ -35,7 +37,7 @@ module.exports = async function authRoutes(fastify) {
     if (await User.findOne({ email: addr }))
       return reply.code(409).send({ success:false, message:'An account with this email already exists' });
 
-    const code = otp.generate(addr, { firstName, middleName:middleName||'', lastName:lastName||'', email:addr, password });
+    const code = otp.generate(addr, { firstName, middleName:middleName||'', lastName:lastName||'', email:addr, phone:phone||'', password });
 
     const emailConfigured = !!(process.env.SMTP_USER && process.env.SMTP_PASS);
 
@@ -66,7 +68,7 @@ module.exports = async function authRoutes(fastify) {
     const tid = 'TID-'+new Date().getFullYear()+'-'+Math.random().toString(36).slice(2,6).toUpperCase()+'-'+Math.random().toString(36).slice(2,6).toUpperCase();
     const user = await User.create({
       firstName:data.firstName, middleName:data.middleName||'', lastName:data.lastName||'',
-      email:addr, passwordHash,
+      email:addr, phone:data.phone||'', passwordHash,
       trustId:{ id:tid, level:1, score:100, status:'active', issuedAt:new Date() },
     });
 
@@ -118,5 +120,100 @@ module.exports = async function authRoutes(fastify) {
     user.passwordHash = await bcrypt.hash(newPassword, 12);
     await user.save();
     return { success:true, message:'Password updated successfully' };
+  });
+
+  /* PUT /api/trustid/auth/phone */
+  fastify.put('/phone', { onRequest:[fastify.authenticate] }, async (req, reply) => {
+    const phone = String((req.body || {}).phone || '').trim();
+    if (!phone)
+      return reply.code(400).send({ success:false, message:'Phone number required' });
+    const user = await User.findById(req.user.userId);
+    if (!user)
+      return reply.code(404).send({ success:false, message:'User not found' });
+    user.phone = phone;
+    await user.save();
+    return { success:true, message:'Phone number saved', user:user.safeUser() };
+  });
+
+  /* PUT /api/trustid/auth/profile */
+  fastify.put('/profile', { onRequest:[fastify.authenticate] }, async (req, reply) => {
+    const body = req.body || {};
+    const user = await User.findById(req.user.userId);
+    if (!user) return reply.code(404).send({ success:false, message:'User not found' });
+
+    ['firstName','middleName','lastName','bio','phone','profilePhoto'].forEach(k => {
+      if (body[k] !== undefined) user[k] = String(body[k] || '').trim();
+    });
+
+    if (body.socialHandles && typeof body.socialHandles === 'object') {
+      user.socialHandles = {
+        whatsapp: body.socialHandles.whatsapp || '',
+        facebook: body.socialHandles.facebook || '',
+        instagram: body.socialHandles.instagram || '',
+        x: body.socialHandles.x || '',
+        linkedin: body.socialHandles.linkedin || '',
+        tiktok: body.socialHandles.tiktok || '',
+        snapchat: body.socialHandles.snapchat || '',
+        website: body.socialHandles.website || '',
+      };
+    }
+
+    await user.save();
+    return { success:true, message:'Profile updated', user:user.safeUser() };
+  });
+
+  /* POST /api/trustid/auth/request-password-reset */
+  fastify.post('/request-password-reset', async (req, reply) => {
+    const { channel, email: addr, phone } = req.body || {};
+    const mode = channel === 'phone' ? 'phone' : 'email';
+    const target = mode === 'phone' ? String(phone || '').trim() : String(addr || '').trim().toLowerCase();
+
+    if (!target)
+      return reply.code(400).send({ success:false, message: mode === 'phone' ? 'Phone number required' : 'Email required' });
+
+    const user = mode === 'phone'
+      ? await User.findOne({ phone: target })
+      : await User.findOne({ email: target });
+
+    if (user && user.status !== 'suspended') {
+      const code = resetOtp.generate(mode, target, { userId:user._id });
+      if (mode === 'phone') {
+        await sms.sendResetCode(target, code);
+      } else {
+        await email.sendPasswordResetOTP(user.email, user.firstName, code);
+      }
+    }
+
+    return {
+      success:true,
+      message: mode === 'phone'
+        ? 'If that phone number is linked to an account, a reset code has been sent.'
+        : 'If that email is linked to an account, a reset code has been sent.',
+    };
+  });
+
+  /* POST /api/trustid/auth/reset-password */
+  fastify.post('/reset-password', async (req, reply) => {
+    const { channel, email: addr, phone, code, newPassword } = req.body || {};
+    const mode = channel === 'phone' ? 'phone' : 'email';
+    const target = mode === 'phone' ? String(phone || '').trim() : String(addr || '').trim().toLowerCase();
+
+    if (!target || !code || !newPassword)
+      return reply.code(400).send({ success:false, message:'Reset target, code and new password are required' });
+    if (newPassword.length < 8)
+      return reply.code(400).send({ success:false, message:'Password must be at least 8 characters' });
+
+    const data = resetOtp.verify(mode, target, code);
+    if (!data)
+      return reply.code(400).send({ success:false, message:'Invalid or expired reset code' });
+
+    const user = await User.findById(data.userId);
+    if (!user || user.status === 'suspended')
+      return reply.code(400).send({ success:false, message:'Unable to reset this account' });
+
+    user.passwordHash = await bcrypt.hash(newPassword, 12);
+    await user.save();
+
+    return { success:true, message:'Password reset successfully. You can now sign in.' };
   });
 };

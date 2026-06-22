@@ -56,16 +56,44 @@ module.exports = async function (fastify) {
     return { success:true };
   });
 
+  function cleanAddress(body) {
+    const a = body || {};
+    const full = [a.street, a.city, a.state, a.postalCode, a.country].filter(Boolean).join(', ');
+    return {
+      label:a.label || 'Home',
+      street:a.street || '', city:a.city || '', state:a.state || '',
+      country:a.country || '', postalCode:a.postalCode || '',
+      lat:a.lat || null, lng:a.lng || null,
+      mapUrl:a.mapUrl || (full ? 'https://www.google.com/maps/search/' + encodeURIComponent(full) : ''),
+      livedFrom:a.livedFrom || '', livedTo:a.livedTo || '',
+    };
+  }
+
   /* GET /api/pv/vault/address */
   fastify.get('/address', { onRequest:[fastify.authenticate] }, async (req) => {
-    const user = await User.findById(req.user.userId).select('homeAddress');
-    return { success:true, data:user.homeAddress||{} };
+    const user = await User.findById(req.user.userId).select('homeAddress previousAddresses');
+    return { success:true, data:{ homeAddress:user.homeAddress||{}, previousAddresses:user.previousAddresses||[] } };
   });
 
   /* PUT /api/pv/vault/address */
   fastify.put('/address', { onRequest:[fastify.authenticate] }, async (req, reply) => {
-    const { street, city, state, country, postalCode, lat, lng } = req.body||{};
-    await User.findByIdAndUpdate(req.user.userId, { homeAddress:{ street, city, state, country, postalCode, lat, lng } });
+    const address = cleanAddress(req.body || {});
+    address.label = address.label || 'Home';
+    await User.findByIdAndUpdate(req.user.userId, { homeAddress:address });
     return { success:true, message:'Address saved' };
+  });
+
+  /* POST /api/pv/vault/addresses — add previous address */
+  fastify.post('/addresses', { onRequest:[fastify.authenticate] }, async (req, reply) => {
+    const address = cleanAddress(req.body || {});
+    address.label = address.label || 'Previous Address';
+    const user = await User.findByIdAndUpdate(req.user.userId, { $push:{ previousAddresses:address } }, { new:true }).select('previousAddresses');
+    return reply.code(201).send({ success:true, data:user.previousAddresses[user.previousAddresses.length - 1] });
+  });
+
+  /* DELETE /api/pv/vault/addresses/:id */
+  fastify.delete('/addresses/:id', { onRequest:[fastify.authenticate] }, async (req) => {
+    await User.findByIdAndUpdate(req.user.userId, { $pull:{ previousAddresses:{ _id:req.params.id } } });
+    return { success:true };
   });
 };

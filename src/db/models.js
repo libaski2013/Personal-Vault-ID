@@ -9,6 +9,8 @@ const userSchema = new Schema({
   middleName:   { type: String, default: '', trim: true },
   lastName:     { type: String, default: '', trim: true },
   email:        { type: String, required: true, unique: true, lowercase: true, trim: true },
+  phone:        { type: String, default: '', trim: true },
+  profilePhoto: { type: String, default: '' },
   passwordHash: { type: String, required: true },
   role:         { type: String, enum: ['user', 'admin'], default: 'user' },
   status:       { type: String, enum: ['active', 'pending', 'suspended'], default: 'active' },
@@ -19,9 +21,22 @@ const userSchema = new Schema({
   },
   vaultPinHash: { type: String, default: null },
   homeAddress: {
+    label: String, street: String, city: String, state: String,
+    country: String, postalCode: String, lat: Number, lng: Number,
+    mapUrl: String,
+  },
+  previousAddresses: [{
+    label: { type: String, default: 'Previous Address' },
     street: String, city: String, state: String,
     country: String, postalCode: String,
     lat: Number, lng: Number,
+    mapUrl: String,
+    livedFrom: String,
+    livedTo: String,
+  }],
+  socialHandles: {
+    whatsapp: String, facebook: String, instagram: String, x: String,
+    linkedin: String, tiktok: String, snapchat: String, website: String,
   },
   bio:          { type: String, default: '' },
   lastActivity: { type: Date, default: Date.now },
@@ -128,9 +143,39 @@ const shareSchema = new Schema({
   viewCount:     { type: Number, default: 0 },
 }, { timestamps: true });
 
+/* Anonymous proximity social network */
+const socialSessionSchema = new Schema({
+  userId:     { type: OID, ref: 'pvusers', required: true, index: true },
+  token:      { type: String, unique: true, required: true },
+  alias:      { type: String, required: true },
+  zone:       { type: String, default: 'nearby', index: true },
+  isActive:   { type: Boolean, default: true },
+  blocked:    [{ type: OID, ref: 'pvusers' }],
+  expiresAt:  { type: Date, required: true, index: true },
+}, { timestamps: true });
+
+const anonChatSchema = new Schema({
+  participants: [{ type: OID, ref: 'pvusers', required: true }],
+  participantTokens: [{ type: String }],
+  messages: [{
+    senderId: { type: OID, ref: 'pvusers' },
+    text: { type: String, default: '' },
+    createdAt: { type: Date, default: Date.now },
+  }],
+  reports: [{
+    reporterId: { type: OID, ref: 'pvusers' },
+    reason: String,
+    createdAt: { type: Date, default: Date.now },
+  }],
+  isDisconnected: { type: Boolean, default: false },
+  expiresAt: { type: Date, required: true, index: true },
+}, { timestamps: true });
+
 module.exports = {
   User:      mongoose.model('pvusers',     userSchema),
   ShareCard: mongoose.model('pvsharecards', shareSchema),
+  SocialSession: mongoose.model('pvsocialsessions', socialSessionSchema),
+  AnonChat:  mongoose.model('pvanonchats', anonChatSchema),
   Document:  mongoose.model('pvdocuments', documentSchema),
   Academic:  mongoose.model('pvacademics', academicSchema),
   LifeEntry: mongoose.model('pvlife',      lifeSchema),

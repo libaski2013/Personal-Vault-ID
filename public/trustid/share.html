@@ -57,10 +57,12 @@ var myCards = [], expiry = 0, lastGenerated = null;
 
 var SECTIONS = [
   { id:'identity',  icon:'🛡️', label:'Digital Identity',       desc:'Your name, TrustID number, trust score and level',       badge:'Always verified' },
+  { id:'social',    icon:'🌐', label:'Social Handles',          desc:'The social media handles and links saved on your profile', badge:'Optional' },
   { id:'documents', icon:'📁', label:'Verified Documents',      desc:'Only verified documents — names and types (no content)',  badge:'Verified only' },
   { id:'academics', icon:'🎓', label:'Academic Records',        desc:'Public certificates, degrees, awards and transcripts',    badge:'Public records' },
   { id:'lifestory', icon:'📖', label:'Life Story',              desc:'Your public life milestones and achievements',            badge:'Public entries' },
   { id:'address',   icon:'🏠', label:'Location',                desc:'City, state and country only — no street address shown',  badge:'City level' },
+  { id:'previous-addresses', icon:'📍', label:'Previous Addresses', desc:'City-level previous address history with map links', badge:'No street' },
   { id:'contact',   icon:'📧', label:'Contact Email',           desc:'Your registered email address',                           badge:'Email only' },
 ];
 
