@@ -65,7 +65,15 @@ function render(){
 function formCard(title,prefix){ return '<div class="card"><h3 style="font-size:15px;font-weight:800;margin-bottom:14px">'+title+'</h3>'+formCardInner(title,prefix)+'</div>'; }
 function formCardInner(title,prefix){
   var a = prefix === 'home' ? home : {};
-  return '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">'
+  return
+    /* GPS fetch button */
+    (prefix==='home'?
+      '<button onclick="fetchGPS()" id="gpsBtn" style="display:flex;align-items:center;gap:8px;width:100%;padding:12px 16px;border-radius:12px;border:1.5px dashed #7C3AED;background:#7C3AED08;color:#7C3AED;font-weight:700;font-size:14px;cursor:pointer;margin-bottom:14px;justify-content:center;transition:all 0.15s" onmouseover="this.style.background=\'#7C3AED18\'" onmouseout="this.style.background=\'#7C3AED08\'">'
+      +'<span style="font-size:20px">📍</span> Fetch My Exact Location'
+      +'</button>'
+      +'<div id="gpsStatus" style="display:none;font-size:12px;text-align:center;margin:-8px 0 12px;color:#64748B"></div>'
+      :'')
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">'
     + input(prefix,'label','Label',a.label||title) + input(prefix,'street','Street',a.street)
     + input(prefix,'city','City',a.city) + input(prefix,'state','State / Region',a.state)
     + input(prefix,'country','Country',a.country) + input(prefix,'postalCode','Postal Code',a.postalCode)
@@ -97,6 +105,66 @@ function delPrev(id){
     .then(function(r){return r.json();}).then(function(r){ if(r.success){ previous=previous.filter(function(a){return a._id!==id;}); render(); } });
 }
 function copy(v){ navigator.clipboard.writeText(v).then(function(){ Layout.toast('Copied.'); }); }
+
+/* ── GPS fetch + reverse geocode ── */
+function fetchGPS(){
+  if(!navigator.geolocation){ Layout.toast('Geolocation not supported by your browser','error'); return; }
+  var btn=document.getElementById('gpsBtn');
+  var status=document.getElementById('gpsStatus');
+  if(!btn) return;
+  btn.innerHTML='<span style="display:inline-block;width:16px;height:16px;border-radius:50%;border:2px solid #7C3AED40;border-top-color:#7C3AED;animation:spin 0.7s linear infinite"></span> Getting your location…';
+  btn.disabled=true;
+  if(status){ status.style.display='block'; status.textContent='Requesting GPS access…'; }
+
+  navigator.geolocation.getCurrentPosition(function(pos){
+    var lat=pos.coords.latitude, lng=pos.coords.longitude;
+    var acc=Math.round(pos.coords.accuracy);
+    if(status) status.textContent='📍 Got location (±'+acc+'m accuracy). Fetching address…';
+
+    /* Reverse geocode using OpenStreetMap Nominatim — free, no API key */
+    fetch('https://nominatim.openstreetmap.org/reverse?lat='+lat+'&lon='+lng+'&format=json&addressdetails=1', {
+      headers: { 'Accept-Language': 'en', 'User-Agent': 'PersonalVaultApp/1.0' }
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(data){
+      var a = data.address || {};
+      /* Fill in all fields */
+      var street = [a.house_number, a.road||a.pedestrian||a.footway].filter(Boolean).join(' ');
+      var city   = a.city||a.town||a.village||a.municipality||a.county||'';
+      var state  = a.state||a.region||'';
+      var country= a.country||'';
+      var postal = a.postcode||'';
+
+      var setVal=function(id,v){ var el=document.getElementById('home-'+id); if(el) el.value=v; };
+      setVal('street',street);
+      setVal('city',city);
+      setVal('state',state);
+      setVal('country',country);
+      setVal('postalCode',postal);
+      setVal('mapUrl','https://www.google.com/maps?q='+lat+','+lng);
+
+      if(status){ status.style.display='block'; status.innerHTML='✅ Location pinned: <strong>'+[street,city,country].filter(Boolean).join(', ')+'</strong>'; status.style.color='#22C55E'; }
+      btn.innerHTML='<span style="font-size:20px">📍</span> Re-fetch My Location';
+      btn.disabled=false;
+      Layout.toast('Location pinned! Review and save below 📍','success');
+    })
+    .catch(function(){
+      /* Geocoding failed — fill coords only */
+      var setVal=function(id,v){ var el=document.getElementById('home-'+id); if(el) el.value=v; };
+      setVal('mapUrl','https://www.google.com/maps?q='+lat+','+lng);
+      if(status){ status.textContent='⚠️ Could not find address name. Map link saved.'; status.style.color='#F97316'; }
+      btn.innerHTML='<span style="font-size:20px">📍</span> Re-fetch My Location';
+      btn.disabled=false;
+    });
+  }, function(err){
+    var msgs = { 1:'Location access denied. Allow location in browser settings.', 2:'Location unavailable. Try again outside or near a window.', 3:'Location request timed out. Try again.' };
+    Layout.toast(msgs[err.code]||'Could not get location','error');
+    if(status){ status.textContent='❌ '+(msgs[err.code]||'Location error'); status.style.color='#EF4444'; }
+    btn.innerHTML='<span style="font-size:20px">📍</span> Fetch My Exact Location';
+    btn.disabled=false;
+  }, { enableHighAccuracy:true, timeout:15000, maximumAge:0 });
+}
+
 </script>
 </body>
 </html>
