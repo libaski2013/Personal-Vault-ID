@@ -1,10 +1,12 @@
 services:
   - type: web
-    name: trustid-realtime
+    name: personal-vault
     runtime: node
     buildCommand: npm install
     startCommand: npm start
     healthCheckPath: /health
+    autoDeploy: true          # ← Render redeploys automatically on every git push
+    branch: main
     envVars:
       - key: NODE_ENV
         value: production
@@ -16,3 +18,15 @@ services:
         sync: false
       - key: JWT_SECRET
         generateValue: true
+      - key: SMTP_HOST
+        value: smtp.gmail.com
+      - key: SMTP_PORT
+        value: "465"
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: APP_URL
+        value: https://personal-vault-id.onrender.com

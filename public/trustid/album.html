@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Personal Vault — Secret Album</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="icon" href="./icon.svg">
+  <link rel="stylesheet" href="./css/styles.css">
+  <style>
+    /* Screenshot protection */
+    .album-protected { -webkit-user-select:none!important; user-select:none!important; }
+
+    /* PIN gate */
+    .pin-gate { max-width:360px; margin:60px auto; background:#fff; border-radius:24px; padding:36px; text-align:center; box-shadow:0 16px 48px rgba(0,0,0,0.08); border:1px solid #E8ECF4; }
+    .pin-icon { font-size:52px; margin-bottom:14px; }
+    .pin-row  { display:flex; gap:10px; justify-content:center; margin:20px 0; }
+    .pin-d    { width:52px; height:58px; border-radius:14px; border:2px solid #E2E8F0; font-size:26px; font-weight:700; text-align:center; outline:none; transition:border-color 0.15s; color:#0F172A; }
+    .pin-d:focus { border-color:#7C3AED; box-shadow:0 0 0 3px #7C3AED20; }
+    .pin-d.err   { border-color:#EF4444; animation:shake 0.3s; }
+    @keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-5px)}40%,80%{transform:translateX(5px)}}
+
+    /* Album grid */
+    .album-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:12px; }
+    .album-card { position:relative; border-radius:14px; overflow:hidden; aspect-ratio:1; background:#F1F5F9; cursor:pointer; border:2px solid transparent; transition:border-color 0.15s; }
+    .album-card:hover { border-color:#7C3AED; }
+    .album-card img,.album-card video { width:100%; height:100%; object-fit:cover; display:block; pointer-events:none; }
+    .album-card .del-btn { position:absolute; top:6px; right:6px; width:26px; height:26px; border-radius:50%; background:rgba(239,68,68,0.9); border:none; cursor:pointer; color:#fff; font-size:13px; display:none; align-items:center; justify-content:center; }
+    .album-card:hover .del-btn { display:flex; }
+    .album-card .type-badge { position:absolute; bottom:6px; left:6px; background:rgba(0,0,0,0.6); color:#fff; font-size:10px; font-weight:700; padding:2px 6px; border-radius:100px; }
+
+    /* Upload dropzone */
+    .dropzone { border:2px dashed #E2E8F0; border-radius:16px; padding:32px; text-align:center; cursor:pointer; transition:all 0.2s; background:#F8FAFC; }
+    .dropzone:hover,.dropzone.over { border-color:#7C3AED; background:#7C3AED08; }
+
+    /* Share album modal */
+    .anon-badge { background:linear-gradient(135deg,#0F0E2A,#312E81); color:#fff; border-radius:14px; padding:16px 20px; margin-bottom:16px; }
+
+    /* Lightbox */
+    .lightbox { position:fixed; inset:0; background:rgba(0,0,0,0.95); z-index:9999; display:none; align-items:center; justify-content:center; flex-direction:column; }
+    .lightbox img,.lightbox video { max-width:92vw; max-height:86vh; border-radius:12px; object-fit:contain; }
+    .lb-close { position:absolute; top:16px; right:20px; font-size:28px; color:#fff; cursor:pointer; background:none; border:none; }
+    .lb-info  { color:rgba(255,255,255,0.5); font-size:12px; margin-top:10px; }
+
+    @media(max-width:480px){ .album-grid{ grid-template-columns:repeat(3,1fr); gap:6px; } }
+  </style>
+</head>
+<body>
+<div class="app-shell album-protected">
+  <div id="sidebar"></div>
+  <div id="main">
+    <div id="topbar"></div>
+    <div class="page-content" id="content"></div>
+  </div>
+</div>
+
+<!-- Lightbox -->
+<div class="lightbox" id="lb" onclick="closeLb()">
+  <button class="lb-close" onclick="closeLb()">×</button>
+  <img id="lbImg" style="display:none" oncontextmenu="return false" draggable="false">
+  <video id="lbVid" controls style="display:none" oncontextmenu="return false"></video>
+  <div class="lb-info" id="lbInfo"></div>
+</div>
+
+<script src="./js/auth.js"></script>
+<script>if(!Auth.requireAuth()) throw '';</script>
+<script src="./js/api.js"></script>
+<script src="./js/layout.js"></script>
+<script>
+Layout.init('album');
+
+var UNLOCKED = sessionStorage.getItem('pv_album_unlocked')==='true';
+var items    = [];
+
+/* ── Screenshot prevention ── */
+document.addEventListener('keyup', function(e){
+  if(e.key==='PrintScreen'){
+    navigator.clipboard&&navigator.clipboard.writeText('');
+    alert('⛔ Screenshots are not allowed in Secret Album');
+  }
+});
+document.addEventListener('contextmenu', function(e){
+  if(e.target.tagName==='IMG'||e.target.tagName==='VIDEO') e.preventDefault();
+});
+document.addEventListener('visibilitychange', function(){
+  if(document.hidden){ var o=document.getElementById('lbImg'); if(o) o.style.filter='blur(40px)'; }
+  else { var o2=document.getElementById('lbImg'); if(o2) o2.style.filter=''; }
+});
+
+/* ── Vault PIN gate (shared with vault.html) ── */
+function renderGate(isFirst){
+  document.getElementById('content').innerHTML =
+    '<div class="pin-gate">'
+    +'<div class="pin-icon">🖼️</div>'
+    +'<h2 style="font-size:20px;font-weight:900;color:#0F172A;margin-bottom:8px">'+(isFirst?'Set Up Album PIN':'Secret Album')+'</h2>'
+    +'<p style="font-size:13px;color:#64748B;margin-bottom:4px">'+(isFirst?'Create a 4-digit PIN to protect your private album':'Enter your PIN to access your secret album')+'</p>'
+    +'<div class="pin-row" id="pinRow">'
+    +'<input class="pin-d" maxlength="1" type="password" inputmode="numeric">'
+    +'<input class="pin-d" maxlength="1" type="password" inputmode="numeric">'
+    +'<input class="pin-d" maxlength="1" type="password" inputmode="numeric">'
+    +'<input class="pin-d" maxlength="1" type="password" inputmode="numeric">'
+    +'</div>'
+    +(isFirst?'<p style="font-size:12px;color:#64748B;margin:0 0 16px">You can use the same PIN as your Secret Vault</p>':'')
+    +'<button onclick="submitPin('+isFirst+')" class="btn btn-primary btn-full" style="max-width:240px;margin:0 auto">'+( isFirst?'Set PIN 🔐':'Unlock Album 🔓')+'</button>'
+    +'<p style="font-size:12px;color:#94A3B8;margin-top:14px">Your album is end-to-end protected</p>'
+    +'</div>';
+  setupPinInputs();
+}
+
+function setupPinInputs(){
+  var ds = document.querySelectorAll('.pin-d');
+  ds.forEach(function(d,i){
+    d.addEventListener('input', function(){ if(d.value&&i<ds.length-1) ds[i+1].focus(); });
+    d.addEventListener('keydown', function(e){
+      if(e.key==='Backspace'&&!d.value&&i>0){ ds[i-1].focus(); ds[i-1].value=''; }
+      if(e.key==='Enter') submitPin(false);
+    });
+  });
+  if(ds.length) ds[0].focus();
+}
+
+async function submitPin(isFirst){
+  var pin = Array.from(document.querySelectorAll('.pin-d')).map(function(d){return d.value;}).join('');
+  if(pin.length<4){ shakePins(); return; }
+  if(isFirst){
+    var r = await fetch('/api/trustid/vault/setup-pin',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+Auth.getToken()},body:JSON.stringify({pin})}).then(function(x){return x.json();});
+    if(r.success){ sessionStorage.setItem('pv_album_unlocked','true'); UNLOCKED=true; loadAlbum(); }
+    else{ Layout.toast(r.message||'Error','error'); shakePins(); }
+    return;
+  }
+  var r = await fetch('/api/trustid/vault/verify-pin',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+Auth.getToken()},body:JSON.stringify({pin})}).then(function(x){return x.json();});
+  if(r.success){
+    if(r.firstTime){ renderGate(true); return; }
+    sessionStorage.setItem('pv_album_unlocked','true'); UNLOCKED=true; loadAlbum();
+  } else { shakePins(); Layout.toast('Incorrect PIN','error'); }
+}
+
+function shakePins(){
+  document.querySelectorAll('.pin-d').forEach(function(d){ d.classList.add('err'); d.value=''; setTimeout(function(){d.classList.remove('err');},400); });
+  document.querySelectorAll('.pin-d')[0].focus();
+}
+
+/* ── Album loaded ── */
+function loadAlbum(){
+  document.getElementById('content').innerHTML = Layout.spinner();
+  fetch('/api/trustid/vault/items',{headers:{Authorization:'Bearer '+Auth.getToken()}})
+    .then(function(r){return r.json();})
+    .then(function(r){
+      items = (r.success?r.data:[]).filter(function(i){ return i.type==='photo'||i.type==='video'; });
+      renderAlbum();
+    });
+}
+
+function renderAlbum(){
+  var html =
+    '<div class="page-header">'
+    +'<div><h1 class="page-title">🖼️ Secret Album</h1><p class="page-sub">PIN-protected private photos & videos — only you can see these</p></div>'
+    +'<div style="display:flex;gap:10px">'
+    +'<button onclick="sessionStorage.removeItem(\'pv_album_unlocked\');location.reload()" class="btn btn-ghost btn-sm" style="width:auto">🔒 Lock</button>'
+    +'<button onclick="showShareModal()" class="btn btn-primary btn-sm" style="width:auto">🔗 Share Anonymously</button>'
+    +'</div></div>'
+
+    /* Upload zone */
+    +'<div class="dropzone" id="dropzone" onclick="document.getElementById(\'albumUpload\').click()" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">'
+    +'<input type="file" id="albumUpload" multiple accept="image/*,video/*" style="display:none" onchange="handleFiles(this.files)">'
+    +'<div style="font-size:36px;margin-bottom:10px">📷 🎬</div>'
+    +'<div style="font-size:14px;font-weight:700;color:#334155;margin-bottom:4px">Tap or drag photos & videos here</div>'
+    +'<div style="font-size:12px;color:#94A3B8">Supports JPG, PNG, GIF, MP4, MOV — max 10MB each</div>'
+    +'</div>'
+
+    +(items.length?
+      '<div style="margin:20px 0 12px;display:flex;justify-content:space-between;align-items:center">'
+      +'<h3 style="font-size:14px;font-weight:800;color:#0F172A">'+items.length+' item'+(items.length!==1?'s':'')+'</h3>'
+      +'<span style="font-size:12px;color:#64748B">Tap to view full screen</span>'
+      +'</div>'
+      +'<div class="album-grid">'
+      +items.map(function(item,i){
+          var isVideo = item.type==='video';
+          var thumb = item.content||'';
+          return '<div class="album-card" onclick="openLb('+i+')">'
+            +(thumb?'<img src="'+thumb+'" alt="'+(item.title||'Photo')+'" oncontextmenu="return false" draggable="false">':'<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:40px">'+(isVideo?'🎬':'📷')+'</div>')
+            +'<span class="type-badge">'+(isVideo?'🎬 Video':'🖼 Photo')+'</span>'
+            +'<button class="del-btn" onclick="event.stopPropagation();delItem(\''+item._id+'\')">×</button>'
+            +'</div>';
+        }).join('')
+      +'</div>'
+      :'<div class="empty" style="padding:60px"><div style="font-size:40px;margin-bottom:12px">🖼️</div><div style="font-size:15px;font-weight:600;margin-bottom:6px">No photos or videos yet</div><div>Add your first private memory above</div></div>'
+    )
+
+    /* Anonymous share section */
+    +'<div style="margin-top:24px;background:#F8FAFC;border-radius:16px;padding:20px;border:1px solid #E8ECF4">'
+    +'<h3 style="font-size:14px;font-weight:800;margin-bottom:8px">🕵️ Anonymous Sharing</h3>'
+    +'<p style="font-size:13px;color:#64748B;line-height:1.6">You can select specific photos or videos from this album and generate an anonymous share link. The link does not reveal your identity — recipients only see what you choose to share.</p>'
+    +'</div>';
+
+  document.getElementById('content').innerHTML = html;
+  setupDragDrop();
+}
+
+/* ── File handling ── */
+function handleFiles(files){
+  Array.from(files).forEach(function(file){
+    if(file.size > 10*1024*1024){ Layout.toast(file.name+' is too large (max 10MB)','error'); return; }
+    var reader = new FileReader();
+    reader.onload = function(e){
+      var base64 = e.target.result;
+      var isVideo = file.type.startsWith('video/');
+      fetch('/api/trustid/vault/items',{
+        method:'POST',
+        headers:{'Content-Type':'application/json',Authorization:'Bearer '+Auth.getToken()},
+        body:JSON.stringify({ title:file.name, type:isVideo?'video':'photo', content:base64, tags:['album'] })
+      }).then(function(r){return r.json();}).then(function(r){
+        if(r.success){ items.unshift(r.data); renderAlbum(); Layout.toast('Added to secret album 🖼️','success'); }
+        else Layout.toast(r.message||'Upload failed','error');
+      });
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function setupDragDrop(){
+  var dz = document.getElementById('dropzone');
+  if(!dz) return;
+}
+function onDragOver(e){ e.preventDefault(); document.getElementById('dropzone').classList.add('over'); }
+function onDragLeave(){ document.getElementById('dropzone').classList.remove('over'); }
+function onDrop(e){ e.preventDefault(); document.getElementById('dropzone').classList.remove('over'); handleFiles(e.dataTransfer.files); }
+
+/* ── Lightbox ── */
+function openLb(i){
+  var item = items[i];
+  if(!item) return;
+  var lb    = document.getElementById('lb');
+  var lbImg = document.getElementById('lbImg');
+  var lbVid = document.getElementById('lbVid');
+  var lbInf = document.getElementById('lbInfo');
+  lb.style.display = 'flex';
+  if(item.type==='video'){ lbImg.style.display='none'; lbVid.style.display='block'; lbVid.src=item.content||''; }
+  else { lbVid.style.display='none'; lbImg.style.display='block'; lbImg.src=item.content||''; }
+  lbInf.textContent = (item.title||'Photo')+'  ·  '+(i+1)+' of '+items.length;
+}
+function closeLb(){ document.getElementById('lb').style.display='none'; document.getElementById('lbVid').pause&&document.getElementById('lbVid').pause(); }
+
+/* ── Delete ── */
+async function delItem(id){
+  if(!confirm('Remove this from your secret album?')) return;
+  var r = await fetch('/api/trustid/vault/items/'+id,{method:'DELETE',headers:{Authorization:'Bearer '+Auth.getToken()}}).then(function(x){return x.json();});
+  if(r.success){ items=items.filter(function(i){return i._id!==id;}); renderAlbum(); Layout.toast('Removed','info'); }
+}
+
+/* ── Anonymous share modal ── */
+function showShareModal(){
+  if(!items.length){ Layout.toast('Add photos or videos first','warning'); return; }
+  var modal = document.createElement('div');
+  modal.className = 'modal-backdrop';
+  modal.style.cssText = 'display:flex';
+  modal.innerHTML =
+    '<div class="modal" style="max-width:480px" onclick="event.stopPropagation()">'
+    +'<div class="modal-header"><span class="modal-title">🕵️ Share Anonymously</span>'
+    +'<button onclick="this.closest(\'.modal-backdrop\').remove()" style="background:#F1F5F9;border:none;cursor:pointer;width:32px;height:32px;border-radius:8px;font-size:18px;color:#64748B">×</button></div>'
+    +'<div class="anon-badge"><div style="font-size:13px;font-weight:700;margin-bottom:4px">🔒 Anonymous mode</div><div style="font-size:12px;opacity:0.7">The share link will not reveal your name or account. Recipients only see the photos/videos you select. The link expires after your chosen time.</div></div>'
+    +'<div style="font-size:13px;font-weight:700;color:#334155;margin-bottom:10px">Select photos to include:</div>'
+    +'<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px;max-height:200px;overflow-y:auto">'
+    +items.map(function(item,i){
+        var thumb = item.content||'';
+        return '<div id="asel-'+i+'" onclick="toggleAnonSel('+i+',this)" style="aspect-ratio:1;border-radius:10px;overflow:hidden;border:3px solid #E2E8F0;cursor:pointer;position:relative;transition:border-color 0.15s">'
+          +(thumb?'<img src="'+thumb+'" style="width:100%;height:100%;object-fit:cover">':'<div style="display:flex;align-items:center;justify-content:center;height:100%;background:#F1F5F9;font-size:24px">'+(item.type==='video'?'🎬':'📷')+'</div>')
+          +'<div id="acheck-'+i+'" style="display:none;position:absolute;top:3px;right:3px;width:18px;height:18px;border-radius:50%;background:#7C3AED;display:none;align-items:center;justify-content:center;font-size:10px;color:#fff">✓</div>'
+          +'</div>';
+      }).join('')
+    +'</div>'
+    +'<div class="field"><label class="label">Link expires after</label>'
+    +'<select id="anonExpiry" class="input"><option value="0.042">1 hour</option><option value="0.25">6 hours</option><option value="1">24 hours</option><option value="7">7 days</option><option value="30">30 days</option></select></div>'
+    +'<button onclick="createAnonShare(this)" class="btn btn-primary btn-full" style="margin-top:14px">🔗 Generate Anonymous Link</button>'
+    +'<div id="anonResult" style="display:none;margin-top:14px"></div>'
+    +'</div>';
+  document.body.appendChild(modal);
+  modal.addEventListener('click', function(e){ if(e.target===modal) modal.remove(); });
+}
+
+var anonSelected = new Set();
+function toggleAnonSel(i, el){
+  if(anonSelected.has(i)){ anonSelected.delete(i); el.style.borderColor='#E2E8F0'; var ch=document.getElementById('acheck-'+i); if(ch) ch.style.display='none'; }
+  else { anonSelected.add(i); el.style.borderColor='#7C3AED'; var ch2=document.getElementById('acheck-'+i); if(ch2) ch2.style.display='flex'; }
+}
+
+async function createAnonShare(btn){
+  if(!anonSelected.size){ Layout.toast('Select at least one photo','warning'); return; }
+  btn.textContent='Generating…'; btn.disabled=true;
+  /* Create a share card with anonymous flag */
+  var expDays = parseFloat(document.getElementById('anonExpiry').value)||1;
+  var r = await fetch('/api/trustid/share',{
+    method:'POST',
+    headers:{'Content-Type':'application/json',Authorization:'Bearer '+Auth.getToken()},
+    body:JSON.stringify({ title:'Anonymous Album Share', customMessage:'', sections:['album'], expiresInDays:expDays, anonymous:true, albumItemIds:Array.from(anonSelected).map(function(i){return items[i]._id;}) })
+  }).then(function(x){return x.json();});
+  btn.textContent='Generate Anonymous Link'; btn.disabled=false;
+  if(r.success){
+    var url = window.location.origin+'/trustid/view.html?code='+r.shareCode;
+    document.getElementById('anonResult').style.display='block';
+    document.getElementById('anonResult').innerHTML =
+      '<div style="background:#22C55E12;border:1px solid #22C55E30;border-radius:12px;padding:14px;text-align:center">'
+      +'<div style="font-size:13px;font-weight:700;color:#15803D;margin-bottom:8px">✅ Anonymous link created</div>'
+      +'<div style="font-family:monospace;font-size:18px;font-weight:900;letter-spacing:3px;color:#7C3AED;margin-bottom:10px">'+r.shareCode+'</div>'
+      +Layout.qrImg(url, 140)
+      +'<div style="display:flex;gap:8px;justify-content:center;margin-top:10px">'
+      +'<button onclick="navigator.clipboard&&navigator.clipboard.writeText(\''+url+'\')" style="padding:7px 14px;border-radius:8px;background:#7C3AED;color:#fff;border:none;cursor:pointer;font-size:12px;font-weight:600">📋 Copy Link</button>'
+      +'</div>'
+      +'<div style="font-size:11px;color:#64748B;margin-top:8px">🕵️ Your identity is hidden from recipients</div>'
+      +'</div>';
+  } else Layout.toast(r.message||'Error','error');
+  anonSelected.clear();
+}
+
+/* ── Boot ── */
+if(UNLOCKED){ loadAlbum(); }
+else{
+  fetch('/api/trustid/vault/verify-pin',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+Auth.getToken()},body:JSON.stringify({pin:''})})
+    .then(function(r){return r.json();})
+    .then(function(r){ renderGate(r.firstTime||false); })
+    .catch(function(){ renderGate(false); });
+}
+</script>
+</body>
+</html>

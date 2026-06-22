@@ -22,7 +22,16 @@ module.exports = async function shareRoutes(fastify) {
       attempts++;
     } while (attempts < 10 && await ShareCard.findOne({ shareCode }));
 
+    /* expiresInDays can be fractional (e.g. 0.5/24 for 30 minutes) */
     const expiresAt = expiresInDays ? new Date(Date.now() + expiresInDays * 864e5) : null;
+    /* Human-readable expiry label for display */
+    let expiryLabel = null;
+    if (expiresInDays) {
+      const mins = Math.round(expiresInDays * 24 * 60);
+      if (mins < 60) expiryLabel = `${mins} minute${mins===1?'':'s'}`;
+      else if (mins < 1440) expiryLabel = `${Math.round(mins/60)} hour${Math.round(mins/60)===1?'':'s'}`;
+      else expiryLabel = `${Math.round(expiresInDays)} day${Math.round(expiresInDays)===1?'':'s'}`;
+    }
     const card = await ShareCard.create({
       userId: req.user.userId,
       shareCode,

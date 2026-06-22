@@ -110,11 +110,23 @@ function render() {
     /* Expiry */
     +'<div class="card">'
     +'<h3 style="font-size:15px;font-weight:800;margin-bottom:6px">⏰ Link Expiry</h3>'
-    +'<p style="font-size:13px;color:#64748B;margin-bottom:10px">Set when this share link automatically expires (optional)</p>'
-    +'<div class="expiry-row">'
-    +[{v:0,l:'Never'},{v:1,l:'1 Day'},{v:7,l:'7 Days'},{v:30,l:'30 Days'},{v:90,l:'90 Days'}].map(function(o){
-        return '<button class="expiry-opt'+(expiry===o.v?' sel':'')+'" onclick="setExpiry('+o.v+')">'+o.l+'</button>';
+    +'<p style="font-size:13px;color:#64748B;margin-bottom:12px">Choose a preset or enter a custom duration</p>'
+    /* Presets */
+    +'<div class="expiry-row" style="margin-bottom:12px">'
+    +[{v:0,l:'Never'},{v:'30m',l:'30 min'},{v:'1h',l:'1 hour'},{v:'6h',l:'6 hours'},{v:'24h',l:'24 hours'},{v:7,l:'7 days'},{v:30,l:'30 days'}].map(function(o){
+        var sel = (expiry===o.v);
+        return '<button class="expiry-opt'+(sel?' sel':'')+'" onclick="setExpiry(\''+o.v+'\')">'+o.l+'</button>';
       }).join('')
+    +'</div>'
+    /* Custom input */
+    +'<div style="display:flex;gap:8px;align-items:center">'
+    +'<input id="customExpiry" class="input" type="number" min="1" max="9999" placeholder="Custom…" style="width:110px;height:38px" oninput="setCustomExpiry(this.value)">'
+    +'<select id="customUnit" class="input" style="width:110px;height:38px" onchange="setCustomExpiry(document.getElementById(\'customExpiry\').value)">'
+    +'<option value="m">Minutes</option>'
+    +'<option value="h" selected>Hours</option>'
+    +'<option value="d">Days</option>'
+    +'</select>'
+    +'<span style="font-size:13px;color:#64748B" id="expiryLabel">— No expiry</span>'
     +'</div></div>'
 
     /* Generate button */
@@ -202,7 +214,47 @@ function toggleSection(id) {
   render();
 }
 
-function setExpiry(v) { expiry=v; render(); }
+function setExpiry(v) {
+  expiry = v;
+  document.getElementById('customExpiry').value = '';
+  updateExpiryLabel();
+  render();
+}
+
+function setCustomExpiry(val) {
+  if (!val || isNaN(val) || Number(val) <= 0) return;
+  var unit = document.getElementById('customUnit').value;
+  expiry = val + unit;   /* e.g. "90m", "3h", "14d" */
+  /* Deselect presets */
+  document.querySelectorAll('.expiry-opt').forEach(function(b){ b.classList.remove('sel'); });
+  updateExpiryLabel();
+}
+
+function updateExpiryLabel() {
+  var lbl = document.getElementById('expiryLabel');
+  if (!lbl) return;
+  if (!expiry || expiry===0) { lbl.textContent='— No expiry'; return; }
+  /* Parse presets like "30m","1h","6h","24h" */
+  if (typeof expiry==='string' && /^\d+[mhd]$/.test(expiry)) {
+    var n=parseInt(expiry), u=expiry.slice(-1);
+    var labels={m:'minute',h:'hour',d:'day'};
+    lbl.textContent = '⏱ Expires in '+n+' '+(labels[u]||'')+(n>1?'s':'');
+  } else {
+    lbl.textContent = '⏱ Expires in '+expiry+' day'+(expiry>1?'s':'');
+  }
+}
+
+function expiryToMinutes(v) {
+  if (!v || v===0) return null;
+  if (typeof v==='string' && /^\d+[mhd]$/.test(v)) {
+    var n=parseInt(v), u=v.slice(-1);
+    if(u==='m') return n/60/24;           /* convert to days for backend */
+    if(u==='h') return n/24;
+    if(u==='d') return n;
+    return null;
+  }
+  return Number(v) || null;
+}
 
 async function generateCard() {
   var secs = Array.from(selected);
@@ -213,7 +265,7 @@ async function generateCard() {
   var r = await fetch('/api/trustid/share', {
     method:'POST',
     headers:{'Content-Type':'application/json',Authorization:'Bearer '+Auth.getToken()},
-    body:JSON.stringify({ title, customMessage:message, sections:secs, expiresInDays:expiry||null })
+    body:JSON.stringify({ title, customMessage:message, sections:secs, expiresInDays:expiryToMinutes(expiry)||null })
   }).then(function(x){return x.json();});
   if (r.success) {
     lastGenerated = r.data;
