@@ -181,6 +181,11 @@ const contactCardSchema = new Schema({
     showWhatsapp:Boolean, showEmail:Boolean, showWebsite:Boolean,
     showLocation:Boolean, showSocials:Boolean, showServices:Boolean,
   },
+  /* Bottom bar content */
+  vision:     { type: String, default: '' },
+  expertise:  { type: String, default: '' },
+  commitment: { type: String, default: '' },
+
   isPublic: { type: Boolean, default:true },
 }, { timestamps:true });
 

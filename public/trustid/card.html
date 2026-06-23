@@ -7,130 +7,227 @@
   <link rel="icon" href="./icon.svg">
   <link rel="stylesheet" href="./css/styles.css">
   <style>
-    /* ══ CARD THEMES ══ */
+    /* ══════════════════════════════════════════
+       CORPORATE GOLD CARD — Matches screenshot
+    ══════════════════════════════════════════ */
     :root {
-      --card-w: 360px;
+      --gold:   #C9A227;
+      --gold2:  #E8C84A;
+      --dark:   #0D1117;
+      --dark2:  #161B22;
     }
-    .dc-wrap { display:grid; grid-template-columns:1fr var(--card-w); gap:24px; align-items:start; }
-    @media(max-width:900px){ .dc-wrap{ grid-template-columns:1fr; } .dc-sticky{ position:static!important; } }
 
-    /* Live card preview */
-    .dc-sticky { position:sticky; top:80px; }
-    .dc-card   { width:var(--card-w); border-radius:20px; overflow:hidden; box-shadow:0 20px 60px rgba(0,0,0,0.2); position:relative; user-select:none; font-family:Inter,system-ui,sans-serif; }
+    .card-builder { display:grid; grid-template-columns:1fr 520px; gap:24px; align-items:start; }
+    @media(max-width:1100px){ .card-builder{ grid-template-columns:1fr; } .card-sticky{ position:static!important; } }
 
-    /* ── Theme: Professional (dark navy) ── */
-    .t-professional { background:linear-gradient(145deg,#0F0E2A 0%,#1E1B4B 55%,#312E81 100%); color:#fff; }
-    .t-professional .dc-accent   { color:#A78BFA; }
-    .t-professional .dc-divider  { background:rgba(255,255,255,0.12); }
-    .t-professional .dc-label    { color:rgba(255,255,255,0.45); }
-    .t-professional .dc-icon-bg  { background:rgba(124,58,237,0.25); }
-    .t-professional .dc-btn      { background:rgba(255,255,255,0.15); color:#fff; border:1px solid rgba(255,255,255,0.2); }
+    /* ── Card Preview wrapper ── */
+    .card-sticky { position:sticky; top:72px; }
+    .card-preview-label { text-align:center; font-size:11px; color:#94A3B8; font-weight:700; letter-spacing:1px; text-transform:uppercase; margin-bottom:10px; }
 
-    /* ── Theme: Minimal (white) ── */
-    .t-minimal { background:#fff; color:#0F172A; border:1.5px solid #E8ECF4; }
-    .t-minimal .dc-header-band   { background:linear-gradient(135deg,#7C3AED,#5B21B6); }
-    .t-minimal .dc-accent        { color:#7C3AED; }
-    .t-minimal .dc-divider       { background:#F1F5F9; }
-    .t-minimal .dc-label         { color:#94A3B8; }
-    .t-minimal .dc-icon-bg       { background:#F3F0FF; }
-    .t-minimal .dc-btn           { background:#7C3AED; color:#fff; }
+    /* ══ CORPORATE CARD SHELL ══ */
+    .corp-card {
+      width:500px;
+      border-radius:16px;
+      overflow:hidden;
+      box-shadow:0 24px 64px rgba(0,0,0,0.28), 0 0 0 1px rgba(201,162,39,0.2);
+      font-family:Inter,system-ui,sans-serif;
+      user-select:none;
+      position:relative;
+    }
 
-    /* ── Theme: Bold (dark + red) ── */
-    .t-bold { background:linear-gradient(145deg,#0d0d1a,#1a0a0a); color:#fff; }
-    .t-bold .dc-accent   { color:#FF6B6B; }
-    .t-bold .dc-divider  { background:rgba(255,107,107,0.2); }
-    .t-bold .dc-label    { color:rgba(255,255,255,0.4); }
-    .t-bold .dc-icon-bg  { background:rgba(255,107,107,0.2); }
-    .t-bold .dc-btn      { background:#FF6B6B; color:#fff; }
+    /* Split body: left dark + right light */
+    .corp-body {
+      display:grid;
+      grid-template-columns:210px 1fr;
+      min-height:300px;
+    }
 
-    /* ── Theme: Premium (gold) ── */
-    .t-premium { background:linear-gradient(145deg,#1a1205,#2d1f08,#1a1205); color:#fff; }
-    .t-premium .dc-accent   { color:#FFD700; }
-    .t-premium .dc-divider  { background:rgba(255,215,0,0.2); }
-    .t-premium .dc-label    { color:rgba(255,215,0,0.5); }
-    .t-premium .dc-icon-bg  { background:rgba(255,215,0,0.15); }
-    .t-premium .dc-btn      { background:linear-gradient(135deg,#B8860B,#FFD700); color:#1a1205; }
+    /* ── LEFT PANEL ── */
+    .corp-left {
+      background:var(--dark);
+      padding:22px 18px 18px;
+      position:relative;
+      overflow:hidden;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+    }
+    /* Gold diagonal swoosh */
+    .corp-left::before {
+      content:'';
+      position:absolute;
+      top:-20px; right:-30px;
+      width:100px; height:130%;
+      background:linear-gradient(180deg, var(--gold) 0%, transparent 60%);
+      transform:skewX(-12deg);
+      opacity:0.08;
+      pointer-events:none;
+    }
+    .corp-left::after {
+      content:'';
+      position:absolute;
+      bottom:0; right:0;
+      width:80px; height:60%;
+      background:linear-gradient(135deg, var(--gold) 0%, transparent 70%);
+      transform:skewX(-12deg);
+      opacity:0.06;
+      pointer-events:none;
+    }
 
-    /* ── Theme: Nature (teal/green) ── */
-    .t-nature { background:linear-gradient(145deg,#134e5e,#0a3040,#1a6b5a); color:#fff; }
-    .t-nature .dc-accent   { color:#71b280; }
-    .t-nature .dc-divider  { background:rgba(113,178,128,0.2); }
-    .t-nature .dc-label    { color:rgba(255,255,255,0.45); }
-    .t-nature .dc-icon-bg  { background:rgba(113,178,128,0.2); }
-    .t-nature .dc-btn      { background:#71b280; color:#0a3040; }
+    .corp-logo-wrap { width:48px; height:48px; border-radius:10px; overflow:hidden; border:1.5px solid rgba(201,162,39,0.4); display:flex; align-items:center; justify-content:center; background:rgba(201,162,39,0.1); font-size:22px; flex-shrink:0; }
+    .corp-logo-wrap img { width:100%; height:100%; object-fit:cover; }
 
-    /* ══ CARD INNER LAYOUT ══ */
-    .dc-header { padding:28px 24px 20px; display:flex; align-items:flex-start; gap:14px; }
-    .dc-header-band { height:6px; width:100%; }
-    .dc-photo-wrap { position:relative; flex-shrink:0; }
-    .dc-photo { width:72px; height:88px; border-radius:10px; object-fit:cover; border:3px solid rgba(255,255,255,0.3); display:block; }
-    .dc-photo-empty { width:72px; height:88px; border-radius:10px; background:rgba(255,255,255,0.1); border:2px dashed rgba(255,255,255,0.3); display:flex; align-items:center; justify-content:center; font-size:26px; }
-    .dc-logo { position:absolute; bottom:-10px; right:-10px; width:32px; height:32px; border-radius:8px; object-fit:cover; border:2px solid rgba(255,255,255,0.4); background:#fff; }
-    .dc-logo-empty { position:absolute; bottom:-10px; right:-10px; width:32px; height:32px; border-radius:8px; background:rgba(255,255,255,0.15); border:2px dashed rgba(255,255,255,0.3); display:flex; align-items:center; justify-content:center; font-size:14px; }
-    .dc-name-block { flex:1; min-width:0; }
-    .dc-name      { font-size:19px; font-weight:900; margin-bottom:2px; line-height:1.2; }
-    .dc-job       { font-size:12px; font-weight:600; margin-bottom:3px; }
-    .dc-biz       { font-size:11px; opacity:0.65; }
-    .dc-body      { padding:0 24px 20px; }
-    .dc-divider   { height:1px; margin:14px 0; }
-    .dc-bio       { font-size:12px; opacity:0.75; line-height:1.6; margin-bottom:14px; font-style:italic; }
-    .dc-contact   { display:flex; flex-direction:column; gap:8px; margin-bottom:14px; }
-    .dc-row       { display:flex; align-items:center; gap:10px; font-size:12px; }
-    .dc-icon-bg   { width:28px; height:28px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0; }
-    .dc-row-val   { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-    .dc-row-val a { color:inherit; text-decoration:none; }
-    .dc-label     { font-size:9px; font-weight:700; letter-spacing:1px; text-transform:uppercase; }
-    .dc-services  { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:14px; }
-    .dc-svc-chip  { font-size:10px; font-weight:600; padding:3px 9px; border-radius:100px; background:rgba(255,255,255,0.12); }
-    .dc-socials   { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px; }
-    .dc-soc-btn   { display:inline-flex; align-items:center; gap:5px; padding:5px 10px; border-radius:8px; font-size:11px; font-weight:600; cursor:pointer; transition:opacity 0.15s; text-decoration:none; }
-    .dc-soc-btn:hover { opacity:0.8; }
-    .dc-footer    { padding:14px 24px 20px; display:flex; align-items:flex-end; justify-content:space-between; }
-    .dc-qr-wrap   { text-align:center; }
-    .dc-qr-wrap img { width:72px; height:72px; border-radius:8px; display:block; }
-    .dc-qr-label  { font-size:9px; margin-top:4px; opacity:0.5; }
+    .corp-name {
+      font-size:17px; font-weight:900; color:#fff;
+      letter-spacing:0.5px; line-height:1.1;
+      text-transform:uppercase;
+    }
+    .corp-company {
+      font-size:22px; font-weight:900;
+      color:var(--gold);
+      letter-spacing:1px; line-height:1;
+      text-transform:uppercase;
+    }
+    .corp-title-wrap { display:flex; align-items:center; gap:6px; margin:4px 0; }
+    .corp-title-line { flex:1; height:1px; background:var(--gold); opacity:0.5; }
+    .corp-title { font-size:10px; font-weight:700; color:var(--gold); letter-spacing:1.5px; text-transform:uppercase; white-space:nowrap; }
 
-    /* ── Watermark ── */
-    .dc-watermark { position:absolute; bottom:10px; left:50%; transform:translateX(-50%); font-size:9px; font-weight:700; opacity:0.1; letter-spacing:2px; white-space:nowrap; pointer-events:none; }
+    /* Bio — expandable */
+    .corp-bio {
+      font-size:11px; color:rgba(255,255,255,0.65); line-height:1.55;
+      font-style:italic; position:relative;
+    }
+    .corp-bio-text { overflow:hidden; transition:max-height 0.3s ease; }
+    .corp-bio-text.collapsed { max-height:32px; }
+    .corp-bio-text.expanded  { max-height:200px; }
+    .corp-bio-toggle {
+      font-size:9px; color:var(--gold); cursor:pointer; font-weight:700;
+      letter-spacing:0.5px; margin-top:3px; display:inline-block;
+      background:none; border:none; padding:0;
+    }
 
-    /* ══ THEME SELECTOR ══ */
-    .theme-bar    { display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap; }
-    .theme-swatch { width:42px; height:28px; border-radius:8px; cursor:pointer; border:3px solid transparent; transition:all 0.15s; flex-shrink:0; }
-    .theme-swatch.active { border-color:#fff; box-shadow:0 0 0 2px #7C3AED; }
-    .theme-swatch.t-professional-sw { background:linear-gradient(135deg,#0F0E2A,#7C3AED); }
-    .theme-swatch.t-minimal-sw      { background:linear-gradient(135deg,#fff,#E2E8F0); border:1px solid #E2E8F0; }
-    .theme-swatch.t-bold-sw         { background:linear-gradient(135deg,#0d0d1a,#FF6B6B); }
-    .theme-swatch.t-premium-sw      { background:linear-gradient(135deg,#1a1205,#FFD700); }
-    .theme-swatch.t-nature-sw       { background:linear-gradient(135deg,#134e5e,#71b280); }
+    /* Contact rows */
+    .corp-contacts { display:flex; flex-direction:column; gap:7px; margin-top:4px; }
+    .corp-row { display:flex; align-items:center; gap:8px; }
+    .corp-icon {
+      width:26px; height:26px; border-radius:7px;
+      background:rgba(201,162,39,0.15);
+      border:1px solid rgba(201,162,39,0.3);
+      display:flex; align-items:center; justify-content:center;
+      font-size:13px; flex-shrink:0; color:var(--gold);
+    }
+    .corp-row-info { flex:1; min-width:0; }
+    .corp-row-label { font-size:8px; font-weight:700; color:var(--gold); letter-spacing:1px; text-transform:uppercase; }
+    .corp-row-val   { font-size:10px; color:rgba(255,255,255,0.8); font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .corp-row-val a { color:inherit; text-decoration:none; }
 
-    /* ══ FORM ══ */
-    .photo-upload { display:flex; align-items:center; gap:14px; margin-bottom:14px; }
-    .upload-circle { width:72px; height:88px; border-radius:10px; border:2px dashed #7C3AED; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:28px; background:#F3F0FF; overflow:hidden; flex-shrink:0; }
-    .upload-circle img { width:100%; height:100%; object-fit:cover; }
-    .logo-circle  { width:52px; height:52px; border-radius:10px; border:2px dashed #7C3AED; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:22px; background:#F3F0FF; overflow:hidden; flex-shrink:0; }
-    .logo-circle img { width:100%; height:100%; object-fit:cover; }
-    .phones-list  { display:flex; flex-direction:column; gap:8px; }
-    .phone-row    { display:flex; gap:8px; }
-    .phone-row .input { flex:1; height:36px; }
-    .phone-row select { height:36px; border-radius:8px; border:1.5px solid #E2E8F0; padding:0 8px; font-size:12px; }
-    .svc-chips    { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
-    .svc-chip     { display:inline-flex; align-items:center; gap:4px; background:#F3F0FF; color:#7C3AED; padding:4px 10px; border-radius:100px; font-size:12px; font-weight:600; }
+    /* ── RIGHT PANEL ── */
+    .corp-right {
+      background:#F8F8F4;
+      padding:16px 16px 12px;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+    }
+    /* Photo + QR row */
+    .corp-photo-qr { display:flex; justify-content:space-between; align-items:flex-start; }
+    .corp-photo-wrap { position:relative; }
+    .corp-photo {
+      width:88px; height:110px; object-fit:cover;
+      border-radius:10px;
+      border:3px solid var(--gold);
+      display:block;
+    }
+    .corp-photo-empty {
+      width:88px; height:110px; border-radius:10px;
+      border:2px dashed var(--gold);
+      background:rgba(201,162,39,0.06);
+      display:flex; align-items:center; justify-content:center;
+      font-size:32px;
+    }
+    .corp-qr-wrap { text-align:center; }
+    .corp-qr-wrap img { width:64px; height:64px; border-radius:8px; border:2px solid #E8ECF4; display:block; }
+    .corp-qr-label { font-size:8px; font-weight:700; color:#64748B; letter-spacing:1px; margin-top:4px; }
+
+    /* Connect with me */
+    .corp-connect-hdr {
+      display:flex; align-items:center; gap:8px;
+      border-bottom:1.5px solid var(--gold);
+      padding-bottom:6px;
+    }
+    .corp-connect-icon {
+      width:24px; height:24px; border-radius:50%;
+      background:var(--gold); display:flex; align-items:center;
+      justify-content:center; font-size:12px; flex-shrink:0;
+    }
+    .corp-connect-title { font-size:11px; font-weight:900; color:var(--dark); letter-spacing:1.5px; text-transform:uppercase; }
+
+    .corp-social-list { display:flex; flex-direction:column; gap:5px; }
+    .corp-soc-row { display:flex; align-items:center; gap:8px; }
+    .corp-soc-icon {
+      width:22px; height:22px; border-radius:5px;
+      display:flex; align-items:center; justify-content:center;
+      font-size:12px; flex-shrink:0;
+    }
+    .corp-soc-url { font-size:10px; color:#334155; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .corp-soc-url a { color:inherit; text-decoration:none; }
+    .corp-soc-line { flex:1; height:1px; background:var(--gold); opacity:0.3; }
+
+    /* ── BOTTOM BAR ── */
+    .corp-bottom {
+      background:var(--dark);
+      display:grid;
+      grid-template-columns:repeat(4,1fr);
+      border-top:2px solid var(--gold);
+    }
+    .corp-bot-item {
+      padding:10px 12px;
+      border-right:1px solid rgba(201,162,39,0.15);
+      display:flex; flex-direction:column; gap:3px;
+    }
+    .corp-bot-item:last-child { border-right:none; }
+    .corp-bot-icon  { font-size:16px; margin-bottom:2px; }
+    .corp-bot-label { font-size:8px; font-weight:800; color:var(--gold); letter-spacing:1.5px; text-transform:uppercase; }
+    .corp-bot-text  { font-size:9px; color:rgba(255,255,255,0.65); line-height:1.4; }
+
+    /* Watermark */
+    .corp-wm {
+      position:absolute; bottom:44px; right:6px;
+      font-size:7px; font-weight:700; color:rgba(255,255,255,0.06);
+      letter-spacing:2px; transform:rotate(-90deg); transform-origin:right center;
+      pointer-events:none; white-space:nowrap;
+    }
+
+    /* ══ FORM PANEL ══ */
+    .form-section  { background:#fff; border-radius:16px; border:1px solid #E8ECF4; padding:18px; margin-bottom:12px; }
+    .form-section h3 { font-size:13px; font-weight:800; color:#0F172A; margin-bottom:12px; display:flex; align-items:center; gap:8px; }
+    .photo-upload-row { display:flex; gap:16px; align-items:flex-start; }
+    .up-box { display:flex; flex-direction:column; align-items:center; gap:4px; }
+    .up-circle { border-radius:10px; border:2px dashed #7C3AED; cursor:pointer; background:#F3F0FF; overflow:hidden; display:flex; align-items:center; justify-content:center; }
+    .up-circle img { width:100%; height:100%; object-fit:cover; }
+    .up-label { font-size:10px; color:#94A3B8; text-align:center; font-weight:600; }
+    .phone-row { display:flex; gap:8px; margin-bottom:6px; }
+    .phone-row select { height:36px; border-radius:8px; border:1.5px solid #E2E8F0; padding:0 8px; font-size:12px; background:#fff; }
+    .svc-wrap { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+    .svc-chip { display:inline-flex; align-items:center; gap:4px; background:#F3F0FF; color:#7C3AED; padding:4px 10px; border-radius:100px; font-size:12px; font-weight:600; }
     .svc-chip button { background:none; border:none; cursor:pointer; color:#94A3B8; font-size:14px; line-height:1; }
-    .svc-add      { display:flex; gap:8px; margin-top:8px; }
-    .share-row    { display:flex; gap:8px; flex-wrap:wrap; margin-top:14px; }
-    .share-btn    { display:inline-flex; align-items:center; gap:5px; padding:8px 14px; border-radius:10px; border:1.5px solid #E2E8F0; font-size:12px; font-weight:600; cursor:pointer; background:#fff; color:#334155; transition:all 0.15s; }
+    .svc-add-row { display:flex; gap:8px; margin-top:8px; }
+    .share-btns { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+    .share-btn { display:inline-flex; align-items:center; gap:5px; padding:7px 12px; border-radius:10px; border:1.5px solid #E2E8F0; font-size:12px; font-weight:600; cursor:pointer; background:#fff; color:#334155; transition:all 0.15s; }
     .share-btn:hover { border-color:#7C3AED; color:#7C3AED; }
-    .privacy-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
-    .priv-row     { display:flex; align-items:center; justify-content:space-between; padding:8px 12px; background:#F8FAFC; border-radius:10px; font-size:13px; font-weight:600; color:#334155; }
 
-    /* Print / PDF */
     @media print {
       .no-print { display:none!important; }
       body { background:#fff; }
       .app-shell { display:block; }
-      #sidebar, #main > #topbar { display:none; }
-      .dc-wrap { display:block; }
-      .dc-card { width:360px; margin:0 auto; box-shadow:none; }
+      #sidebar, #topbar { display:none; }
+      .card-builder { display:block; }
+      .corp-card { width:100%; max-width:700px; margin:0 auto; box-shadow:none; }
+    }
+    @media(max-width:600px){
+      .corp-card { width:100%; }
+      .corp-body { grid-template-columns:1fr; }
+      .corp-bottom { grid-template-columns:repeat(2,1fr); }
     }
   </style>
 </head>
@@ -141,161 +238,138 @@
     <div id="topbar"></div>
     <div class="page-content">
 
-      <div class="page-header">
-        <div><h1 class="page-title">🪪 Digital Contact Card</h1><p class="page-sub">Create your professional digital business card — share via QR, WhatsApp, email, PDF, or in-app chat</p></div>
+      <div class="page-header no-print">
+        <div><h1 class="page-title">🪪 Digital Contact Card</h1><p class="page-sub">Corporate Gold design — auto-fills from your account</p></div>
         <div style="display:flex;gap:10px;flex-wrap:wrap">
           <button onclick="saveCard()" class="btn btn-primary no-print" style="width:auto" id="saveBtn">💾 Save Card</button>
-          <button onclick="window.print()" class="btn btn-ghost no-print" style="width:auto">🖨️ PDF</button>
+          <button onclick="window.print()" class="btn btn-ghost no-print" style="width:auto">🖨️ PDF / Print</button>
         </div>
       </div>
 
-      <div class="dc-wrap">
+      <div class="card-builder">
 
-        <!-- ── LEFT: Form ── -->
+        <!-- ── LEFT: FORM ── -->
         <div class="no-print">
 
-          <!-- Theme selector -->
-          <div class="card" style="margin-bottom:16px">
-            <h3 style="font-size:14px;font-weight:800;margin-bottom:10px">🎨 Card Theme</h3>
-            <div class="theme-bar">
-              <div class="theme-swatch t-professional-sw active" onclick="setTheme('professional')" title="Professional"></div>
-              <div class="theme-swatch t-minimal-sw"      onclick="setTheme('minimal')"      title="Minimal"></div>
-              <div class="theme-swatch t-bold-sw"         onclick="setTheme('bold')"          title="Bold"></div>
-              <div class="theme-swatch t-premium-sw"      onclick="setTheme('premium')"       title="Premium Gold"></div>
-              <div class="theme-swatch t-nature-sw"       onclick="setTheme('nature')"        title="Nature"></div>
-            </div>
-            <div style="font-size:12px;color:#64748B" id="themeName">Professional — Dark Navy</div>
-          </div>
-
           <!-- Photos -->
-          <div class="card" style="margin-bottom:14px">
-            <h3 style="font-size:14px;font-weight:800;margin-bottom:12px">📷 Photos</h3>
-            <div class="photo-upload">
-              <div>
-                <div class="upload-circle" id="photoPreview" onclick="document.getElementById('photoInput').click()">👤</div>
+          <div class="form-section">
+            <h3>📷 Photos & Logo</h3>
+            <div class="photo-upload-row">
+              <div class="up-box">
+                <div class="up-circle" id="photoPreview" onclick="document.getElementById('photoInput').click()" style="width:72px;height:88px;font-size:28px">👤</div>
                 <input type="file" id="photoInput" accept="image/*" style="display:none" onchange="loadPhoto(this,'photo')">
-                <div style="font-size:10px;color:#94A3B8;text-align:center;margin-top:4px">Passport<br>Photo</div>
+                <span class="up-label">Passport<br>Photo</span>
               </div>
-              <div>
-                <div class="logo-circle" id="logoPreview" onclick="document.getElementById('logoInput').click()">🏢</div>
+              <div class="up-box">
+                <div class="up-circle" id="logoPreview" onclick="document.getElementById('logoInput').click()" style="width:52px;height:52px;font-size:22px">🏢</div>
                 <input type="file" id="logoInput" accept="image/*" style="display:none" onchange="loadPhoto(this,'logo')">
-                <div style="font-size:10px;color:#94A3B8;text-align:center;margin-top:4px">Company<br>Logo</div>
+                <span class="up-label">Logo</span>
               </div>
-              <div style="flex:1;font-size:12px;color:#64748B;line-height:1.6">Upload a passport-style photo and your company/brand logo. They appear together on the card.</div>
+              <div style="flex:1;font-size:12px;color:#64748B;line-height:1.6;padding-top:4px">Upload a professional passport-style photo and your company or personal logo. Both appear on the card.</div>
             </div>
           </div>
 
           <!-- Identity -->
-          <div class="card" style="margin-bottom:14px">
-            <h3 style="font-size:14px;font-weight:800;margin-bottom:12px">👤 Identity</h3>
+          <div class="form-section">
+            <h3>👤 Identity</h3>
             <div style="display:flex;flex-direction:column;gap:10px">
-              <div class="field"><label class="label">Full Name</label><input id="f-fullName" class="input" placeholder="Ali Hassan Baba" oninput="liveUpdate()"></div>
-              <div class="field"><label class="label">Job Title</label><input id="f-jobTitle" class="input" placeholder="Software Engineer" oninput="liveUpdate()"></div>
-              <div class="field"><label class="label">Business / Company Name</label><input id="f-businessName" class="input" placeholder="Babstech Solutions" oninput="liveUpdate()"></div>
-              <div class="field"><label class="label">Short Bio</label><textarea id="f-bio" class="input" rows="2" style="height:auto;resize:vertical;padding:8px" placeholder="Passionate about building digital solutions…" oninput="liveUpdate()"></textarea></div>
+              <div class="field"><label class="label">Full Name <span style="color:#EF4444">*</span></label><input id="f-fullName" class="input" placeholder="ABDUL-MALIK" oninput="liveUpdate()"></div>
+              <div class="field"><label class="label">Business / Company Name</label><input id="f-businessName" class="input" placeholder="BABSTECH" oninput="liveUpdate()"></div>
+              <div class="field"><label class="label">Job Title</label><input id="f-jobTitle" class="input" placeholder="FOUNDER & CEO" oninput="liveUpdate()"></div>
+              <div class="field">
+                <label class="label">Tagline / Bio <span style="font-size:10px;color:#94A3B8">(expandable on card)</span></label>
+                <textarea id="f-bio" class="input" rows="3" style="height:auto;resize:vertical;padding:8px" placeholder="Innovating Solutions, Empowering Connections." oninput="liveUpdate()"></textarea>
+              </div>
             </div>
           </div>
 
           <!-- Contact -->
-          <div class="card" style="margin-bottom:14px">
-            <h3 style="font-size:14px;font-weight:800;margin-bottom:12px">📞 Contact Details</h3>
+          <div class="form-section">
+            <h3>📞 Contact Details</h3>
             <div style="display:flex;flex-direction:column;gap:10px">
-              <!-- Phone numbers -->
-              <div><label class="label">Phone Numbers</label>
-                <div class="phones-list" id="phonesList">
+              <div>
+                <label class="label">Phone / WhatsApp</label>
+                <div id="phonesList">
                   <div class="phone-row">
-                    <select class="phone-label-sel"><option>Mobile</option><option>Work</option><option>Home</option><option>Other</option></select>
-                    <input class="input phone-num" placeholder="+233241234567" oninput="liveUpdate()">
-                    <button onclick="removePhone(this)" style="background:none;border:none;cursor:pointer;color:#94A3B8;font-size:18px">×</button>
+                    <select class="phone-label-sel"><option>Mobile</option><option>Work</option><option>WhatsApp</option></select>
+                    <input class="input phone-num" style="flex:1;height:36px" placeholder="+233241234567" oninput="updatePhones()">
+                    <button onclick="removePhone(this)" style="background:none;border:none;cursor:pointer;color:#94A3B8;font-size:18px;flex-shrink:0">×</button>
                   </div>
                 </div>
                 <button onclick="addPhone()" class="btn btn-ghost btn-sm" style="width:auto;margin-top:6px">+ Add Phone</button>
               </div>
-              <div class="field"><label class="label">WhatsApp Number</label><input id="f-whatsapp" class="input" placeholder="+233241234567" oninput="liveUpdate()"></div>
-              <div class="field"><label class="label">Email Address</label><input id="f-email" class="input" type="email" placeholder="ali@babstech.com" oninput="liveUpdate()"></div>
-              <div class="field"><label class="label">Website</label><input id="f-website" class="input" placeholder="https://babstech.com" oninput="liveUpdate()"></div>
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-                <div class="field"><label class="label">City</label><input id="f-city" class="input" placeholder="Accra" oninput="liveUpdate()"></div>
-                <div class="field"><label class="label">Country</label><input id="f-country" class="input" placeholder="Ghana" oninput="liveUpdate()"></div>
-              </div>
+              <div class="field"><label class="label">Email</label><input id="f-email" class="input" placeholder="abdulmalik@babstech.com" oninput="liveUpdate()"></div>
+              <div class="field"><label class="label">Website</label><input id="f-website" class="input" placeholder="www.babstech.com" oninput="liveUpdate()"></div>
+              <div class="field"><label class="label">Location</label><input id="f-location" class="input" placeholder="Accra, Greater Accra Region, Ghana" oninput="liveUpdate()"></div>
             </div>
           </div>
 
-          <!-- Social media -->
-          <div class="card" style="margin-bottom:14px">
-            <h3 style="font-size:14px;font-weight:800;margin-bottom:12px">🌐 Social Media</h3>
+          <!-- Social -->
+          <div class="form-section">
+            <h3>🌐 Social Media</h3>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-              <div class="field"><label class="label">💼 LinkedIn</label><input id="s-linkedin" class="input" placeholder="username" oninput="liveUpdate()"></div>
-              <div class="field"><label class="label">🐦 Twitter / X</label><input id="s-twitter" class="input" placeholder="@username" oninput="liveUpdate()"></div>
-              <div class="field"><label class="label">📷 Instagram</label><input id="s-instagram" class="input" placeholder="@username" oninput="liveUpdate()"></div>
-              <div class="field"><label class="label">📘 Facebook</label><input id="s-facebook" class="input" placeholder="username" oninput="liveUpdate()"></div>
-              <div class="field"><label class="label">🎵 TikTok</label><input id="s-tiktok" class="input" placeholder="@username" oninput="liveUpdate()"></div>
-              <div class="field"><label class="label">📺 YouTube</label><input id="s-youtube" class="input" placeholder="channel" oninput="liveUpdate()"></div>
-              <div class="field"><label class="label">💻 GitHub</label><input id="s-github" class="input" placeholder="username" oninput="liveUpdate()"></div>
+              <div class="field"><label class="label">📘 Facebook</label><input id="s-facebook" class="input" placeholder="abdulmalikbabstech" oninput="liveUpdate()"></div>
+              <div class="field"><label class="label">📷 Instagram</label><input id="s-instagram" class="input" placeholder="@abdul_malik_babstech" oninput="liveUpdate()"></div>
+              <div class="field"><label class="label">💼 LinkedIn</label><input id="s-linkedin" class="input" placeholder="abdulmalikbabstech" oninput="liveUpdate()"></div>
+              <div class="field"><label class="label">🐦 Twitter/X</label><input id="s-twitter" class="input" placeholder="@abdul_malik_bt" oninput="liveUpdate()"></div>
+              <div class="field"><label class="label">📺 YouTube</label><input id="s-youtube" class="input" placeholder="@babstechghana" oninput="liveUpdate()"></div>
+              <div class="field"><label class="label">🎵 TikTok</label><input id="s-tiktok" class="input" placeholder="@abdulmalikbabstech" oninput="liveUpdate()"></div>
               <div class="field"><label class="label">✈️ Telegram</label><input id="s-telegram" class="input" placeholder="@username" oninput="liveUpdate()"></div>
+              <div class="field"><label class="label">💻 GitHub</label><input id="s-github" class="input" placeholder="username" oninput="liveUpdate()"></div>
             </div>
           </div>
 
-          <!-- Services -->
-          <div class="card" style="margin-bottom:14px">
-            <h3 style="font-size:14px;font-weight:800;margin-bottom:12px">🛠️ Services</h3>
-            <div class="svc-chips" id="svcChips"></div>
-            <div class="svc-add">
-              <input id="svcInput" class="input" placeholder="e.g. Web Design" style="flex:1" onkeydown="if(event.key==='Enter'){event.preventDefault();addService();}">
-              <button onclick="addService()" class="btn btn-ghost btn-sm" style="width:auto">+ Add</button>
+          <!-- Bottom bar content -->
+          <div class="form-section">
+            <h3>⭐ Card Bottom Bar (4 columns)</h3>
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <div class="field"><label class="label">🎯 Vision</label><input id="f-vision" class="input" placeholder="Building a smarter connected world" oninput="liveUpdate()"></div>
+              <div class="field"><label class="label">⭐ Expertise</label><input id="f-expertise" class="input" placeholder="ICT Solutions | Networking | Digital Innovation" oninput="liveUpdate()"></div>
+              <div>
+                <label class="label">🛠️ Services</label>
+                <div class="svc-wrap" id="svcWrap"></div>
+                <div class="svc-add-row"><input id="svcInput" class="input" style="flex:1" placeholder="e.g. IT Consultancy" onkeydown="if(event.key==='Enter'){event.preventDefault();addSvc();}"><button onclick="addSvc()" class="btn btn-ghost btn-sm" style="width:auto">+ Add</button></div>
+              </div>
+              <div class="field"><label class="label">🏆 Commitment</label><input id="f-commitment" class="input" placeholder="Quality. Reliability. Excellence." oninput="liveUpdate()"></div>
             </div>
           </div>
 
-          <!-- Privacy -->
-          <div class="card" style="margin-bottom:14px">
-            <h3 style="font-size:14px;font-weight:800;margin-bottom:6px">🔒 Privacy Controls</h3>
-            <p style="font-size:12px;color:#64748B;margin-bottom:12px">Choose what appears when someone scans your public QR code</p>
-            <div class="privacy-grid" id="privacyGrid"></div>
-          </div>
-
-          <!-- Share options -->
-          <div class="card" style="margin-bottom:14px" id="shareSection" style="display:none">
-            <h3 style="font-size:14px;font-weight:800;margin-bottom:10px">📤 Share Your Card</h3>
-            <div class="share-row">
+          <!-- Share -->
+          <div class="form-section" id="shareSection" style="display:none">
+            <h3>📤 Share Your Card</h3>
+            <div class="share-btns">
               <button class="share-btn" onclick="shareWhatsApp()">📱 WhatsApp</button>
               <button class="share-btn" onclick="shareEmail()">📧 Email</button>
               <button class="share-btn" onclick="copyLink()">🔗 Copy Link</button>
               <button class="share-btn" onclick="downloadQR()">📲 Download QR</button>
-              <button class="share-btn" onclick="shareInChat()">💬 In-App Chat</button>
+              <button class="share-btn" onclick="shareInChat()">💬 Chat</button>
               <button class="share-btn" onclick="window.print()">🖨️ PDF</button>
             </div>
-          </div>
-        </div>
-
-        <!-- ── RIGHT: Live Card Preview ── -->
-        <div class="dc-sticky">
-          <div style="font-size:12px;color:#64748B;text-align:center;margin-bottom:8px;font-weight:600">LIVE PREVIEW</div>
-
-          <!-- Theme switcher overlay on card top -->
-          <div class="dc-card" id="liveCard">
-            <!-- Rendered by JS -->
+            <div style="margin-top:12px;text-align:center">
+              <span style="font-size:11px;color:#94A3B8">Card Code: </span>
+              <span style="font-family:monospace;font-size:15px;font-weight:900;color:#7C3AED;letter-spacing:3px" id="codeDisplay">—</span>
+            </div>
           </div>
 
-          <div style="margin-top:12px;text-align:center">
-            <div style="font-size:11px;color:#94A3B8;margin-bottom:8px">Share Code</div>
-            <div style="font-family:monospace;font-size:16px;font-weight:900;color:#7C3AED;letter-spacing:3px" id="shareCodeDisplay">—</div>
-          </div>
-
-          <!-- QR for scanning -->
-          <div style="text-align:center;margin-top:12px">
-            <img id="mainQR" src="" alt="QR Code" style="width:120px;height:120px;border-radius:12px;display:none">
-          </div>
-
-          <!-- Scan other cards -->
-          <div class="card" style="margin-top:14px;text-align:center">
-            <div style="font-size:13px;font-weight:700;color:#334155;margin-bottom:6px">📷 Scan Someone's Card</div>
-            <div style="font-size:12px;color:#64748B;margin-bottom:10px">Enter a card code or open camera</div>
+          <!-- Scan -->
+          <div class="form-section">
+            <h3>📷 Scan Someone's Card</h3>
             <div style="display:flex;gap:8px">
-              <input id="scanCodeInput" class="input" placeholder="PVC-XXXXXX" style="flex:1;height:36px;font-family:monospace;font-size:14px;font-weight:700;letter-spacing:2px">
+              <input id="scanInput" class="input" style="flex:1" placeholder="PVC-XXXXXX" style="font-family:monospace;font-weight:700;letter-spacing:2px">
               <button onclick="scanCode()" class="btn btn-primary btn-sm" style="width:auto">Scan</button>
             </div>
           </div>
         </div>
+
+        <!-- ── RIGHT: LIVE CARD PREVIEW ── -->
+        <div class="card-sticky">
+          <div class="card-preview-label">LIVE PREVIEW</div>
+          <div class="corp-card" id="liveCard"></div>
+          <div style="text-align:center;margin-top:14px" id="mainQRWrap" style="display:none">
+            <img id="mainQR" style="width:120px;height:120px;border-radius:12px;display:none;margin:0 auto">
+          </div>
+        </div>
+
       </div>
     </div>
   </div>
@@ -308,81 +382,55 @@
 <script>
 Layout.init('card');
 
-/* ══ STATE ══ */
-var cardData = {
-  theme:'professional', photo:null, logo:null,
-  fullName:'', jobTitle:'', businessName:'', bio:'',
+/* ── State ── */
+var D = {
+  photo:null, logo:null,
+  fullName:'', businessName:'', jobTitle:'', bio:'',
   phones:[{ label:'Mobile', number:'' }],
-  whatsapp:'', email:'', website:'',
-  location:{ city:'', country:'' },
-  socials:{ linkedin:'',twitter:'',instagram:'',facebook:'',tiktok:'',youtube:'',github:'',telegram:'' },
+  email:'', website:'', location:'',
+  socials:{ facebook:'',instagram:'',linkedin:'',twitter:'',youtube:'',tiktok:'',telegram:'',github:'' },
   services:[],
-  privacy:{ showPhoto:true,showLogo:true,showBio:true,showPhones:true,showWhatsapp:true,showEmail:true,showWebsite:true,showLocation:true,showSocials:true,showServices:true },
+  vision:'', expertise:'', commitment:'',
   shareCode:null,
 };
 
-var SOCIAL_META = [
-  { key:'linkedin',  icon:'💼', label:'LinkedIn',  url:'https://linkedin.com/in/' },
-  { key:'twitter',   icon:'🐦', label:'X / Twitter',url:'https://twitter.com/' },
-  { key:'instagram', icon:'📷', label:'Instagram', url:'https://instagram.com/' },
-  { key:'facebook',  icon:'📘', label:'Facebook',  url:'https://facebook.com/' },
-  { key:'tiktok',    icon:'🎵', label:'TikTok',    url:'https://tiktok.com/@' },
-  { key:'youtube',   icon:'📺', label:'YouTube',   url:'https://youtube.com/@' },
-  { key:'github',    icon:'💻', label:'GitHub',    url:'https://github.com/' },
-  { key:'telegram',  icon:'✈️', label:'Telegram',  url:'https://t.me/' },
-];
-
-var THEME_NAMES = { professional:'Professional — Dark Navy', minimal:'Minimal — Clean White', bold:'Bold — Dark Red', premium:'Premium — Gold', nature:'Nature — Teal Green' };
-
-var PRIVACY_LABELS = [
-  ['showPhoto','Passport Photo'],['showLogo','Company Logo'],['showBio','Bio'],
-  ['showPhones','Phone Numbers'],['showWhatsapp','WhatsApp'],['showEmail','Email'],
-  ['showWebsite','Website'],['showLocation','Location'],['showSocials','Social Media'],['showServices','Services'],
+var SOCIALS = [
+  { k:'facebook',  icon:'📘', color:'#1877F2', base:'facebook.com/'  },
+  { k:'instagram', icon:'📷', color:'#E1306C', base:'instagram.com/' },
+  { k:'linkedin',  icon:'💼', color:'#0A66C2', base:'linkedin.com/in/'},
+  { k:'twitter',   icon:'🐦', color:'#000',    base:'twitter.com/'   },
+  { k:'youtube',   icon:'📺', color:'#FF0000', base:'youtube.com/@'  },
+  { k:'tiktok',    icon:'🎵', color:'#010101', base:'tiktok.com/@'   },
+  { k:'telegram',  icon:'✈️', color:'#229ED9', base:'t.me/'          },
+  { k:'github',    icon:'💻', color:'#333',    base:'github.com/'    },
 ];
 
 /* ── Load saved card ── */
 fetch('/api/trustid/cards',{headers:{Authorization:'Bearer '+Auth.getToken()}})
   .then(function(r){return r.json();})
   .then(function(r){
-    if(r.success&&r.data){
-      Object.assign(cardData, r.data);
-      populateForm();
-    }
-    buildPrivacyGrid();
+    if(r.success && r.data){ Object.assign(D, r.data); populateForm(); }
     renderCard();
   });
 
-/* ── Form population ── */
 function populateForm(){
-  var fields=['fullName','jobTitle','businessName','bio','whatsapp','email','website'];
-  fields.forEach(function(f){ var el=document.getElementById('f-'+f); if(el) el.value=cardData[f]||''; });
-  if(cardData.location){ document.getElementById('f-city').value=cardData.location.city||''; document.getElementById('f-country').value=cardData.location.country||''; }
-  if(cardData.socials){ Object.keys(cardData.socials).forEach(function(k){ var el=document.getElementById('s-'+k); if(el) el.value=cardData.socials[k]||''; }); }
-  if(cardData.photo){ var pd=document.getElementById('photoPreview'); pd.innerHTML='<img src="'+cardData.photo+'" style="width:100%;height:100%;object-fit:cover">'; }
-  if(cardData.logo) { var ld=document.getElementById('logoPreview');  ld.innerHTML='<img src="'+cardData.logo+'" style="width:100%;height:100%;object-fit:cover">'; }
-  if(cardData.theme){ setTheme(cardData.theme,true); }
+  var f=['fullName','businessName','jobTitle','bio','email','website','location','vision','expertise','commitment'];
+  f.forEach(function(k){ var el=document.getElementById('f-'+k); if(el) el.value=D[k]||''; });
+  if(D.socials) Object.keys(D.socials).forEach(function(k){ var el=document.getElementById('s-'+k); if(el) el.value=D.socials[k]||''; });
+  if(D.photo){ document.getElementById('photoPreview').innerHTML='<img src="'+D.photo+'" style="width:100%;height:100%;object-fit:cover">'; }
+  if(D.logo){  document.getElementById('logoPreview').innerHTML='<img src="'+D.logo+'" style="width:100%;height:100%;object-fit:cover">'; }
   renderPhones(); renderServices();
-  if(cardData.shareCode){ document.getElementById('shareCodeDisplay').textContent=cardData.shareCode; updateQR(); document.getElementById('shareSection').style.display='block'; }
+  if(D.shareCode){ showShareSection(); }
 }
 
-/* ── Theme ── */
-function setTheme(t, silent){
-  cardData.theme=t;
-  document.querySelectorAll('.theme-swatch').forEach(function(s){ s.classList.remove('active'); });
-  var sw=document.querySelector('.t-'+t+'-sw'); if(sw) sw.classList.add('active');
-  document.getElementById('themeName').textContent=THEME_NAMES[t]||t;
-  if(!silent) renderCard();
-}
-
-/* ── Photo upload ── */
+/* ── Photo ── */
 function loadPhoto(input, field){
   var file=input.files[0]; if(!file) return;
   if(file.size>3*1024*1024){ Layout.toast('Photo too large (max 3MB)','error'); return; }
   var reader=new FileReader();
   reader.onload=function(e){
-    cardData[field]=e.target.result;
-    var el=document.getElementById(field==='photo'?'photoPreview':'logoPreview');
-    el.innerHTML='<img src="'+e.target.result+'" style="width:100%;height:100%;object-fit:cover">';
+    D[field]=e.target.result;
+    document.getElementById(field+'Preview').innerHTML='<img src="'+e.target.result+'" style="width:100%;height:100%;object-fit:cover">';
     renderCard();
   };
   reader.readAsDataURL(file);
@@ -390,175 +438,184 @@ function loadPhoto(input, field){
 
 /* ── Phones ── */
 function renderPhones(){
-  var list=document.getElementById('phonesList');
-  list.innerHTML=(cardData.phones||[]).map(function(p,i){
+  document.getElementById('phonesList').innerHTML=(D.phones||[]).map(function(p,i){
     return '<div class="phone-row">'
-      +'<select class="phone-label-sel" onchange="updatePhones()"><option'+(p.label==='Mobile'?' selected':'')+'>Mobile</option><option'+(p.label==='Work'?' selected':'')+'>Work</option><option'+(p.label==='Home'?' selected':'')+'>Home</option><option'+(p.label==='Other'?' selected':'')+'>Other</option></select>'
-      +'<input class="input phone-num" value="'+esc(p.number||'')+'" placeholder="+233241234567" oninput="updatePhones()">'
-      +'<button onclick="removePhoneIdx('+i+')" style="background:none;border:none;cursor:pointer;color:#94A3B8;font-size:18px">×</button>'
+      +'<select class="phone-label-sel" onchange="updatePhones()"><option'+(p.label==='Mobile'?' selected':'')+'>Mobile</option><option'+(p.label==='Work'?' selected':'')+'>Work</option><option'+(p.label==='WhatsApp'?' selected':'')+'>WhatsApp</option></select>'
+      +'<input class="input phone-num" style="flex:1;height:36px" value="'+esc(p.number||'')+'" placeholder="+233241234567" oninput="updatePhones()">'
+      +'<button onclick="removePhoneIdx('+i+')" style="background:none;border:none;cursor:pointer;color:#94A3B8;font-size:18px;flex-shrink:0">×</button>'
       +'</div>';
   }).join('');
 }
-function addPhone(){ cardData.phones.push({label:'Mobile',number:''}); renderPhones(); }
-function removePhoneIdx(i){ cardData.phones.splice(i,1); renderPhones(); renderCard(); }
+function addPhone(){ D.phones.push({label:'Mobile',number:''}); renderPhones(); }
+function removePhoneIdx(i){ D.phones.splice(i,1); renderPhones(); renderCard(); }
 function removePhone(btn){ btn.parentNode.remove(); updatePhones(); }
 function updatePhones(){
   var rows=document.querySelectorAll('.phone-row');
-  cardData.phones=Array.from(rows).map(function(r){ return {label:r.querySelector('.phone-label-sel').value,number:r.querySelector('.phone-num').value.trim()}; });
+  D.phones=Array.from(rows).map(function(r){return{label:r.querySelector('.phone-label-sel').value,number:r.querySelector('.phone-num').value.trim()};});
   renderCard();
 }
 
 /* ── Services ── */
 function renderServices(){
-  document.getElementById('svcChips').innerHTML=(cardData.services||[]).map(function(s,i){
+  document.getElementById('svcWrap').innerHTML=(D.services||[]).map(function(s,i){
     return '<span class="svc-chip">'+esc(s)+'<button onclick="removeSvc('+i+')">×</button></span>';
   }).join('');
 }
-function addService(){ var v=document.getElementById('svcInput').value.trim(); if(!v) return; cardData.services.push(v); document.getElementById('svcInput').value=''; renderServices(); renderCard(); }
-function removeSvc(i){ cardData.services.splice(i,1); renderServices(); renderCard(); }
+function addSvc(){ var v=document.getElementById('svcInput').value.trim(); if(!v) return; D.services.push(v); document.getElementById('svcInput').value=''; renderServices(); renderCard(); }
+function removeSvc(i){ D.services.splice(i,1); renderServices(); renderCard(); }
 
-/* ── Privacy grid ── */
-function buildPrivacyGrid(){
-  document.getElementById('privacyGrid').innerHTML=PRIVACY_LABELS.map(function(pair){
-    var key=pair[0], lbl=pair[1], val=cardData.privacy[key]!==false;
-    return '<div class="priv-row"><span>'+lbl+'</span>'
-      +'<label style="position:relative;width:36px;height:20px;flex-shrink:0">'
-      +'<input type="checkbox" '+(val?'checked':'')+' onchange="togglePriv(\''+key+'\',this.checked)" style="opacity:0;width:0;height:0;position:absolute">'
-      +'<span onclick="" style="position:absolute;inset:0;border-radius:20px;background:'+(val?'#7C3AED':'#E2E8F0')+';cursor:pointer;transition:background 0.2s"><span style="position:absolute;top:2px;left:'+(val?'18':'2')+'px;width:16px;height:16px;border-radius:50%;background:#fff;transition:left 0.2s;box-shadow:0 1px 3px rgba(0,0,0,0.2)"></span></span>'
-      +'</label></div>';
-  }).join('');
-}
-function togglePriv(key,val){ cardData.privacy[key]=val; buildPrivacyGrid(); }
-
-/* ── Live update from form ── */
+/* ── Live update from form fields ── */
 function liveUpdate(){
-  var f=['fullName','jobTitle','businessName','bio','whatsapp','email','website'];
-  f.forEach(function(k){ var el=document.getElementById('f-'+k); if(el) cardData[k]=el.value; });
-  cardData.location.city    = document.getElementById('f-city').value;
-  cardData.location.country = document.getElementById('f-country').value;
-  Object.keys(cardData.socials).forEach(function(k){ var el=document.getElementById('s-'+k); if(el) cardData.socials[k]=el.value.trim(); });
+  ['fullName','businessName','jobTitle','bio','email','website','location','vision','expertise','commitment'].forEach(function(k){
+    var el=document.getElementById('f-'+k); if(el) D[k]=el.value;
+  });
+  Object.keys(D.socials).forEach(function(k){ var el=document.getElementById('s-'+k); if(el) D.socials[k]=el.value.trim(); });
   renderCard();
 }
 
-/* ══ RENDER LIVE CARD ══ */
+/* ════════════════════════════════
+   RENDER CORPORATE GOLD CARD
+════════════════════════════════ */
 function renderCard(){
-  var d=cardData, t=d.theme||'professional';
-  var viewUrl = d.shareCode ? (window.location.origin+'/trustid/card-view.html?code='+d.shareCode) : '';
-  var qrSrc   = viewUrl ? 'https://api.qrserver.com/v1/create-qr-code/?size=144x144&data='+encodeURIComponent(viewUrl) : '';
-  var phones  = (d.phones||[]).filter(function(p){return p.number;});
-  var socials = SOCIAL_META.filter(function(s){return d.socials&&d.socials[s.key];});
+  var qrUrl  = D.shareCode ? (window.location.origin+'/trustid/card-view.html?code='+D.shareCode) : '';
+  var qrSrc  = qrUrl ? 'https://api.qrserver.com/v1/create-qr-code/?size=128x128&data='+encodeURIComponent(qrUrl) : '';
+  var phones = (D.phones||[]).filter(function(p){return p.number;});
+  var activeSocials = SOCIALS.filter(function(s){return D.socials&&D.socials[s.k];});
+  var hasBio = !!(D.bio&&D.bio.trim());
+  var bioLong = hasBio && D.bio.length > 60;
 
-  var html = '<div class="t-'+t+'">';
-  /* Header band for minimal theme */
-  if(t==='minimal') html += '<div class="dc-header-band"></div>';
+  var html = '';
 
-  html += '<div class="dc-header">';
-  /* Photo */
-  html += '<div class="dc-photo-wrap">';
-  if(d.photo) html += '<img class="dc-photo" src="'+d.photo+'" alt="Photo" draggable="false">';
-  else html += '<div class="dc-photo-empty">👤</div>';
-  if(d.logo) html += '<img class="dc-logo" src="'+d.logo+'" alt="Logo" draggable="false">';
-  else html += '<div class="dc-logo-empty">🏢</div>';
-  html += '</div>';
-  /* Name block */
-  html += '<div class="dc-name-block">'
-    +'<div class="dc-name">'+(d.fullName||'Your Name')+'</div>'
-    +'<div class="dc-job dc-accent">'+(d.jobTitle||'Job Title')+'</div>'
-    +'<div class="dc-biz">'+(d.businessName||'Company Name')+'</div>'
-    +'</div></div>';
+  /* ── Split body ── */
+  html += '<div class="corp-body">';
 
-  html += '<div class="dc-body">';
-  /* Bio */
-  if(d.bio){ html += '<div class="dc-divider"></div><div class="dc-bio">'+esc(d.bio)+'</div>'; }
-
-  /* Contact details */
-  html += '<div class="dc-divider"></div><div class="dc-contact">';
-  phones.forEach(function(p){ html += '<div class="dc-row"><div class="dc-icon-bg">📞</div><div><div class="dc-label">'+esc(p.label)+'</div><div class="dc-row-val"><a href="tel:'+esc(p.number)+'">'+esc(p.number)+'</a></div></div></div>'; });
-  if(d.whatsapp) html += '<div class="dc-row"><div class="dc-icon-bg">💬</div><div><div class="dc-label">WHATSAPP</div><div class="dc-row-val"><a href="https://wa.me/'+d.whatsapp.replace(/\D/g,'')+'">'+esc(d.whatsapp)+'</a></div></div></div>';
-  if(d.email)    html += '<div class="dc-row"><div class="dc-icon-bg">📧</div><div><div class="dc-label">EMAIL</div><div class="dc-row-val"><a href="mailto:'+esc(d.email)+'">'+esc(d.email)+'</a></div></div></div>';
-  if(d.website)  html += '<div class="dc-row"><div class="dc-icon-bg">🌐</div><div><div class="dc-label">WEBSITE</div><div class="dc-row-val"><a href="'+esc(d.website)+'" target="_blank">'+esc(d.website.replace(/^https?:\/\//,''))+'</a></div></div></div>';
-  if(d.location&&(d.location.city||d.location.country)) html += '<div class="dc-row"><div class="dc-icon-bg">📍</div><div><div class="dc-label">LOCATION</div><div class="dc-row-val">'+[d.location.city,d.location.country].filter(Boolean).map(esc).join(', ')+'</div></div></div>';
-  html += '</div>';
-
-  /* Services */
-  if(d.services&&d.services.length){ html += '<div class="dc-divider"></div><div class="dc-label" style="margin-bottom:6px">SERVICES</div><div class="dc-services">'+d.services.map(function(s){ return '<span class="dc-svc-chip">'+esc(s)+'</span>'; }).join('')+'</div>'; }
-
-  /* Social media */
-  if(socials.length){
-    html += '<div class="dc-divider"></div><div class="dc-label" style="margin-bottom:8px">CONNECT</div><div class="dc-socials">';
-    socials.forEach(function(s){
-      var handle=(d.socials[s.key]||'').replace('@','');
-      var url = s.url + handle;
-      html += '<a class="dc-soc-btn dc-icon-bg" href="'+url+'" target="_blank" rel="noopener">'+s.icon+' '+esc(handle)+'</a>';
-    });
-    html += '</div>';
+  /* LEFT panel */
+  html += '<div class="corp-left">';
+  /* Logo */
+  html += '<div class="corp-logo-wrap">'+(D.logo?'<img src="'+D.logo+'" alt="Logo">':'🏢')+'</div>';
+  /* Name */
+  html += '<div class="corp-name">'+(D.fullName||'Your Name')+'</div>';
+  if(D.businessName) html += '<div class="corp-company">'+(D.businessName)+'</div>';
+  /* Title with lines */
+  if(D.jobTitle) html += '<div class="corp-title-wrap"><div class="corp-title-line"></div><div class="corp-title">'+esc(D.jobTitle)+'</div><div class="corp-title-line"></div></div>';
+  /* Bio — expandable */
+  if(hasBio){
+    html += '<div class="corp-bio">'
+      +'<div class="corp-bio-text collapsed" id="corpBio">'+esc(D.bio)+'</div>'
+      +(bioLong?'<button class="corp-bio-toggle" onclick="toggleBio(this)">Read more ↓</button>':'')
+      +'</div>';
   }
-  html += '</div>';
+  /* Contact rows */
+  html += '<div class="corp-contacts">';
+  phones.forEach(function(p){
+    html += '<div class="corp-row"><div class="corp-icon">📞</div><div class="corp-row-info"><div class="corp-row-label">'+esc(p.label)+'</div><div class="corp-row-val"><a href="tel:'+esc(p.number)+'">'+esc(p.number)+'</a></div></div></div>';
+  });
+  if(D.email)    html += '<div class="corp-row"><div class="corp-icon">📧</div><div class="corp-row-info"><div class="corp-row-label">EMAIL</div><div class="corp-row-val"><a href="mailto:'+esc(D.email)+'">'+esc(D.email)+'</a></div></div></div>';
+  if(D.website)  html += '<div class="corp-row"><div class="corp-icon">🌐</div><div class="corp-row-info"><div class="corp-row-label">WEBSITE</div><div class="corp-row-val"><a href="'+esc(D.website)+'" target="_blank">'+esc(D.website.replace(/^https?:\/\//,''))+'</a></div></div></div>';
+  if(D.location) html += '<div class="corp-row"><div class="corp-icon">📍</div><div class="corp-row-info"><div class="corp-row-label">LOCATION</div><div class="corp-row-val">'+esc(D.location)+'</div></div></div>';
+  html += '</div></div>'; /* end left */
 
-  /* Footer with QR */
-  html += '<div class="dc-footer">';
-  html += '<div>';
-  if(d.shareCode) html += '<div style="font-size:9px;opacity:0.5;margin-bottom:3px">SCAN TO CONNECT</div><div style="font-family:monospace;font-size:11px;font-weight:700;opacity:0.7">'+esc(d.shareCode)+'</div>';
+  /* RIGHT panel */
+  html += '<div class="corp-right">';
+  /* Photo + QR */
+  html += '<div class="corp-photo-qr">';
+  html += '<div class="corp-photo-wrap">'+(D.photo?'<img class="corp-photo" src="'+D.photo+'" alt="Photo" draggable="false">':'<div class="corp-photo-empty">👤</div>')+'</div>';
+  html += '<div class="corp-qr-wrap">'+(qrSrc?'<img src="'+qrSrc+'" alt="QR">':'<div style="width:64px;height:64px;border-radius:8px;background:#F1F5F9;display:flex;align-items:center;justify-content:center;font-size:24px">📲</div>')+'<div class="corp-qr-label">SCAN TO CONNECT</div></div>';
   html += '</div>';
-  if(qrSrc) html += '<div class="dc-qr-wrap"><img src="'+qrSrc+'" alt="QR"><div class="dc-qr-label">Personal Vault</div></div>';
+  /* Connect with me */
+  html += '<div class="corp-connect-hdr"><div class="corp-connect-icon">👤</div><div class="corp-connect-title">Connect With Me</div></div>';
+  html += '<div class="corp-social-list">';
+  if(activeSocials.length){
+    activeSocials.forEach(function(s){
+      var handle=(D.socials[s.k]||'').replace('@','');
+      var url='https://'+s.base+handle;
+      html += '<div class="corp-soc-row">'
+        +'<div class="corp-soc-icon" style="background:'+s.color+'1A;color:'+s.color+'">'+s.icon+'</div>'
+        +'<div class="corp-soc-url"><a href="'+url+'" target="_blank">'+s.base+esc(handle)+'</a></div>'
+        +'<div class="corp-soc-line"></div>'
+        +'</div>';
+    });
+  } else {
+    html += '<div style="font-size:11px;color:#94A3B8;padding:8px 0">Add social media handles in the form →</div>';
+  }
+  html += '</div></div>'; /* end right */
+
+  html += '</div>'; /* end corp-body */
+
+  /* ── BOTTOM BAR ── */
+  var bot = [
+    { icon:'🎯', label:'VISION',      text:D.vision     || 'Add your vision' },
+    { icon:'⭐', label:'EXPERTISE',   text:D.expertise  || 'Add your expertise' },
+    { icon:'🤝', label:'SERVICES',    text:(D.services&&D.services.length) ? D.services.join(' | ') : 'Add services' },
+    { icon:'🏆', label:'COMMITMENT',  text:D.commitment || 'Add your commitment' },
+  ];
+  html += '<div class="corp-bottom">';
+  bot.forEach(function(b){
+    html += '<div class="corp-bot-item"><div class="corp-bot-icon">'+b.icon+'</div><div class="corp-bot-label">'+b.label+'</div><div class="corp-bot-text">'+esc(b.text)+'</div></div>';
+  });
   html += '</div>';
 
   /* Watermark */
-  html += '<div class="dc-watermark">✦ Personal Vault ✦</div>';
-  html += '</div>';
+  html += '<div class="corp-wm">✦ PERSONAL VAULT ✦</div>';
 
   document.getElementById('liveCard').innerHTML = html;
-  document.getElementById('liveCard').className = 'dc-card t-'+t;
+}
+
+/* ── Expand/collapse bio ── */
+function toggleBio(btn){
+  var el = document.getElementById('corpBio');
+  if(!el) return;
+  var expanded = el.classList.toggle('expanded');
+  el.classList.toggle('collapsed', !expanded);
+  btn.textContent = expanded ? 'Read less ↑' : 'Read more ↓';
 }
 
 /* ── Save card ── */
 async function saveCard(){
   liveUpdate(); updatePhones();
   var btn=document.getElementById('saveBtn'); btn.textContent='Saving…'; btn.disabled=true;
-  var r=await fetch('/api/trustid/cards',{method:'PUT',headers:{'Content-Type':'application/json',Authorization:'Bearer '+Auth.getToken()},body:JSON.stringify(cardData)}).then(function(x){return x.json();});
+  var r=await fetch('/api/trustid/cards',{method:'PUT',headers:{'Content-Type':'application/json',Authorization:'Bearer '+Auth.getToken()},body:JSON.stringify(D)}).then(function(x){return x.json();});
   btn.textContent='💾 Save Card'; btn.disabled=false;
   if(r.success){
-    cardData.shareCode=r.data.shareCode;
-    document.getElementById('shareCodeDisplay').textContent=r.data.shareCode;
-    document.getElementById('shareSection').style.display='block';
-    updateQR(); renderCard();
+    D.shareCode=r.data.shareCode;
+    showShareSection();
+    renderCard();
     Layout.toast('Card saved! 🪪','success');
   } else Layout.toast(r.message||'Error','error');
 }
 
-function updateQR(){
-  if(!cardData.shareCode) return;
-  var url=window.location.origin+'/trustid/card-view.html?code='+cardData.shareCode;
-  var qr=document.getElementById('mainQR');
-  qr.src='https://api.qrserver.com/v1/create-qr-code/?size=240x240&data='+encodeURIComponent(url);
-  qr.style.display='block';
+function showShareSection(){
+  document.getElementById('shareSection').style.display='block';
+  document.getElementById('codeDisplay').textContent=D.shareCode||'—';
+  if(D.shareCode){
+    var url=getUrl();
+    var qr=document.getElementById('mainQR');
+    qr.src='https://api.qrserver.com/v1/create-qr-code/?size=240x240&data='+encodeURIComponent(url);
+    qr.style.display='block';
+  }
 }
 
-/* ── Share actions ── */
-function getViewUrl(){ return window.location.origin+'/trustid/card-view.html?code='+cardData.shareCode; }
-function shareWhatsApp(){ window.open('https://wa.me/?text='+encodeURIComponent('Check out my Personal Vault digital card: '+getViewUrl()),'_blank'); }
-function shareEmail(){ window.location.href='mailto:?subject='+encodeURIComponent(cardData.fullName+' — Digital Card')+'&body='+encodeURIComponent('Here is my digital contact card:\n\n'+getViewUrl()); }
-function copyLink(){ navigator.clipboard.writeText(getViewUrl()).then(function(){ Layout.toast('Link copied! 🔗','success'); }); }
-function downloadQR(){ var a=document.createElement('a'); a.href='https://api.qrserver.com/v1/create-qr-code/?size=400x400&data='+encodeURIComponent(getViewUrl()); a.download='my-card-qr.png'; a.target='_blank'; a.click(); }
-function shareInChat(){ Layout.toast('Open Messages tab and tap "Share Card" in a chat','info'); setTimeout(function(){ window.location.href='./chat.html'; },1500); }
+function getUrl(){ return window.location.origin+'/trustid/card-view.html?code='+(D.shareCode||''); }
+function shareWhatsApp(){ window.open('https://wa.me/?text='+encodeURIComponent('My digital contact card: '+getUrl()),'_blank'); }
+function shareEmail(){ window.location.href='mailto:?subject='+encodeURIComponent((D.fullName||'My')+' Digital Card')+'&body='+encodeURIComponent(getUrl()); }
+function copyLink(){ navigator.clipboard.writeText(getUrl()).then(function(){Layout.toast('Link copied!','success');}); }
+function downloadQR(){ var a=document.createElement('a'); a.href='https://api.qrserver.com/v1/create-qr-code/?size=400x400&data='+encodeURIComponent(getUrl()); a.download='card-qr.png'; a.target='_blank'; a.click(); }
+function shareInChat(){ Layout.toast('Open Messages tab and tap 🪪 in a chat to share','info'); setTimeout(function(){window.location.href='./chat.html';},1500); }
 
-/* ── Scan code ── */
 async function scanCode(){
-  var code=document.getElementById('scanCodeInput').value.trim().toUpperCase();
+  var code=document.getElementById('scanInput').value.trim().toUpperCase();
   if(!code){ Layout.toast('Enter a card code','warning'); return; }
   var r=await fetch('/api/trustid/cards/view/'+code).then(function(x){return x.json();});
   if(r.success){
     if(confirm('Save '+r.data.fullName+'\'s card to your contacts?')){
-      var s=await fetch('/api/trustid/cards/save',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+Auth.getToken()},body:JSON.stringify({shareCode:code})}).then(function(x){return x.json();});
-      if(s.success) Layout.toast('Contact saved! 👥','success');
-    } else {
-      window.open('./card-view.html?code='+code,'_blank');
-    }
+      await fetch('/api/trustid/cards/save',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+Auth.getToken()},body:JSON.stringify({shareCode:code})}).then(function(x){return x.json();});
+      Layout.toast('Contact saved! 👥','success');
+    } else window.open('./card-view.html?code='+code,'_blank');
   } else Layout.toast(r.message||'Card not found','error');
-  document.getElementById('scanCodeInput').value='';
+  document.getElementById('scanInput').value='';
 }
 
-function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
 /* Initial render */
 renderCard();
