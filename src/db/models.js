@@ -151,6 +151,17 @@ const legacySchema = new Schema({
   disclosedAt:    Date,
 }, { timestamps: true });
 
+/* ── Activity Log / Audit Trail ── */
+const activitySchema = new Schema({
+  userId:    { type: OID, ref: 'pvusers' },
+  action:    { type: String, required: true },   /* 'login', 'register', 'doc_upload', etc. */
+  resource:  { type: String, default: '' },
+  details:   { type: String, default: '' },
+  ip:        { type: String, default: '' },
+  userAgent: { type: String, default: '' },
+  level:     { type: String, enum: ['info','warn','error'], default: 'info' },
+}, { timestamps: true });
+
 /* ── Feature Flags (admin-controlled per tier) ── */
 const featureSchema = new Schema({
   name:        { type: String, required: true, unique: true },
@@ -204,6 +215,7 @@ const anonChatSchema = new Schema({
 
 module.exports = {
   User:         mongoose.model('pvusers',         userSchema),
+  Activity:     mongoose.model('pvactivity',      activitySchema),
   Feature:      mongoose.model('pvfeatures',      featureSchema),
   Conversation: mongoose.model('pvconversations', conversationSchema),
   Message:      mongoose.model('pvmessages',      messageSchema),

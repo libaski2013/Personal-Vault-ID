@@ -1,9 +1,10 @@
-const bcrypt  = require('bcryptjs');
+const bcrypt   = require('bcryptjs');
 const { User } = require('../db/models');
-const otp     = require('../services/otp');
-const email   = require('../services/email');
+const otp      = require('../services/otp');
+const email    = require('../services/email');
 const resetOtp = require('../services/resetOtp');
-const sms     = require('../services/sms');
+const sms      = require('../services/sms');
+const act      = require('../services/activity');
 
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
 
@@ -73,6 +74,7 @@ module.exports = async function authRoutes(fastify) {
       return reply.code(403).send({ success:false, message:'Account suspended. Contact support.' });
 
     const token = fastify.jwt.sign({ userId:user._id, role:user.role }, { expiresIn:JWT_EXPIRES_IN });
+    act.log(user._id, 'login', `Login from ${cleanEmail(addr)}`, req);
     return { success:true, token, user:user.safeUser() };
   });
 
@@ -183,6 +185,7 @@ module.exports = async function authRoutes(fastify) {
         trustId:{ id:tid, level:1, score:100, status:'active', issuedAt:new Date() },
       });
       const token = fastify.jwt.sign({ userId:user._id, role:user.role }, { expiresIn:JWT_EXPIRES_IN });
+      act.log(user._id, 'register', `New account: ${addr}`, req);
       return reply.code(201).send({ success:true, token, user:user.safeUser() });
     } catch (err) {
       const friendly = friendlyDupError(err);

@@ -1,4 +1,5 @@
-const { User, Document, Academic, LifeEntry, VaultItem, Legacy, Expense, Reminder, Todo, ShareCard, Feature } = require('../db/models');
+const { User, Document, Academic, LifeEntry, VaultItem, Legacy, Expense, Reminder, Todo, ShareCard, Feature, Activity } = require('../db/models');
+const act = require('../services/activity');
 
 /* ── Default feature catalogue ── */
 const DEFAULT_FEATURES = [
@@ -63,6 +64,7 @@ module.exports = async function adminRoutes(fastify) {
     user.status = status;
     if (reason) user.notes = `[${new Date().toISOString().slice(0,10)}] ${status}: ${reason}\n` + (user.notes||'');
     await user.save();
+    act.log(req.user.userId, status==='suspended'?'suspend':'activate', `Admin ${status} user ${user.email}${reason?' — '+reason:''}`, req, status==='suspended'?'warn':'info');
     return { success:true, data:user.safeUser(), message:`User ${status}` };
   });
 
@@ -90,6 +92,7 @@ module.exports = async function adminRoutes(fastify) {
     if (!user) return reply.code(404).send({ success:false, message:'User not found' });
     if (user.role === 'admin') return reply.code(403).send({ success:false, message:'Cannot delete an admin account' });
     const uid = user._id;
+    act.log(req.user.userId, 'delete', `Admin deleted user ${user.email}`, req, 'warn');
     await Promise.all([
       User.findByIdAndDelete(uid),
       Document.deleteMany({ userId:uid }),
@@ -175,6 +178,47 @@ module.exports = async function adminRoutes(fastify) {
       ShareCard.deleteMany({ userId:{ $nin:adminIds } }),
     ]);
     return { success:true, message:'All test data cleared. Admin accounts preserved.', deleted:{ users:results[0].deletedCount, docs:results[1].deletedCount } };
+  });
+
+  /* ══════════════════════════════════
+     ACTIVITY LOG / AUDIT TRAIL
+  ══════════════════════════════════ */
+
+  /* GET /api/trustid/admin/activity — recent activity (paginated) */
+  fastify.get('/activity', { onRequest:[fastify.requireAdmin] }, async (req) => {
+    const page  = parseInt(req.query.page || '1');
+    const limit = parseInt(req.query.limit || '50');
+    const userId= req.query.userId;
+    const action= req.query.action;
+    const level = req.query.level;
+
+    const filter = {};
+    if (userId) filter.userId = userId;
+    if (action) filter.action = { $regex: action, $options: 'i' };
+    if (level)  filter.level  = level;
+
+    const [logs, total] = await Promise.all([
+      Activity.find(filter)
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .populate('userId', 'firstName lastName email'),
+      Activity.countDocuments(filter),
+    ]);
+
+    return { success:true, data:logs, total, page, pages:Math.ceil(total/limit) };
+  });
+
+  /* GET /api/trustid/admin/activity/summary — counts by action for dashboard */
+  fastify.get('/activity/summary', { onRequest:[fastify.requireAdmin] }, async () => {
+    const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000); /* last 7 days */
+    const summary = await Activity.aggregate([
+      { $match: { createdAt: { $gte: since } } },
+      { $group: { _id: '$action', count: { $sum: 1 } } },
+      { $sort: { count: -1 } },
+    ]);
+    const recent = await Activity.find().sort({ createdAt: -1 }).limit(10).populate('userId','firstName lastName email');
+    return { success:true, data:{ summary, recent } };
   });
 
   /* ══════════════════════════════════

@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Personal Vault Admin — Activity Log</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="icon" href="../icon.svg">
+  <link rel="stylesheet" href="../css/styles.css">
+  <style>
+    .act-row { display:flex; align-items:flex-start; gap:12px; padding:12px 0; border-bottom:1px solid #F1F5F9; }
+    .act-icon { width:36px; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0; }
+    .act-info { flex:1; min-width:0; }
+    .act-action { font-size:13px; font-weight:700; color:#0F172A; }
+    .act-details{ font-size:12px; color:#64748B; margin-top:2px; }
+    .act-meta   { font-size:11px; color:#94A3B8; margin-top:2px; }
+    .act-time   { font-size:11px; color:#94A3B8; flex-shrink:0; white-space:nowrap; }
+    .lvl-info   { background:#3B82F618; color:#1D4ED8; }
+    .lvl-warn   { background:#F9731618; color:#C2410C; }
+    .lvl-error  { background:#EF444418; color:#B91C1C; }
+    .filter-row { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px; }
+    .filter-row select, .filter-row input { height:36px; padding:0 10px; border-radius:8px; border:1px solid #E2E8F0; font-size:13px; outline:none; background:#fff; }
+    .action-icons { login:"🔑", register:"✅", doc_upload:"📁", change_password:"🔒", suspend:"🚫", delete:"🗑️" }
+  </style>
+</head>
+<body>
+<div class="app-shell">
+  <div id="sidebar"></div>
+  <div id="main">
+    <div id="topbar"></div>
+    <div class="page-content" id="content"><div id="loading"></div></div>
+  </div>
+</div>
+<script src="../js/auth.js"></script>
+<script>if(!Auth.requireAdmin()) throw '';</script>
+<script src="../js/api.js"></script>
+<script src="../js/layout.js"></script>
+<script>
+Layout.init('admin-activity');
+document.getElementById('loading').innerHTML = Layout.spinner();
+
+var currentPage=1, totalPages=1;
+var filters={ action:'', level:'', userId:'' };
+
+var ACTION_ICONS={ login:'🔑', register:'✅', doc_upload:'📁', change_password:'🔒', suspend:'🚫', activate:'✅', delete:'🗑️', tier_change:'💎', feature_update:'⚙️', admin_login:'👑', password_reset:'🔓' };
+var LEVEL_COLORS={ info:'lvl-info', warn:'lvl-warn', error:'lvl-error' };
+
+function fmtTs(d){ return d?new Date(d).toLocaleString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit'}):''; }
+
+function load(page){
+  currentPage = page||1;
+  var qs='?page='+currentPage+'&limit=50';
+  if(filters.action) qs+='&action='+encodeURIComponent(filters.action);
+  if(filters.level)  qs+='&level='+encodeURIComponent(filters.level);
+  if(filters.userId) qs+='&userId='+encodeURIComponent(filters.userId);
+
+  fetch('/api/trustid/admin/activity'+qs, { headers:{Authorization:'Bearer '+Auth.getToken()} })
+    .then(function(r){return r.json();})
+    .then(function(r){
+      if(!r.success){ document.getElementById('content').innerHTML='<div class="empty">Failed to load activity log.</div>'; return; }
+      totalPages=r.pages||1;
+      renderLogs(r.data, r.total);
+    });
+}
+
+function renderLogs(logs, total){
+  var html=
+    '<div class="page-header">'
+    +'<div><h1 class="page-title">📋 Activity Log</h1><p class="page-sub">Audit trail of all system actions — '+total+' total events</p></div>'
+    +'<button onclick="load(1)" class="btn btn-ghost" style="width:auto">🔄 Refresh</button>'
+    +'</div>'
+
+    /* Filters */
+    +'<div class="filter-row">'
+    +'<input id="fAction" placeholder="Filter by action…" value="'+filters.action+'" oninput="filters.action=this.value" onkeydown="if(event.key===\'Enter\')load(1)">'
+    +'<select id="fLevel" onchange="filters.level=this.value;load(1)">'
+    +'<option value="">All levels</option>'
+    +'<option value="info"'+(filters.level==='info'?' selected':'')+'>ℹ️ Info</option>'
+    +'<option value="warn"'+(filters.level==='warn'?' selected':'')+'>⚠️ Warning</option>'
+    +'<option value="error"'+(filters.level==='error'?' selected':'')+'>❌ Error</option>'
+    +'</select>'
+    +'<input id="fUser" placeholder="User ID or email…" value="'+filters.userId+'" oninput="filters.userId=this.value" onkeydown="if(event.key===\'Enter\')load(1)">'
+    +'<button onclick="load(1)" class="btn btn-primary btn-sm" style="width:auto">Search</button>'
+    +'<button onclick="filters={action:\'\',level:\'\',userId:\'\'};document.getElementById(\'fAction\').value=\'\';document.getElementById(\'fLevel\').value=\'\';document.getElementById(\'fUser\').value=\'\';load(1)" class="btn btn-ghost btn-sm" style="width:auto">Clear</button>'
+    +'</div>'
+
+    +'<div class="card">'
+    +(logs.length===0?'<div class="empty" style="padding:40px">No activity logged yet.</div>':
+      logs.map(function(log){
+        var u=log.userId||{};
+        var uName=u.firstName?(u.firstName+' '+u.lastName):log.userId;
+        var icon=ACTION_ICONS[log.action]||'📌';
+        var lvlCls=LEVEL_COLORS[log.level||'info']||'lvl-info';
+        return '<div class="act-row">'
+          +'<div class="act-icon '+lvlCls+'">'+icon+'</div>'
+          +'<div class="act-info">'
+          +'<div class="act-action">'+log.action+'</div>'
+          +'<div class="act-details">'+(log.details||'—')+'</div>'
+          +'<div class="act-meta">'
+          +(uName?'👤 '+uName+' · ':'')
+          +(log.ip?'🌐 '+log.ip+' · ':'')
+          +'</div>'
+          +'</div>'
+          +'<div class="act-time">'+fmtTs(log.createdAt)+'</div>'
+          +'</div>';
+      }).join('')
+    )
+    +'</div>'
+
+    /* Pagination */
+    +'<div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-top:16px">'
+    +(currentPage>1?'<button onclick="load('+(currentPage-1)+')" class="btn btn-ghost btn-sm" style="width:auto">← Prev</button>':'')
+    +'<span style="font-size:13px;color:#64748B">Page '+currentPage+' of '+totalPages+'</span>'
+    +(currentPage<totalPages?'<button onclick="load('+(currentPage+1)+')" class="btn btn-ghost btn-sm" style="width:auto">Next →</button>':'')
+    +'</div>';
+
+  document.getElementById('content').innerHTML=html;
+}
+
+load(1);
+/* Auto-refresh every 30s */
+setInterval(function(){ if(currentPage===1) load(1); }, 30000);
+</script>
+</body>
+</html>
