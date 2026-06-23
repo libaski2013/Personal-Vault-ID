@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Personal Vault — CV Builder</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="icon" href="./icon.svg">
+  <link rel="stylesheet" href="./css/styles.css">
+  <style>
+    /* ── Builder layout ── */
+    .cv-shell { display:grid; grid-template-columns:1fr 480px; gap:22px; align-items:start; }
+
+    /* ── Live CV preview ── */
+    .cv-preview {
+      background:#fff; border-radius:16px; border:1px solid #E8ECF4;
+      padding:40px; font-family:Georgia,'Times New Roman',serif;
+      box-shadow:0 4px 20px rgba(0,0,0,0.06); position:sticky; top:80px;
+      max-height:calc(100vh - 100px); overflow-y:auto;
+    }
+    .cv-preview h1  { font-size:22px; font-weight:900; color:#0F172A; margin:0 0 4px; font-family:inherit; }
+    .cv-preview .cv-sub { font-size:13px; color:#64748B; margin-bottom:14px; }
+    .cv-preview .cv-contact { font-size:12px; color:#64748B; display:flex; flex-wrap:wrap; gap:10px; margin-bottom:16px; }
+    .cv-preview .cv-contact span { display:flex; align-items:center; gap:4px; }
+    .cv-divider { border:none; border-top:2px solid #0F172A; margin:12px 0 10px; }
+    .cv-section { margin-bottom:18px; }
+    .cv-section-title { font-size:13px; font-weight:800; text-transform:uppercase; letter-spacing:1.5px; color:#0F172A; margin-bottom:8px; font-family:inherit; }
+    .cv-item  { margin-bottom:10px; }
+    .cv-item-head { display:flex; justify-content:space-between; align-items:baseline; flex-wrap:wrap; gap:4px; }
+    .cv-item-title{ font-size:13px; font-weight:700; color:#0F172A; }
+    .cv-item-date { font-size:11px; color:#94A3B8; }
+    .cv-item-sub  { font-size:12px; color:#64748B; margin-top:2px; font-style:italic; }
+    .cv-item-desc { font-size:12px; color:#334155; margin-top:3px; line-height:1.5; }
+    .cv-skill-wrap{ display:flex; flex-wrap:wrap; gap:6px; }
+    .cv-skill     { font-size:11px; background:#F1F5F9; color:#334155; padding:3px 10px; border-radius:100px; }
+    .cv-objective { font-size:13px; color:#334155; line-height:1.7; }
+    .cv-verified  { display:inline-flex; align-items:center; gap:4px; font-size:10px; background:#22C55E18; color:#15803D; padding:1px 6px; border-radius:100px; font-family:system-ui,sans-serif; }
+
+    /* ── Form panel ── */
+    .form-section { background:#fff; border-radius:16px; border:1px solid #E8ECF4; padding:20px; margin-bottom:14px; }
+    .form-section h3 { font-size:14px; font-weight:800; margin-bottom:12px; color:#0F172A; }
+    .skills-wrap { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+    .skill-chip  { display:inline-flex; align-items:center; gap:4px; background:#F1F5F9; border:1px solid #E2E8F0; border-radius:100px; padding:4px 10px; font-size:12px; }
+    .skill-chip button { background:none; border:none; cursor:pointer; color:#94A3B8; font-size:14px; line-height:1; }
+    .skill-chip button:hover { color:#EF4444; }
+    .add-skill-row { display:flex; gap:8px; margin-top:8px; }
+
+    /* ── Print styles ── */
+    @media print {
+      .no-print { display:none !important; }
+      body { background:#fff; }
+      .app-shell { display:block; }
+      #sidebar,#main > #topbar { display:none; }
+      .page-content { padding:0; }
+      .cv-shell { display:block; }
+      .cv-preview { box-shadow:none; border:none; padding:0; max-height:none; position:static; border-radius:0; }
+    }
+  </style>
+</head>
+<body>
+<div class="app-shell">
+  <div id="sidebar"></div>
+  <div id="main">
+    <div id="topbar"></div>
+    <div class="page-content" id="content"><div id="loading"></div></div>
+  </div>
+</div>
+<script src="./js/auth.js"></script>
+<script>if(!Auth.requireAuth()) throw '';</script>
+<script src="./js/api.js"></script>
+<script src="./js/layout.js"></script>
+<script>
+Layout.init('cv');
+document.getElementById('loading').innerHTML = Layout.spinner();
+
+var cvData = null, skills = [], extraExperience = [];
+
+fetch('/api/trustid/cv', { headers:{Authorization:'Bearer '+Auth.getToken()} })
+  .then(function(r){return r.json();})
+  .then(function(r){
+    if(!r.success){ document.getElementById('content').innerHTML='<div class="empty">Failed to load CV data.</div>'; return; }
+    cvData = r.data;
+    /* Parse saved skills from bio field (JSON stored there) */
+    try { var saved=JSON.parse(cvData.user.bio||'{}'); skills=saved.skills||[]; extraExperience=saved.experience||[]; } catch(e){ skills=[]; extraExperience=[]; }
+    render();
+  });
+
+function fmtYear(d){ return d ? new Date(d).getFullYear() : ''; }
+function fmtMY(d){ return d ? new Date(d).toLocaleDateString('en-US',{month:'short',year:'numeric'}) : ''; }
+
+function render(){
+  var u = cvData.user||{}, acad = cvData.academics||[], life = cvData.lifeEntries||[], docs = cvData.docs||[];
+  var education = acad.filter(function(a){ return a.type==='degree'||a.type==='diploma'||a.type==='transcript'; });
+  var certs     = acad.filter(function(a){ return a.type==='certificate'||a.type==='course'; });
+  var awards    = acad.filter(function(a){ return a.type==='award'; });
+  var career    = life.filter(function(e){ return e.category==='career'; });
+  var achievements = life.filter(function(e){ return e.category==='achievement'||e.category==='milestone'; });
+
+  var objective = document.getElementById('objectiveInput') ? document.getElementById('objectiveInput').value : (u.bio && !u.bio.startsWith('{') ? u.bio : '');
+
+  document.getElementById('content').innerHTML =
+    '<div class="page-header no-print">'
+    +'<div><h1 class="page-title">📄 CV Builder</h1><p class="page-sub">Auto-built from your vault. Edit and print or share.</p></div>'
+    +'<div style="display:flex;gap:10px">'
+    +'<button onclick="window.print()" class="btn btn-ghost" style="width:auto">🖨️ Print / Save PDF</button>'
+    +'<button onclick="shareCV()" class="btn btn-primary" style="width:auto">📤 Share CV</button>'
+    +'</div></div>'
+
+    +'<div class="cv-shell">'
+
+    /* ── LEFT: Form controls ── */
+    +'<div class="no-print">'
+
+    /* Objective */
+    +'<div class="form-section"><h3>🎯 Professional Objective / Summary</h3>'
+    +'<textarea id="objectiveInput" class="input" rows="3" style="height:auto;resize:vertical;padding:10px;font-family:inherit" placeholder="Write a short professional summary (2–3 sentences about who you are and what you offer…)" oninput="updatePreview()">'+(objective)+'</textarea>'
+    +'</div>'
+
+    /* Skills */
+    +'<div class="form-section"><h3>🛠️ Skills</h3>'
+    +'<div class="skills-wrap" id="skillsWrap">'
+    +skills.map(function(s,i){ return '<span class="skill-chip">'+s+'<button onclick="removeSkill('+i+')">×</button></span>'; }).join('')
+    +'</div>'
+    +'<div class="add-skill-row"><input id="skillInput" class="input" placeholder="Add skill (e.g. Python, Leadership…)" style="flex:1" onkeydown="if(event.key===\'Enter\'){event.preventDefault();addSkill();}"><button onclick="addSkill()" class="btn btn-ghost btn-sm" style="width:auto">+ Add</button></div>'
+    +'</div>'
+
+    /* Extra Work Experience */
+    +'<div class="form-section"><h3>💼 Extra Work Experience</h3>'
+    +'<p style="font-size:12px;color:#64748B;margin-bottom:10px">Career entries from your Life Story are auto-included. Add more here:</p>'
+    +extraExperience.map(function(e,i){
+        return '<div style="background:#F8FAFC;border-radius:10px;padding:12px;margin-bottom:8px;border:1px solid #E8ECF4">'
+          +'<div style="display:flex;justify-content:space-between;align-items:flex-start">'
+          +'<div style="flex:1"><strong style="font-size:13px">'+e.title+'</strong>'
+          +(e.company?'<div style="font-size:12px;color:#64748B">'+e.company+'</div>':'')
+          +'</div>'
+          +'<button onclick="removeExp('+i+')" style="background:none;border:none;cursor:pointer;color:#94A3B8;font-size:16px">×</button>'
+          +'</div></div>';
+      }).join('')
+    +'<button onclick="addExp()" class="btn btn-ghost btn-sm" style="width:auto;margin-top:4px">+ Add Experience</button>'
+    +'</div>'
+
+    /* Save */
+    +'<button onclick="saveCV()" class="btn btn-primary btn-full">💾 Save CV Data</button>'
+    +'</div>'
+
+    /* ── RIGHT: Live CV preview ── */
+    +'<div class="cv-preview" id="cvPreview">'
+    +buildCVHtml(u, education, certs, awards, career, achievements, docs, objective)
+    +'</div>'
+
+    +'</div>';
+}
+
+function buildCVHtml(u, education, certs, awards, career, achievements, docs, objective){
+  var name = [u.firstName, u.middleName, u.lastName].filter(Boolean).join(' ');
+  var verified = docs.length > 0;
+  var html = '';
+
+  /* Header */
+  html += '<h1>'+esc(name)+(verified?'  <span class="cv-verified">✅ Vault Verified</span>':'')+'</h1>';
+  if(u.trustId&&u.trustId.id) html += '<div class="cv-sub">ID: '+esc(u.trustId.id)+' · Trust Score: '+(u.trustId.score||100)+'/1000</div>';
+  html += '<div class="cv-contact">';
+  if(u.email)  html += '<span>📧 '+esc(u.email)+'</span>';
+  if(u.phone)  html += '<span>📱 '+esc(u.phone)+'</span>';
+  html += '</div>';
+  html += '<hr class="cv-divider">';
+
+  /* Objective */
+  if(objective&&objective.trim()){
+    html += '<div class="cv-section"><div class="cv-section-title">Professional Summary</div>'
+      +'<div class="cv-objective">'+esc(objective)+'</div></div>';
+  }
+
+  /* Education */
+  if(education.length){
+    html += '<div class="cv-section"><div class="cv-section-title">Education</div>';
+    education.forEach(function(a){
+      html += '<div class="cv-item"><div class="cv-item-head"><span class="cv-item-title">'+esc(a.title)+'</span><span class="cv-item-date">'+(a.year||'')+'</span></div>'
+        +(a.institution?'<div class="cv-item-sub">'+esc(a.institution)+'</div>':'')
+        +(a.grade?'<div class="cv-item-desc">Grade: '+esc(a.grade)+'</div>':'')+'</div>';
+    });
+    html += '</div>';
+  }
+
+  /* Work Experience (career life entries + extra) */
+  var allCareer = career.concat(extraExperience.map(function(e){ return {title:e.title, content:e.company+'  '+( e.desc||''), date:null}; }));
+  if(allCareer.length){
+    html += '<div class="cv-section"><div class="cv-section-title">Work Experience</div>';
+    allCareer.forEach(function(e){
+      html += '<div class="cv-item"><div class="cv-item-head"><span class="cv-item-title">'+esc(e.title)+'</span><span class="cv-item-date">'+(e.date?fmtMY(e.date):'')+'</span></div>'
+        +(e.content?'<div class="cv-item-desc">'+esc(e.content).slice(0,200)+'</div>':'')+'</div>';
+    });
+    html += '</div>';
+  }
+
+  /* Skills */
+  if(skills.length){
+    html += '<div class="cv-section"><div class="cv-section-title">Skills</div>'
+      +'<div class="cv-skill-wrap">'+skills.map(function(s){ return '<span class="cv-skill">'+esc(s)+'</span>'; }).join('')+'</div></div>';
+  }
+
+  /* Certifications */
+  if(certs.length){
+    html += '<div class="cv-section"><div class="cv-section-title">Certifications & Courses</div>';
+    certs.forEach(function(a){
+      html += '<div class="cv-item"><div class="cv-item-head"><span class="cv-item-title">'+esc(a.title)+'</span><span class="cv-item-date">'+(a.year||'')+'</span></div>'
+        +(a.institution?'<div class="cv-item-sub">'+esc(a.institution)+'</div>':'')+'</div>';
+    });
+    html += '</div>';
+  }
+
+  /* Achievements */
+  var allAch = achievements.concat(awards.map(function(a){ return {title:a.title, content:a.description||'', date:null}; }));
+  if(allAch.length){
+    html += '<div class="cv-section"><div class="cv-section-title">Achievements & Awards</div>';
+    allAch.forEach(function(e){
+      html += '<div class="cv-item"><span class="cv-item-title">🏆 '+esc(e.title)+'</span>'
+        +(e.content?'<div class="cv-item-desc">'+esc(e.content).slice(0,150)+'</div>':'')+'</div>';
+    });
+    html += '</div>';
+  }
+
+  /* Verified documents */
+  if(docs.length){
+    html += '<div class="cv-section"><div class="cv-section-title">Verified Identity Documents</div>'
+      +'<div style="font-size:12px;color:#334155">'+docs.map(function(d){ return '✅ '+esc(d.name||d.type); }).join(' · ')+'</div></div>';
+  }
+
+  html += '<hr class="cv-divider">';
+  html += '<div style="font-size:10px;color:#94A3B8;text-align:center;margin-top:8px">Generated by Personal Vault · personalvault.app</div>';
+  return html;
+}
+
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function updatePreview(){
+  var u=cvData.user||{}, acad=cvData.academics||[], life=cvData.lifeEntries||[], docs=cvData.docs||[];
+  var objective=document.getElementById('objectiveInput').value;
+  document.getElementById('cvPreview').innerHTML=buildCVHtml(
+    u,
+    acad.filter(function(a){return a.type==='degree'||a.type==='diploma'||a.type==='transcript';}),
+    acad.filter(function(a){return a.type==='certificate'||a.type==='course';}),
+    acad.filter(function(a){return a.type==='award';}),
+    life.filter(function(e){return e.category==='career';}),
+    life.filter(function(e){return e.category==='achievement'||e.category==='milestone';}),
+    docs, objective
+  );
+}
+
+function addSkill(){
+  var inp=document.getElementById('skillInput');
+  var s=(inp.value||'').trim();
+  if(!s) return;
+  if(!skills.includes(s)) skills.push(s);
+  inp.value='';
+  var wrap=document.getElementById('skillsWrap');
+  wrap.innerHTML=skills.map(function(sk,i){ return '<span class="skill-chip">'+sk+'<button onclick="removeSkill('+i+')">×</button></span>'; }).join('');
+  updatePreview();
+}
+function removeSkill(i){ skills.splice(i,1); render(); }
+
+function addExp(){
+  var title=prompt('Job title:'); if(!title) return;
+  var company=prompt('Company/Organisation:'); if(company===null) return;
+  var desc=prompt('Brief description (optional):');
+  extraExperience.push({ title:title, company:company||'', desc:desc||'' });
+  render();
+  setTimeout(updatePreview, 50);
+}
+function removeExp(i){ extraExperience.splice(i,1); render(); setTimeout(updatePreview,50); }
+
+async function saveCV(){
+  var objective=document.getElementById('objectiveInput').value;
+  var payload=JSON.stringify({ skills:skills, experience:extraExperience, objective:objective });
+  var r=await fetch('/api/trustid/cv',{method:'PUT',headers:{'Content-Type':'application/json',Authorization:'Bearer '+Auth.getToken()},body:JSON.stringify({bio:payload})}).then(function(x){return x.json();});
+  if(r.success) Layout.toast('CV saved! 📄','success');
+  else Layout.toast(r.message||'Error','error');
+}
+
+function shareCV(){
+  Layout.toast('Use 📤 Share My Vault → select Identity + Academics to share your CV profile','info');
+  setTimeout(function(){ window.location.href='./share.html'; },1500);
+}
+</script>
+</body>
+</html>

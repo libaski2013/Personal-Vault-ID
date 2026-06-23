@@ -71,6 +71,7 @@ fastify.register(require('./routes/lifestory'),  { prefix:'/api/trustid/life' })
 fastify.register(require('./routes/legacy'),     { prefix:'/api/trustid/legacy' });
 fastify.register(require('./routes/share'),      { prefix:'/api/trustid/share' });
 fastify.register(require('./routes/chat'),       { prefix:'/api/trustid/chat' });
+fastify.register(require('./routes/cv'),         { prefix:'/api/trustid/cv' });
 try { fastify.register(require('./routes/social'), { prefix:'/api/trustid/social' }); } catch {}
 
 /* ── Track user activity ── */

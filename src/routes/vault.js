@@ -2,6 +2,24 @@ const bcrypt    = require('bcryptjs');
 const { User, VaultItem } = require('../db/models');
 
 module.exports = async function (fastify) {
+  /* POST /api/trustid/vault/reset-pin — reset PIN using account password */
+  fastify.post('/reset-pin', { onRequest:[fastify.authenticate] }, async (req, reply) => {
+    const { accountPassword, newPin } = req.body||{};
+    if (!accountPassword) return reply.code(400).send({ success:false, message:'Account password required to reset PIN' });
+    if (!newPin || String(newPin).length < 4) return reply.code(400).send({ success:false, message:'New PIN must be at least 4 digits' });
+
+    const user = await User.findById(req.user.userId);
+    if (!user) return reply.code(404).send({ success:false, message:'User not found' });
+
+    /* Verify account password before allowing PIN reset */
+    const validPwd = await user.checkPassword(accountPassword);
+    if (!validPwd) return reply.code(401).send({ success:false, message:'Incorrect account password. PIN not changed.' });
+
+    user.vaultPinHash = await bcrypt.hash(String(newPin), 10);
+    await user.save();
+    return { success:true, message:'Vault PIN reset successfully. Please re-lock and re-open your vault.' };
+  });
+
   /* POST /api/pv/vault/setup-pin — first-time PIN setup */
   fastify.post('/setup-pin', { onRequest:[fastify.authenticate] }, async (req, reply) => {
     const { pin } = req.body||{};

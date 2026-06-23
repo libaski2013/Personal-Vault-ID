@@ -95,6 +95,75 @@ function submitPhone() {
   });
 }
 
+/* ── Eye toggle helper ── */
+function togglePwd(inputId, btnId) {
+  var inp = document.getElementById(inputId);
+  var btn = document.getElementById(btnId);
+  if (!inp) return;
+  var show = inp.type === 'password';
+  inp.type = show ? 'text' : 'password';
+  if (btn) btn.textContent = show ? '🙈' : '👁';
+}
+
+/* Build a password field with eye toggle */
+function pwdField(label, id, placeholder) {
+  return '<div><label class="label">' + label + '</label>'
+    + '<div style="position:relative">'
+    + '<input id="' + id + '" class="input" type="password" placeholder="' + placeholder + '" style="padding-right:40px">'
+    + '<button type="button" onclick="togglePwd(\'' + id + '\',\'eye_' + id + '\')" id="eye_' + id + '" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:18px;color:#94A3B8;padding:4px;line-height:1">👁</button>'
+    + '</div></div>';
+}
+
+/* PIN digit auto-advance */
+function pinAdv(inp, idx) {
+  if (inp.value) {
+    var pins = document.querySelectorAll('#newPinRow input[type="password"], #newPinRow input[type="text"]');
+    if (idx < pins.length - 1) pins[idx + 1].focus();
+  }
+}
+
+var pinVisible = false;
+function togglePinVis() {
+  pinVisible = !pinVisible;
+  var pins = document.querySelectorAll('#newPinRow input');
+  pins.forEach(function(p) { p.type = pinVisible ? 'text' : 'password'; });
+  var btn = document.getElementById('pinEye');
+  if (btn) btn.textContent = pinVisible ? '🙈' : '👁';
+}
+
+/* Reset vault/album PIN */
+async function resetVaultPin() {
+  var accountPwd = document.getElementById('pinVerifyPwd').value;
+  var pins = Array.from(document.querySelectorAll('#newPinRow input')).map(function(p){ return p.value; });
+  var newPin = pins.join('');
+
+  if (!accountPwd) { Layout.toast('Enter your account password to verify', 'error'); return; }
+  if (newPin.length < 4) { Layout.toast('Enter all 4 PIN digits', 'error'); return; }
+
+  var btn = document.getElementById('pinBtn');
+  btn.disabled = true; btn.textContent = 'Resetting…';
+
+  /* Step 1: verify account password by calling change-password with same value */
+  /* We use a dedicated PIN reset endpoint instead */
+  var r = await fetch('/api/trustid/vault/reset-pin', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + Auth.getToken() },
+    body: JSON.stringify({ accountPassword: accountPwd, newPin: newPin })
+  }).then(function(x) { return x.json(); });
+
+  btn.disabled = false; btn.textContent = 'Reset Vault PIN 🔐';
+
+  if (r.success) {
+    Layout.toast('Vault PIN reset successfully! 🔐', 'success');
+    document.getElementById('pinVerifyPwd').value = '';
+    document.querySelectorAll('#newPinRow input').forEach(function(p){ p.value=''; });
+    sessionStorage.removeItem('pv_vault_unlocked');
+    sessionStorage.removeItem('pv_album_unlocked');
+  } else {
+    Layout.toast(r.message || 'Failed to reset PIN', 'error');
+  }
+}
+
 document.getElementById('content').innerHTML =
   '<div class="page-header">'
   + '<div><h1 class="page-title">Settings</h1><p class="page-sub">Manage account preferences</p></div>'
@@ -115,11 +184,30 @@ document.getElementById('content').innerHTML =
   + '<div class="card">'
   +   '<h3 style="font-size:15px;font-weight:800;margin-bottom:18px">🔒 Change Password</h3>'
   +   '<div style="display:flex;flex-direction:column;gap:14px;margin-bottom:16px">'
-  +     '<div><label class="label">Current Password</label><input id="curPwd" class="input" type="password" placeholder="Enter current password"></div>'
-  +     '<div><label class="label">New Password</label><input id="newPwd" class="input" type="password" placeholder="Min 8 characters"></div>'
-  +     '<div><label class="label">Confirm New Password</label><input id="confPwd" class="input" type="password" placeholder="Repeat new password"></div>'
+  +     pwdField('Current Password','curPwd','Enter current password')
+  +     pwdField('New Password','newPwd','Min 8 characters')
+  +     pwdField('Confirm New Password','confPwd','Repeat new password')
   +   '</div>'
   +   '<button id="pwdBtn" onclick="submitPassword()" class="btn btn-primary btn-full">Update Password</button>'
+  + '</div>'
+
+  /* Vault / Album PIN reset */
+  + '<div class="card">'
+  +   '<h3 style="font-size:15px;font-weight:800;margin-bottom:6px">🔐 Reset Vault PIN</h3>'
+  +   '<p style="font-size:12px;color:#64748B;margin-bottom:14px;line-height:1.6">This resets the PIN for both your <strong>Secret Vault</strong> and <strong>Secret Album</strong>. You must enter your account password to confirm.</p>'
+  +   '<div style="display:flex;flex-direction:column;gap:12px;margin-bottom:14px">'
+  +     pwdField('Account Password (to verify it\'s you)','pinVerifyPwd','Your current login password')
+  +     '<div><label class="label">New Vault PIN (4+ digits)</label>'
+  +       '<div style="display:flex;gap:10px;margin-top:6px" id="newPinRow">'
+  +         '<input class="input" type="password" inputmode="numeric" maxlength="1" style="width:52px;height:52px;text-align:center;font-size:22px;font-weight:700;padding:0;flex-shrink:0" oninput="pinAdv(this,0)">'
+  +         '<input class="input" type="password" inputmode="numeric" maxlength="1" style="width:52px;height:52px;text-align:center;font-size:22px;font-weight:700;padding:0;flex-shrink:0" oninput="pinAdv(this,1)">'
+  +         '<input class="input" type="password" inputmode="numeric" maxlength="1" style="width:52px;height:52px;text-align:center;font-size:22px;font-weight:700;padding:0;flex-shrink:0" oninput="pinAdv(this,2)">'
+  +         '<input class="input" type="password" inputmode="numeric" maxlength="1" style="width:52px;height:52px;text-align:center;font-size:22px;font-weight:700;padding:0;flex-shrink:0" oninput="pinAdv(this,3)">'
+  +         '<button type="button" onclick="togglePinVis()" id="pinEye" style="background:none;border:none;cursor:pointer;font-size:20px;color:#94A3B8;padding:4px" title="Show/hide PIN">👁</button>'
+  +       '</div>'
+  +     '</div>'
+  +   '</div>'
+  +   '<button id="pinBtn" onclick="resetVaultPin()" class="btn btn-primary btn-full">Reset Vault PIN 🔐</button>'
   + '</div>'
 
   + '<div class="card">'

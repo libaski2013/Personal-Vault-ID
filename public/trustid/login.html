@@ -99,9 +99,10 @@
     </div>
     <div class="field">
       <label>Password</label>
-      <div class="field-wrap">
+      <div class="field-wrap" style="position:relative">
         <span class="field-icon">🔒</span>
-        <input type="password" id="password" placeholder="Enter your password" autocomplete="current-password">
+        <input type="password" id="password" placeholder="Enter your password" autocomplete="current-password" style="padding-right:42px">
+        <button type="button" onclick="togglePwd('password','eyeLogin')" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:18px;color:#94A3B8;padding:4px;line-height:1" id="eyeLogin" title="Show/hide password">👁</button>
       </div>
     </div>
 
@@ -208,6 +209,15 @@
       }
     } catch(e){}
   })();
+
+  function togglePwd(inputId, btnId) {
+    var inp = document.getElementById(inputId);
+    var btn = document.getElementById(btnId);
+    if (!inp) return;
+    var show = inp.type === 'password';
+    inp.type = show ? 'text' : 'password';
+    if (btn) btn.textContent = show ? '🙈' : '👁';
+  }
 
   document.getElementById('password').addEventListener('keydown', function(e) {
     if (e.key === 'Enter') doLogin();

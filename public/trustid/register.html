@@ -128,11 +128,17 @@
       <div class="grid-2">
         <div class="field">
           <label>Password <span class="req">*</span></label>
-          <input type="password" id="password" placeholder="Min 8 characters" autocomplete="new-password">
+          <div style="position:relative">
+            <input type="password" id="password" placeholder="Min 8 characters" autocomplete="new-password" style="padding-right:40px;width:100%">
+            <button type="button" onclick="togglePwd('password','eyeP1')" id="eyeP1" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:17px;color:#94A3B8;padding:4px;line-height:1">👁</button>
+          </div>
         </div>
         <div class="field">
           <label>Confirm Password <span class="req">*</span></label>
-          <input type="password" id="confirm" placeholder="Repeat password" autocomplete="new-password">
+          <div style="position:relative">
+            <input type="password" id="confirm" placeholder="Repeat password" autocomplete="new-password" style="padding-right:40px;width:100%">
+            <button type="button" onclick="togglePwd('confirm','eyeP2')" id="eyeP2" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:17px;color:#94A3B8;padding:4px;line-height:1">👁</button>
+          </div>
         </div>
       </div>
 
@@ -207,6 +213,15 @@
       }
     }catch(e){}
   })();
+
+  function togglePwd(inputId, btnId) {
+    var inp = document.getElementById(inputId);
+    var btn = document.getElementById(btnId);
+    if (!inp) return;
+    var show = inp.type === 'password';
+    inp.type = show ? 'text' : 'password';
+    if (btn) btn.textContent = show ? '🙈' : '👁';
+  }
 
   var _email='', _firstName='';
 
