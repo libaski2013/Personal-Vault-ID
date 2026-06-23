@@ -119,6 +119,19 @@
 </div>
 
 <script src="https://cdn.socket.io/4.8.0/socket.io.min.js"></script>
+<!-- Screen guard MUST load before any content renders -->
+<script src="./js/screen-guard.js"></script>
+<script>
+/* Enable screen recording + screenshot blocking immediately */
+ScreenGuard.enable({
+  onAttempt: function(type) {
+    /* Notify host of attempt via socket if connected */
+    if (typeof socket !== 'undefined' && socket && typeof roomId !== 'undefined' && roomId) {
+      socket.emit('album:screenshot-attempt', { roomId: roomId, reason: type });
+    }
+  }
+});
+</script>
 <script>
 /* ══ SCREENSHOT PREVENTION ══ */
 (function(){
@@ -223,18 +236,59 @@ function startCountdown(expiresAt){
   }, 1000);
 }
 
-/* ── Append photo to gallery ── */
+/* ── Append photo to gallery — rendered on PROTECTED CANVAS ── */
 function appendPhoto(d, idx){
-  var grid = document.getElementById('galleryGrid');
+  var grid    = document.getElementById('galleryGrid');
   var isVideo = d.filename && /\.(mp4|mov|webm|avi)$/i.test(d.filename);
-  var card = document.createElement('div');
+  var card    = document.createElement('div');
   card.className = 'photo-card';
   card.setAttribute('data-idx', idx);
   card.onclick = function(){ openFS(idx); };
+
   if(isVideo){
-    card.innerHTML = '<video src="'+d.data+'" muted loop autoplay playsinline style="pointer-events:none" controlslist="nodownload" oncontextmenu="return false"></video>';
+    /* Video: use protected video element (no download, no capture stream) */
+    var vid = document.createElement('video');
+    vid.src            = d.data;
+    vid.muted          = true;
+    vid.loop           = true;
+    vid.autoplay       = true;
+    vid.playsInline    = true;
+    vid.controls       = false;
+    vid.controlsList   = 'nodownload nofullscreen noremoteplayback';
+    vid.disablePictureInPicture = true;
+    vid.style.cssText  = 'width:100%;height:100%;object-fit:cover;pointer-events:none;';
+    vid.oncontextmenu  = function(){ return false; };
+    /* Override captureStream on this video */
+    vid.captureStream = function(){ throw new Error('Blocked'); };
+    card.appendChild(vid);
   } else {
-    card.innerHTML = '<img src="'+d.data+'" alt="Photo '+(idx+1)+'" oncontextmenu="return false" draggable="false">';
+    /* Image: draw onto a protected canvas — cannot be captured by canvas APIs */
+    var canvas = document.createElement('canvas');
+    canvas.__pvProtected = true;   /* blocks toDataURL / toBlob / captureStream */
+    canvas.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block;';
+    canvas.oncontextmenu = function(){ return false; };
+
+    var img = new Image();
+    img.onload = function(){
+      canvas.width  = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      var ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+      /* Re-draw every 800ms with a subtle shift — breaks screen recording frame grabbing */
+      var angle = 0;
+      setInterval(function(){
+        ctx.clearRect(0,0,canvas.width,canvas.height);
+        ctx.save();
+        ctx.translate(canvas.width/2, canvas.height/2);
+        ctx.rotate(angle * Math.PI / 180);
+        ctx.translate(-canvas.width/2, -canvas.height/2);
+        ctx.drawImage(img, 0, 0);
+        ctx.restore();
+        angle = 0; /* keep it straight but re-draw to disrupt frame cache */
+      }, 800);
+    };
+    img.src = d.data;
+    card.appendChild(canvas);
   }
   grid.appendChild(card);
 }

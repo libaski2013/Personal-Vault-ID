@@ -7,6 +7,7 @@
   <link rel="icon" href="./icon.svg">
   <link rel="stylesheet" href="./css/styles.css">
   <script src="https://cdn.socket.io/4.8.0/socket.io.min.js"></script>
+  <script src="./js/screen-guard.js"></script>
   <style>
     .chat-shell{display:flex;height:calc(100vh - 62px);overflow:hidden;background:#F0F2F8;}
     .disc-panel{width:270px;border-right:1px solid #E8ECF4;display:flex;flex-direction:column;background:#fff;flex-shrink:0;}
@@ -222,11 +223,13 @@ var pendingFrom=null,pendingFromName="";
 var albumUnlocked=sessionStorage.getItem("pv_album_unlocked")==="true";
 var albumItems=[],albumSel=new Set(),albumTargetUid=null;
 
-(function(){
-  document.addEventListener("keyup",function(e){if(e.key==="PrintScreen"){navigator.clipboard&&navigator.clipboard.writeText("");ssWarn();}});
-  document.getElementById("chatShell").addEventListener("contextmenu",function(e){e.preventDefault();});
-})();
-function ssWarn(){var w=document.createElement("div");w.className="ss-warn";w.textContent="Screenshot blocked";document.body.appendChild(w);setTimeout(function(){w.remove();},2500);if(socket&&activeUid)socket.emit("chat:screenshot",{to:activeUid});}
+/* Enable full screen guard for chat */
+ScreenGuard.enable({
+  onAttempt: function(type) {
+    var w=document.createElement("div");w.className="ss-warn";w.textContent="🚫 Recording blocked: "+type;document.body.appendChild(w);setTimeout(function(){w.remove();},3000);
+    if(socket&&activeUid) socket.emit("chat:screenshot",{to:activeUid});
+  }
+});
 
 function connectSocket(){
   socket=io(window.location.origin,{transports:["websocket","polling"],reconnection:true,reconnectionDelay:400});
