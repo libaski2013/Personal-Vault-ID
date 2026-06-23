@@ -9,7 +9,6 @@ const userSchema = new Schema({
   middleName:   { type: String, default: '', trim: true },
   lastName:     { type: String, default: '', trim: true },
   email:        { type: String, required: true, unique: true, lowercase: true, trim: true, index: true },
-  phone:        { type: String, default: '', trim: true },
   profilePhoto: { type: String, default: '' },
   passwordHash: { type: String, required: true },
   role:         { type: String, enum: ['user', 'admin'], default: 'user' },
@@ -19,7 +18,7 @@ const userSchema = new Schema({
     score: { type: Number, default: 100 }, status: { type: String, default: 'active' },
     issuedAt: { type: Date, default: Date.now },
   },
-  phone:        { type: String, default: '', trim: true, sparse: true },
+  phone:        { type: String, default: '', trim: true },
   tier:         { type: String, enum: ['free','paid','premium'], default: 'free' },
   notes:        { type: String, default: '' },   /* admin notes on this user */
   vaultPinHash: { type: String, default: null },
