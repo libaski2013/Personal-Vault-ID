@@ -151,6 +151,48 @@ const legacySchema = new Schema({
   disclosedAt:    Date,
 }, { timestamps: true });
 
+/* ── Digital Contact Card ── */
+const contactCardSchema = new Schema({
+  userId:       { type: OID, ref:'pvusers', required:true },
+  shareCode:    { type: String, unique:true, sparse:true },
+  /* Visuals */
+  photo:        String,   /* base64 passport photo */
+  logo:         String,   /* base64 company logo */
+  theme:        { type: String, default:'professional' },
+  /* Identity */
+  fullName:     { type: String, default:'' },
+  businessName: { type: String, default:'' },
+  jobTitle:     { type: String, default:'' },
+  bio:          { type: String, default:'' },
+  services:     [String],
+  /* Contact */
+  phones:       [{ label:String, number:String }],
+  whatsapp:     { type: String, default:'' },
+  email:        { type: String, default:'' },
+  website:      { type: String, default:'' },
+  location:     { address:String, city:String, country:String },
+  /* Social media */
+  socials: {
+    linkedin:String, twitter:String, instagram:String, facebook:String,
+    tiktok:String, youtube:String, github:String, telegram:String, snapchat:String,
+  },
+  /* Privacy — what to show when sharing publicly */
+  privacy: {
+    showPhoto:Boolean, showLogo:Boolean, showBio:Boolean, showPhones:Boolean,
+    showWhatsapp:Boolean, showEmail:Boolean, showWebsite:Boolean,
+    showLocation:Boolean, showSocials:Boolean, showServices:Boolean,
+  },
+  isPublic: { type: Boolean, default:true },
+}, { timestamps:true });
+
+/* ── Saved (scanned) Contacts ── */
+const savedContactSchema = new Schema({
+  userId:   { type: OID, ref:'pvusers', required:true },
+  cardData: { type: Object },   /* snapshot of the card at scan time */
+  notes:    { type: String, default:'' },
+  scannedAt:{ type: Date, default: Date.now },
+}, { timestamps:true });
+
 /* ── Activity Log / Audit Trail ── */
 const activitySchema = new Schema({
   userId:    { type: OID, ref: 'pvusers' },
@@ -215,6 +257,8 @@ const anonChatSchema = new Schema({
 
 module.exports = {
   User:         mongoose.model('pvusers',         userSchema),
+  ContactCard:  mongoose.model('pvcontactcards',  contactCardSchema),
+  SavedContact: mongoose.model('pvsavedcontacts', savedContactSchema),
   Activity:     mongoose.model('pvactivity',      activitySchema),
   Feature:      mongoose.model('pvfeatures',      featureSchema),
   Conversation: mongoose.model('pvconversations', conversationSchema),

@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Personal Vault — Saved Contacts</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="icon" href="./icon.svg">
+  <link rel="stylesheet" href="./css/styles.css">
+  <style>
+    .contact-card { background:#fff; border-radius:16px; border:1px solid #E8ECF4; padding:18px; display:flex; align-items:center; gap:14px; transition:box-shadow 0.15s; cursor:pointer; }
+    .contact-card:hover { box-shadow:0 4px 16px rgba(0,0,0,0.07); }
+    .contact-av { width:52px; height:64px; border-radius:10px; object-fit:cover; flex-shrink:0; background:linear-gradient(135deg,#7C3AED,#8B5CF6); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:800; font-size:18px; }
+    .contact-av img { width:100%; height:100%; object-fit:cover; border-radius:10px; }
+    .contact-info { flex:1; min-width:0; }
+    .contact-name { font-size:15px; font-weight:800; color:#0F172A; margin-bottom:2px; }
+    .contact-job  { font-size:12px; color:#7C3AED; margin-bottom:2px; }
+    .contact-biz  { font-size:11px; color:#64748B; }
+    .contact-meta { font-size:10px; color:#94A3B8; margin-top:6px; }
+    .contact-actions { display:flex; flex-direction:column; gap:6px; flex-shrink:0; }
+    .ca-btn { padding:5px 10px; border-radius:8px; font-size:11px; font-weight:700; cursor:pointer; border:none; }
+    .ca-view { background:#7C3AED18; color:#7C3AED; }
+    .ca-wa   { background:#25D36618; color:#15803D; }
+    .ca-del  { background:#EF444418; color:#EF4444; }
+  </style>
+</head>
+<body>
+<div class="app-shell">
+  <div id="sidebar"></div>
+  <div id="main">
+    <div id="topbar"></div>
+    <div class="page-content" id="content"><div id="loading"></div></div>
+  </div>
+</div>
+<script src="./js/auth.js"></script>
+<script>if(!Auth.requireAuth()) throw '';</script>
+<script src="./js/api.js"></script>
+<script src="./js/layout.js"></script>
+<script>
+Layout.init('contacts');
+document.getElementById('loading').innerHTML = Layout.spinner();
+
+fetch('/api/trustid/cards/contacts',{headers:{Authorization:'Bearer '+Auth.getToken()}})
+  .then(function(r){return r.json();})
+  .then(function(r){
+    var contacts=r.success?r.data:[];
+    render(contacts);
+  });
+
+function fmtDate(d){ return d?new Date(d).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):''; }
+function esc(s){ return String(s||''); }
+
+function render(contacts){
+  if(!contacts.length){
+    document.getElementById('content').innerHTML='<div class="page-header"><div><h1 class="page-title">👥 Saved Contacts</h1><p class="page-sub">People you\'ve scanned and saved</p></div></div><div class="empty" style="padding:80px 20px"><div style="font-size:48px;margin-bottom:14px">👥</div><div style="font-size:16px;font-weight:600;margin-bottom:8px">No saved contacts yet</div><div>Scan someone\'s QR code or enter their card code in the <a href="./card.html" style="color:#7C3AED;font-weight:700">Digital Card</a> page to save them here.</div></div>';
+    return;
+  }
+  var html='<div class="page-header"><div><h1 class="page-title">👥 Saved Contacts</h1><p class="page-sub">'+contacts.length+' contact'+(contacts.length>1?'s':'')+'</p></div><a href="./card.html" class="btn btn-primary" style="width:auto">+ Scan New</a></div>';
+  html += '<div style="display:flex;flex-direction:column;gap:10px">';
+  contacts.forEach(function(c){
+    var d=c.cardData||{};
+    var ini=((d.fullName||'?')[0]||'?').toUpperCase();
+    var phones=(d.phones||[]).filter(function(p){return p.number;}); var firstPhone=phones.length?phones[0].number:'';
+    html += '<div class="contact-card" onclick="viewCard(\''+esc(d.shareCode)+'\')">'
+      +'<div class="contact-av">'+(d.photo?'<img src="'+d.photo+'" alt="">':ini)+'</div>'
+      +'<div class="contact-info">'
+      +'<div class="contact-name">'+esc(d.fullName||'Unknown')+'</div>'
+      +(d.jobTitle?'<div class="contact-job">'+esc(d.jobTitle)+'</div>':'')
+      +(d.businessName?'<div class="contact-biz">'+esc(d.businessName)+'</div>':'')
+      +'<div class="contact-meta">Saved '+fmtDate(c.scannedAt)+(d.shareCode?' · '+esc(d.shareCode):'')+'</div>'
+      +'</div>'
+      +'<div class="contact-actions" onclick="event.stopPropagation()">'
+      +'<button class="ca-btn ca-view" onclick="viewCard(\''+esc(d.shareCode)+'\')">👁 View</button>'
+      +(d.whatsapp?'<a class="ca-btn ca-wa" href="https://wa.me/'+d.whatsapp.replace(/\D/g,'')+'" target="_blank">💬 WhatsApp</a>':'')
+      +'<button class="ca-btn ca-del" onclick="delContact(\''+c._id+'\')">🗑 Del</button>'
+      +'</div>'
+      +'</div>';
+  });
+  html += '</div>';
+  document.getElementById('content').innerHTML=html;
+}
+
+function viewCard(code){ if(code) window.open('./card-view.html?code='+code,'_blank'); }
+async function delContact(id){
+  if(!confirm('Remove this contact?')) return;
+  var r=await fetch('/api/trustid/cards/contacts/'+id,{method:'DELETE',headers:{Authorization:'Bearer '+Auth.getToken()}}).then(function(x){return x.json();});
+  if(r.success){ window.location.reload(); }
+}
+</script>
+</body>
+</html>

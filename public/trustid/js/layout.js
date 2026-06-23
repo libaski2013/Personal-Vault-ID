@@ -11,7 +11,9 @@ var Layout = (function () {
         { id:'identity',  icon:'🛡️', label:'My Identity', href:'/trustid/certificate.html' },
         { id:'documents', icon:'📁', label:'Documents',   href:'/trustid/documents.html' },
         { id:'academics', icon:'🎓', label:'Academics',   href:'/trustid/academics.html' },
-        { id:'cv',        icon:'📄', label:'CV Builder',  href:'/trustid/cv.html' },
+        { id:'cv',        icon:'📄', label:'CV Builder',      href:'/trustid/cv.html' },
+        { id:'card',      icon:'🪪', label:'Digital Card',     href:'/trustid/card.html' },
+        { id:'contacts',  icon:'👥', label:'Saved Contacts',   href:'/trustid/contacts.html' },
       ],
     },
     {
@@ -76,7 +78,7 @@ var Layout = (function () {
 
   var TITLES = {
     dashboard:'Dashboard', identity:'My Identity', documents:'Documents',
-    academics:'Academics & Awards', cv:'CV Builder', lifestory:'Life Story', expenses:'Expenses',
+    academics:'Academics & Awards', cv:'CV Builder', card:'Digital Contact Card', contacts:'Saved Contacts', lifestory:'Life Story', expenses:'Expenses',
     reminders:'Reminders', todo:'To-Do List', calendar:'Calendar',
     address:'My Address', vault:'Secret Vault', album:'Secret Album',
     legacy:'Digital Legacy', chat:'Messages', share:'Share My Vault',

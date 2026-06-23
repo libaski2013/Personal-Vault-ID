@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Personal Vault — Digital Card</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+  <meta name="theme-color" content="#1E1B4B">
+  <link rel="icon" href="./icon.svg">
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+    body{font-family:Inter,system-ui,sans-serif;background:#F0F2F8;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:0 0 40px;}
+    a{color:inherit;text-decoration:none;}
+    /* Header */
+    .pv-hdr{width:100%;background:linear-gradient(135deg,#0F0E2A,#1E1B4B);padding:14px 20px;display:flex;align-items:center;gap:10px;margin-bottom:20px;}
+    .pv-hdr-icon{width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,#7C3AED,#5B21B6);display:flex;align-items:center;justify-content:center;font-size:16px;}
+    .pv-hdr-name{font-size:14px;font-weight:800;color:#fff;}
+    .pv-hdr-sub{font-size:10px;color:rgba(255,255,255,0.4);font-weight:600;}
+    /* Card */
+    .card-outer{width:min(380px,96vw);border-radius:22px;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,0.22);position:relative;}
+    /* Themes */
+    .t-professional{background:linear-gradient(145deg,#0F0E2A 0%,#1E1B4B 55%,#312E81 100%);color:#fff;}
+    .t-minimal{background:#fff;color:#0F172A;border:1.5px solid #E8ECF4;}
+    .t-minimal .hband{height:6px;background:linear-gradient(135deg,#7C3AED,#5B21B6);}
+    .t-bold{background:linear-gradient(145deg,#0d0d1a,#1a0a0a);color:#fff;}
+    .t-premium{background:linear-gradient(145deg,#1a1205,#2d1f08,#1a1205);color:#fff;}
+    .t-nature{background:linear-gradient(145deg,#134e5e,#0a3040,#1a6b5a);color:#fff;}
+    /* Accent colors per theme */
+    .t-professional .ac{color:#A78BFA;} .t-minimal .ac{color:#7C3AED;} .t-bold .ac{color:#FF6B6B;} .t-premium .ac{color:#FFD700;} .t-nature .ac{color:#71b280;}
+    .t-professional .ibg{background:rgba(124,58,237,0.25);} .t-minimal .ibg{background:#F3F0FF;} .t-bold .ibg{background:rgba(255,107,107,0.2);} .t-premium .ibg{background:rgba(255,215,0,0.15);} .t-nature .ibg{background:rgba(113,178,128,0.2);}
+    .t-minimal .ibg{color:#7C3AED;} .t-minimal .lbl{color:#94A3B8;} .t-minimal .svc{background:#F3F0FF;color:#7C3AED;}
+    .t-professional .lbl,.t-bold .lbl,.t-premium .lbl,.t-nature .lbl{color:rgba(255,255,255,0.45);}
+    .t-professional .svc,.t-bold .svc,.t-premium .svc,.t-nature .svc{background:rgba(255,255,255,0.12);color:#fff;}
+    .t-professional .div,.t-bold .div,.t-premium .div,.t-nature .div{background:rgba(255,255,255,0.1);}
+    .t-minimal .div{background:#F1F5F9;}
+    /* Header section */
+    .hdr{padding:26px 22px 18px;display:flex;align-items:flex-start;gap:14px;}
+    .photo{width:72px;height:88px;border-radius:10px;object-fit:cover;border:3px solid rgba(255,255,255,0.3);display:block;flex-shrink:0;}
+    .photo-empty{width:72px;height:88px;border-radius:10px;background:rgba(255,255,255,0.1);display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0;}
+    .logo-badge{position:absolute;bottom:-10px;right:-10px;width:32px;height:32px;border-radius:8px;object-fit:cover;border:2px solid rgba(255,255,255,0.4);background:#fff;}
+    .phwrap{position:relative;flex-shrink:0;}
+    .name{font-size:20px;font-weight:900;line-height:1.2;margin-bottom:3px;}
+    .job{font-size:12px;font-weight:700;margin-bottom:3px;}
+    .biz{font-size:11px;opacity:0.65;}
+    /* Body */
+    .body{padding:0 22px 18px;}
+    .div{height:1px;margin:12px 0;}
+    .bio{font-size:12px;opacity:0.75;line-height:1.65;font-style:italic;margin-bottom:12px;}
+    /* Contact rows — ALL CLICKABLE */
+    .rows{display:flex;flex-direction:column;gap:8px;margin-bottom:12px;}
+    .row{display:flex;align-items:center;gap:10px;}
+    .iw{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;}
+    .rv{flex:1;min-width:0;}
+    .lbl{font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;}
+    .rval{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .rval a{color:inherit;text-decoration:none;}
+    .rval a:hover{text-decoration:underline;}
+    /* Services */
+    .svcs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;}
+    .svc{font-size:10px;font-weight:700;padding:3px 10px;border-radius:100px;}
+    /* Social buttons — CLICKABLE */
+    .socs{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:14px;}
+    .soc{display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;text-decoration:none;transition:opacity 0.15s;}
+    .soc:hover{opacity:0.8;text-decoration:none;}
+    .t-professional .soc,.t-bold .soc,.t-premium .soc,.t-nature .soc{background:rgba(255,255,255,0.12);color:#fff;}
+    .t-minimal .soc{background:#F3F0FF;color:#7C3AED;}
+    /* Footer */
+    .foot{padding:14px 22px 20px;display:flex;align-items:flex-end;justify-content:space-between;}
+    .qr img{width:70px;height:70px;border-radius:8px;}
+    .qr-lbl{font-size:9px;margin-top:3px;opacity:0.45;text-align:center;}
+    /* Watermark */
+    .wm{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);font-size:9px;font-weight:700;opacity:0.1;letter-spacing:2px;white-space:nowrap;pointer-events:none;}
+    /* Actions below card */
+    .actions{width:min(380px,96vw);margin-top:16px;display:flex;flex-direction:column;gap:10px;}
+    .action-btn{display:flex;align-items:center;justify-content:center;gap:8px;padding:14px;border-radius:14px;font-size:14px;font-weight:700;cursor:pointer;border:none;transition:all 0.15s;}
+    .action-btn:hover{transform:translateY(-1px);}
+    .btn-save{background:linear-gradient(135deg,#7C3AED,#5B21B6);color:#fff;}
+    .btn-wa{background:#25D366;color:#fff;}
+    .btn-copy{background:#fff;color:#334155;border:1.5px solid #E8ECF4;}
+    /* Powered by */
+    .powered{margin-top:20px;font-size:11px;color:#94A3B8;text-align:center;}
+    .powered a{color:#7C3AED;font-weight:700;}
+    /* Loading */
+    .loading{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px 20px;color:#94A3B8;gap:12px;}
+    .spinner{width:36px;height:36px;border-radius:50%;border:3px solid #7C3AED25;border-top-color:#7C3AED;animation:spin 0.8s linear infinite;}
+    @keyframes spin{to{transform:rotate(360deg)}}
+  </style>
+</head>
+<body>
+
+<div class="pv-hdr">
+  <div class="pv-hdr-icon">🔐</div>
+  <div><div class="pv-hdr-name">Personal Vault</div><div class="pv-hdr-sub">DIGITAL CONTACT CARD</div></div>
+</div>
+
+<div id="main">
+  <div class="loading"><div class="spinner"></div><span>Loading card…</span></div>
+</div>
+
+<div class="powered">Powered by <a href="./index.html">Personal Vault</a></div>
+
+<script>
+var code = new URLSearchParams(window.location.search).get('code');
+var SOCIAL_META = {
+  linkedin:{ icon:'💼', label:'LinkedIn',  base:'https://linkedin.com/in/' },
+  twitter: { icon:'🐦', label:'Twitter/X', base:'https://twitter.com/' },
+  instagram:{ icon:'📷', label:'Instagram', base:'https://instagram.com/' },
+  facebook:{ icon:'📘', label:'Facebook',  base:'https://facebook.com/' },
+  tiktok:  { icon:'🎵', label:'TikTok',    base:'https://tiktok.com/@' },
+  youtube: { icon:'📺', label:'YouTube',   base:'https://youtube.com/@' },
+  github:  { icon:'💻', label:'GitHub',    base:'https://github.com/' },
+  telegram:{ icon:'✈️', label:'Telegram',  base:'https://t.me/' },
+  snapchat:{ icon:'👻', label:'Snapchat',  base:'https://snapchat.com/add/' },
+};
+
+if(!code){
+  document.getElementById('main').innerHTML='<div class="loading"><div style="font-size:36px">❌</div><span>No card code in URL. Scan a valid QR code.</span></div>';
+} else {
+  fetch('/api/trustid/cards/view/'+code)
+    .then(function(r){return r.json();})
+    .then(function(r){
+      if(!r.success){ document.getElementById('main').innerHTML='<div class="loading"><div style="font-size:36px">🔒</div><span>'+r.message+'</span></div>'; return; }
+      renderCard(r.data);
+    })
+    .catch(function(){ document.getElementById('main').innerHTML='<div class="loading"><div style="font-size:36px">⚠️</div><span>Network error. Please try again.</span></div>'; });
+}
+
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function renderCard(d){
+  var t = d.theme||'professional';
+  var viewUrl = window.location.href;
+  var qrSrc   = 'https://api.qrserver.com/v1/create-qr-code/?size=140x140&data='+encodeURIComponent(viewUrl);
+  var phones  = (d.phones||[]).filter(function(p){return p.number;});
+  var socials = Object.keys(d.socials||{}).filter(function(k){return d.socials[k]&&SOCIAL_META[k];});
+
+  /* Update page title */
+  if(d.fullName) document.title = d.fullName + ' — Personal Vault Card';
+
+  var html = '<div class="card-outer t-'+t+'">';
+  if(t==='minimal') html += '<div class="hband"></div>';
+
+  /* Header */
+  html += '<div class="hdr">';
+  html += '<div class="phwrap">';
+  if(d.photo) html += '<img class="photo" src="'+d.photo+'" alt="Photo" draggable="false">';
+  else html += '<div class="photo-empty">👤</div>';
+  if(d.logo) html += '<img class="logo-badge" src="'+d.logo+'" alt="Logo" draggable="false">';
+  html += '</div>';
+  html += '<div style="flex:1;min-width:0"><div class="name">'+(d.fullName||'Name')+'</div><div class="job ac">'+(d.jobTitle||'')+'</div><div class="biz">'+(d.businessName||'')+'</div></div>';
+  html += '</div>';
+
+  /* Body */
+  html += '<div class="body">';
+  if(d.bio){ html += '<div class="div"></div><div class="bio">'+esc(d.bio)+'</div>'; }
+  html += '<div class="div"></div><div class="rows">';
+
+  /* Clickable contact rows */
+  phones.forEach(function(p){
+    html += '<div class="row"><div class="iw ibg">📞</div><div class="rv"><div class="lbl">'+esc(p.label)+'</div><div class="rval"><a href="tel:'+esc(p.number)+'">'+esc(p.number)+'</a></div></div></div>';
+  });
+  if(d.whatsapp){
+    var wnum = d.whatsapp.replace(/\D/g,'');
+    html += '<div class="row"><div class="iw ibg">💬</div><div class="rv"><div class="lbl">WHATSAPP</div><div class="rval"><a href="https://wa.me/'+wnum+'" target="_blank">'+esc(d.whatsapp)+'</a></div></div></div>';
+  }
+  if(d.email)   html += '<div class="row"><div class="iw ibg">📧</div><div class="rv"><div class="lbl">EMAIL</div><div class="rval"><a href="mailto:'+esc(d.email)+'">'+esc(d.email)+'</a></div></div></div>';
+  if(d.website) html += '<div class="row"><div class="iw ibg">🌐</div><div class="rv"><div class="lbl">WEBSITE</div><div class="rval"><a href="'+esc(d.website)+'" target="_blank">'+esc(d.website.replace(/^https?:\/\//,''))+'</a></div></div></div>';
+  if(d.location&&(d.location.city||d.location.country)) html += '<div class="row"><div class="iw ibg">📍</div><div class="rv"><div class="lbl">LOCATION</div><div class="rval">'+[d.location.city,d.location.country].filter(Boolean).map(esc).join(', ')+'</div></div></div>';
+  html += '</div>';
+
+  /* Services */
+  if(d.services&&d.services.length){ html += '<div class="div"></div><div class="lbl" style="margin-bottom:6px">SERVICES</div><div class="svcs">'+d.services.map(function(s){return '<span class="svc">'+esc(s)+'</span>';}).join('')+'</div>'; }
+
+  /* Clickable social buttons */
+  if(socials.length){
+    html += '<div class="div"></div><div class="lbl" style="margin-bottom:8px">CONNECT ON SOCIAL</div><div class="socs">';
+    socials.forEach(function(k){
+      var m=SOCIAL_META[k], handle=(d.socials[k]||'').replace('@','');
+      html += '<a class="soc" href="'+m.base+handle+'" target="_blank" rel="noopener">'+m.icon+' '+esc(handle)+'</a>';
+    });
+    html += '</div>';
+  }
+  html += '</div>';
+
+  /* Footer */
+  html += '<div class="foot"><div><div style="font-size:9px;opacity:0.45;margin-bottom:3px">SCAN TO CONNECT</div><div style="font-family:monospace;font-size:11px;font-weight:700;opacity:0.6">'+esc(d.shareCode||code)+'</div></div><div class="qr"><img src="'+qrSrc+'" alt="QR"><div class="qr-lbl">Personal Vault</div></div></div>';
+  html += '<div class="wm">✦ Personal Vault ✦</div>';
+  html += '</div>';
+
+  /* Actions */
+  html += '<div class="actions">';
+  html += '<button class="action-btn btn-save" onclick="saveContact()">👥 Save to My Contacts</button>';
+  if(d.whatsapp){
+    var wnum2=d.whatsapp.replace(/\D/g,'');
+    html += '<a class="action-btn btn-wa" href="https://wa.me/'+wnum2+'" target="_blank">💬 Message on WhatsApp</a>';
+  }
+  html += '<button class="action-btn btn-copy" onclick="copyLink()">🔗 Copy Card Link</button>';
+  html += '</div>';
+
+  document.getElementById('main').innerHTML = html;
+}
+
+function saveContact(){
+  var token=localStorage.getItem('tid_token');
+  if(!token){ alert('Sign in to Personal Vault to save this contact.'); window.location.href='./login.html'; return; }
+  fetch('/api/trustid/cards/save',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify({shareCode:code})})
+    .then(function(r){return r.json();})
+    .then(function(r){ alert(r.success?'Contact saved to your Personal Vault! 👥':r.message||'Error'); });
+}
+
+function copyLink(){
+  navigator.clipboard.writeText(window.location.href).then(function(){ alert('Link copied!'); });
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Personal Vault — Digital Contact Card</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="icon" href="./icon.svg">
+  <link rel="stylesheet" href="./css/styles.css">
+  <style>
+    /* ══ CARD THEMES ══ */
+    :root {
+      --card-w: 360px;
+    }
+    .dc-wrap { display:grid; grid-template-columns:1fr var(--card-w); gap:24px; align-items:start; }
+    @media(max-width:900px){ .dc-wrap{ grid-template-columns:1fr; } .dc-sticky{ position:static!important; } }
+
+    /* Live card preview */
+    .dc-sticky { position:sticky; top:80px; }
+    .dc-card   { width:var(--card-w); border-radius:20px; overflow:hidden; box-shadow:0 20px 60px rgba(0,0,0,0.2); position:relative; user-select:none; font-family:Inter,system-ui,sans-serif; }
+
+    /* ── Theme: Professional (dark navy) ── */
+    .t-professional { background:linear-gradient(145deg,#0F0E2A 0%,#1E1B4B 55%,#312E81 100%); color:#fff; }
+    .t-professional .dc-accent   { color:#A78BFA; }
+    .t-professional .dc-divider  { background:rgba(255,255,255,0.12); }
+    .t-professional .dc-label    { color:rgba(255,255,255,0.45); }
+    .t-professional .dc-icon-bg  { background:rgba(124,58,237,0.25); }
+    .t-professional .dc-btn      { background:rgba(255,255,255,0.15); color:#fff; border:1px solid rgba(255,255,255,0.2); }
+
+    /* ── Theme: Minimal (white) ── */
+    .t-minimal { background:#fff; color:#0F172A; border:1.5px solid #E8ECF4; }
+    .t-minimal .dc-header-band   { background:linear-gradient(135deg,#7C3AED,#5B21B6); }
+    .t-minimal .dc-accent        { color:#7C3AED; }
+    .t-minimal .dc-divider       { background:#F1F5F9; }
+    .t-minimal .dc-label         { color:#94A3B8; }
+    .t-minimal .dc-icon-bg       { background:#F3F0FF; }
+    .t-minimal .dc-btn           { background:#7C3AED; color:#fff; }
+
+    /* ── Theme: Bold (dark + red) ── */
+    .t-bold { background:linear-gradient(145deg,#0d0d1a,#1a0a0a); color:#fff; }
+    .t-bold .dc-accent   { color:#FF6B6B; }
+    .t-bold .dc-divider  { background:rgba(255,107,107,0.2); }
+    .t-bold .dc-label    { color:rgba(255,255,255,0.4); }
+    .t-bold .dc-icon-bg  { background:rgba(255,107,107,0.2); }
+    .t-bold .dc-btn      { background:#FF6B6B; color:#fff; }
+
+    /* ── Theme: Premium (gold) ── */
+    .t-premium { background:linear-gradient(145deg,#1a1205,#2d1f08,#1a1205); color:#fff; }
+    .t-premium .dc-accent   { color:#FFD700; }
+    .t-premium .dc-divider  { background:rgba(255,215,0,0.2); }
+    .t-premium .dc-label    { color:rgba(255,215,0,0.5); }
+    .t-premium .dc-icon-bg  { background:rgba(255,215,0,0.15); }
+    .t-premium .dc-btn      { background:linear-gradient(135deg,#B8860B,#FFD700); color:#1a1205; }
+
+    /* ── Theme: Nature (teal/green) ── */
+    .t-nature { background:linear-gradient(145deg,#134e5e,#0a3040,#1a6b5a); color:#fff; }
+    .t-nature .dc-accent   { color:#71b280; }
+    .t-nature .dc-divider  { background:rgba(113,178,128,0.2); }
+    .t-nature .dc-label    { color:rgba(255,255,255,0.45); }
+    .t-nature .dc-icon-bg  { background:rgba(113,178,128,0.2); }
+    .t-nature .dc-btn      { background:#71b280; color:#0a3040; }
+
+    /* ══ CARD INNER LAYOUT ══ */
+    .dc-header { padding:28px 24px 20px; display:flex; align-items:flex-start; gap:14px; }
+    .dc-header-band { height:6px; width:100%; }
+    .dc-photo-wrap { position:relative; flex-shrink:0; }
+    .dc-photo { width:72px; height:88px; border-radius:10px; object-fit:cover; border:3px solid rgba(255,255,255,0.3); display:block; }
+    .dc-photo-empty { width:72px; height:88px; border-radius:10px; background:rgba(255,255,255,0.1); border:2px dashed rgba(255,255,255,0.3); display:flex; align-items:center; justify-content:center; font-size:26px; }
+    .dc-logo { position:absolute; bottom:-10px; right:-10px; width:32px; height:32px; border-radius:8px; object-fit:cover; border:2px solid rgba(255,255,255,0.4); background:#fff; }
+    .dc-logo-empty { position:absolute; bottom:-10px; right:-10px; width:32px; height:32px; border-radius:8px; background:rgba(255,255,255,0.15); border:2px dashed rgba(255,255,255,0.3); display:flex; align-items:center; justify-content:center; font-size:14px; }
+    .dc-name-block { flex:1; min-width:0; }
+    .dc-name      { font-size:19px; font-weight:900; margin-bottom:2px; line-height:1.2; }
+    .dc-job       { font-size:12px; font-weight:600; margin-bottom:3px; }
+    .dc-biz       { font-size:11px; opacity:0.65; }
+    .dc-body      { padding:0 24px 20px; }
+    .dc-divider   { height:1px; margin:14px 0; }
+    .dc-bio       { font-size:12px; opacity:0.75; line-height:1.6; margin-bottom:14px; font-style:italic; }
+    .dc-contact   { display:flex; flex-direction:column; gap:8px; margin-bottom:14px; }
+    .dc-row       { display:flex; align-items:center; gap:10px; font-size:12px; }
+    .dc-icon-bg   { width:28px; height:28px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0; }
+    .dc-row-val   { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .dc-row-val a { color:inherit; text-decoration:none; }
+    .dc-label     { font-size:9px; font-weight:700; letter-spacing:1px; text-transform:uppercase; }
+    .dc-services  { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:14px; }
+    .dc-svc-chip  { font-size:10px; font-weight:600; padding:3px 9px; border-radius:100px; background:rgba(255,255,255,0.12); }
+    .dc-socials   { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px; }
+    .dc-soc-btn   { display:inline-flex; align-items:center; gap:5px; padding:5px 10px; border-radius:8px; font-size:11px; font-weight:600; cursor:pointer; transition:opacity 0.15s; text-decoration:none; }
+    .dc-soc-btn:hover { opacity:0.8; }
+    .dc-footer    { padding:14px 24px 20px; display:flex; align-items:flex-end; justify-content:space-between; }
+    .dc-qr-wrap   { text-align:center; }
+    .dc-qr-wrap img { width:72px; height:72px; border-radius:8px; display:block; }
+    .dc-qr-label  { font-size:9px; margin-top:4px; opacity:0.5; }
+
+    /* ── Watermark ── */
+    .dc-watermark { position:absolute; bottom:10px; left:50%; transform:translateX(-50%); font-size:9px; font-weight:700; opacity:0.1; letter-spacing:2px; white-space:nowrap; pointer-events:none; }
+
+    /* ══ THEME SELECTOR ══ */
+    .theme-bar    { display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap; }
+    .theme-swatch { width:42px; height:28px; border-radius:8px; cursor:pointer; border:3px solid transparent; transition:all 0.15s; flex-shrink:0; }
+    .theme-swatch.active { border-color:#fff; box-shadow:0 0 0 2px #7C3AED; }
+    .theme-swatch.t-professional-sw { background:linear-gradient(135deg,#0F0E2A,#7C3AED); }
+    .theme-swatch.t-minimal-sw      { background:linear-gradient(135deg,#fff,#E2E8F0); border:1px solid #E2E8F0; }
+    .theme-swatch.t-bold-sw         { background:linear-gradient(135deg,#0d0d1a,#FF6B6B); }
+    .theme-swatch.t-premium-sw      { background:linear-gradient(135deg,#1a1205,#FFD700); }
+    .theme-swatch.t-nature-sw       { background:linear-gradient(135deg,#134e5e,#71b280); }
+
+    /* ══ FORM ══ */
+    .photo-upload { display:flex; align-items:center; gap:14px; margin-bottom:14px; }
+    .upload-circle { width:72px; height:88px; border-radius:10px; border:2px dashed #7C3AED; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:28px; background:#F3F0FF; overflow:hidden; flex-shrink:0; }
+    .upload-circle img { width:100%; height:100%; object-fit:cover; }
+    .logo-circle  { width:52px; height:52px; border-radius:10px; border:2px dashed #7C3AED; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:22px; background:#F3F0FF; overflow:hidden; flex-shrink:0; }
+    .logo-circle img { width:100%; height:100%; object-fit:cover; }
+    .phones-list  { display:flex; flex-direction:column; gap:8px; }
+    .phone-row    { display:flex; gap:8px; }
+    .phone-row .input { flex:1; height:36px; }
+    .phone-row select { height:36px; border-radius:8px; border:1.5px solid #E2E8F0; padding:0 8px; font-size:12px; }
+    .svc-chips    { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+    .svc-chip     { display:inline-flex; align-items:center; gap:4px; background:#F3F0FF; color:#7C3AED; padding:4px 10px; border-radius:100px; font-size:12px; font-weight:600; }
+    .svc-chip button { background:none; border:none; cursor:pointer; color:#94A3B8; font-size:14px; line-height:1; }
+    .svc-add      { display:flex; gap:8px; margin-top:8px; }
+    .share-row    { display:flex; gap:8px; flex-wrap:wrap; margin-top:14px; }
+    .share-btn    { display:inline-flex; align-items:center; gap:5px; padding:8px 14px; border-radius:10px; border:1.5px solid #E2E8F0; font-size:12px; font-weight:600; cursor:pointer; background:#fff; color:#334155; transition:all 0.15s; }
+    .share-btn:hover { border-color:#7C3AED; color:#7C3AED; }
+    .privacy-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+    .priv-row     { display:flex; align-items:center; justify-content:space-between; padding:8px 12px; background:#F8FAFC; border-radius:10px; font-size:13px; font-weight:600; color:#334155; }
+
+    /* Print / PDF */
+    @media print {
+      .no-print { display:none!important; }
+      body { background:#fff; }
+      .app-shell { display:block; }
+      #sidebar, #main > #topbar { display:none; }
+      .dc-wrap { display:block; }
+      .dc-card { width:360px; margin:0 auto; box-shadow:none; }
+    }
+  </style>
+</head>
+<body>
+<div class="app-shell">
+  <div id="sidebar"></div>
+  <div id="main">
+    <div id="topbar"></div>
+    <div class="page-content">
+
+      <div class="page-header">
+        <div><h1 class="page-title">🪪 Digital Contact Card</h1><p class="page-sub">Create your professional digital business card — share via QR, WhatsApp, email, PDF, or in-app chat</p></div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <button onclick="saveCard()" class="btn btn-primary no-print" style="width:auto" id="saveBtn">💾 Save Card</button>
+          <button onclick="window.print()" class="btn btn-ghost no-print" style="width:auto">🖨️ PDF</button>
+        </div>
+      </div>
+
+      <div class="dc-wrap">
+
+        <!-- ── LEFT: Form ── -->
+        <div class="no-print">
+
+          <!-- Theme selector -->
+          <div class="card" style="margin-bottom:16px">
+            <h3 style="font-size:14px;font-weight:800;margin-bottom:10px">🎨 Card Theme</h3>
+            <div class="theme-bar">
+              <div class="theme-swatch t-professional-sw active" onclick="setTheme('professional')" title="Professional"></div>
+              <div class="theme-swatch t-minimal-sw"      onclick="setTheme('minimal')"      title="Minimal"></div>
+              <div class="theme-swatch t-bold-sw"         onclick="setTheme('bold')"          title="Bold"></div>
+              <div class="theme-swatch t-premium-sw"      onclick="setTheme('premium')"       title="Premium Gold"></div>
+              <div class="theme-swatch t-nature-sw"       onclick="setTheme('nature')"        title="Nature"></div>
+            </div>
+            <div style="font-size:12px;color:#64748B" id="themeName">Professional — Dark Navy</div>
+          </div>
+
+          <!-- Photos -->
+          <div class="card" style="margin-bottom:14px">
+            <h3 style="font-size:14px;font-weight:800;margin-bottom:12px">📷 Photos</h3>
+            <div class="photo-upload">
+              <div>
+                <div class="upload-circle" id="photoPreview" onclick="document.getElementById('photoInput').click()">👤</div>
+                <input type="file" id="photoInput" accept="image/*" style="display:none" onchange="loadPhoto(this,'photo')">
+                <div style="font-size:10px;color:#94A3B8;text-align:center;margin-top:4px">Passport<br>Photo</div>
+              </div>
+              <div>
+                <div class="logo-circle" id="logoPreview" onclick="document.getElementById('logoInput').click()">🏢</div>
+                <input type="file" id="logoInput" accept="image/*" style="display:none" onchange="loadPhoto(this,'logo')">
+                <div style="font-size:10px;color:#94A3B8;text-align:center;margin-top:4px">Company<br>Logo</div>
+              </div>
+              <div style="flex:1;font-size:12px;color:#64748B;line-height:1.6">Upload a passport-style photo and your company/brand logo. They appear together on the card.</div>
+            </div>
+          </div>
+
+          <!-- Identity -->
+          <div class="card" style="margin-bottom:14px">
+            <h3 style="font-size:14px;font-weight:800;margin-bottom:12px">👤 Identity</h3>
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <div class="field"><label class="label">Full Name</label><input id="f-fullName" class="input" placeholder="Ali Hassan Baba" oninput="liveUpdate()"></div>
+              <div class="field"><label class="label">Job Title</label><input id="f-jobTitle" class="input" placeholder="Software Engineer" oninput="liveUpdate()"></div>
+              <div class="field"><label class="label">Business / Company Name</label><input id="f-businessName" class="input" placeholder="Babstech Solutions" oninput="liveUpdate()"></div>
+              <div class="field"><label class="label">Short Bio</label><textarea id="f-bio" class="input" rows="2" style="height:auto;resize:vertical;padding:8px" placeholder="Passionate about building digital solutions…" oninput="liveUpdate()"></textarea></div>
+            </div>
+          </div>
+
+          <!-- Contact -->
+          <div class="card" style="margin-bottom:14px">
+            <h3 style="font-size:14px;font-weight:800;margin-bottom:12px">📞 Contact Details</h3>
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <!-- Phone numbers -->
+              <div><label class="label">Phone Numbers</label>
+                <div class="phones-list" id="phonesList">
+                  <div class="phone-row">
+                    <select class="phone-label-sel"><option>Mobile</option><option>Work</option><option>Home</option><option>Other</option></select>
+                    <input class="input phone-num" placeholder="+233241234567" oninput="liveUpdate()">
+                    <button onclick="removePhone(this)" style="background:none;border:none;cursor:pointer;color:#94A3B8;font-size:18px">×</button>
+                  </div>
+                </div>
+                <button onclick="addPhone()" class="btn btn-ghost btn-sm" style="width:auto;margin-top:6px">+ Add Phone</button>
+              </div>
+              <div class="field"><label class="label">WhatsApp Number</label><input id="f-whatsapp" class="input" placeholder="+233241234567" oninput="liveUpdate()"></div>
+              <div class="field"><label class="label">Email Address</label><input id="f-email" class="input" type="email" placeholder="ali@babstech.com" oninput="liveUpdate()"></div>
+              <div class="field"><label class="label">Website</label><input id="f-website" class="input" placeholder="https://babstech.com" oninput="liveUpdate()"></div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+                <div class="field"><label class="label">City</label><input id="f-city" class="input" placeholder="Accra" oninput="liveUpdate()"></div>
+                <div class="field"><label class="label">Country</label><input id="f-country" class="input" placeholder="Ghana" oninput="liveUpdate()"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Social media -->
+          <div class="card" style="margin-bottom:14px">
+            <h3 style="font-size:14px;font-weight:800;margin-bottom:12px">🌐 Social Media</h3>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+              <div class="field"><label class="label">💼 LinkedIn</label><input id="s-linkedin" class="input" placeholder="username" oninput="liveUpdate()"></div>
+              <div class="field"><label class="label">🐦 Twitter / X</label><input id="s-twitter" class="input" placeholder="@username" oninput="liveUpdate()"></div>
+              <div class="field"><label class="label">📷 Instagram</label><input id="s-instagram" class="input" placeholder="@username" oninput="liveUpdate()"></div>
+              <div class="field"><label class="label">📘 Facebook</label><input id="s-facebook" class="input" placeholder="username" oninput="liveUpdate()"></div>
+              <div class="field"><label class="label">🎵 TikTok</label><input id="s-tiktok" class="input" placeholder="@username" oninput="liveUpdate()"></div>
+              <div class="field"><label class="label">📺 YouTube</label><input id="s-youtube" class="input" placeholder="channel" oninput="liveUpdate()"></div>
+              <div class="field"><label class="label">💻 GitHub</label><input id="s-github" class="input" placeholder="username" oninput="liveUpdate()"></div>
+              <div class="field"><label class="label">✈️ Telegram</label><input id="s-telegram" class="input" placeholder="@username" oninput="liveUpdate()"></div>
+            </div>
+          </div>
+
+          <!-- Services -->
+          <div class="card" style="margin-bottom:14px">
+            <h3 style="font-size:14px;font-weight:800;margin-bottom:12px">🛠️ Services</h3>
+            <div class="svc-chips" id="svcChips"></div>
+            <div class="svc-add">
+              <input id="svcInput" class="input" placeholder="e.g. Web Design" style="flex:1" onkeydown="if(event.key==='Enter'){event.preventDefault();addService();}">
+              <button onclick="addService()" class="btn btn-ghost btn-sm" style="width:auto">+ Add</button>
+            </div>
+          </div>
+
+          <!-- Privacy -->
+          <div class="card" style="margin-bottom:14px">
+            <h3 style="font-size:14px;font-weight:800;margin-bottom:6px">🔒 Privacy Controls</h3>
+            <p style="font-size:12px;color:#64748B;margin-bottom:12px">Choose what appears when someone scans your public QR code</p>
+            <div class="privacy-grid" id="privacyGrid"></div>
+          </div>
+
+          <!-- Share options -->
+          <div class="card" style="margin-bottom:14px" id="shareSection" style="display:none">
+            <h3 style="font-size:14px;font-weight:800;margin-bottom:10px">📤 Share Your Card</h3>
+            <div class="share-row">
+              <button class="share-btn" onclick="shareWhatsApp()">📱 WhatsApp</button>
+              <button class="share-btn" onclick="shareEmail()">📧 Email</button>
+              <button class="share-btn" onclick="copyLink()">🔗 Copy Link</button>
+              <button class="share-btn" onclick="downloadQR()">📲 Download QR</button>
+              <button class="share-btn" onclick="shareInChat()">💬 In-App Chat</button>
+              <button class="share-btn" onclick="window.print()">🖨️ PDF</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── RIGHT: Live Card Preview ── -->
+        <div class="dc-sticky">
+          <div style="font-size:12px;color:#64748B;text-align:center;margin-bottom:8px;font-weight:600">LIVE PREVIEW</div>
+
+          <!-- Theme switcher overlay on card top -->
+          <div class="dc-card" id="liveCard">
+            <!-- Rendered by JS -->
+          </div>
+
+          <div style="margin-top:12px;text-align:center">
+            <div style="font-size:11px;color:#94A3B8;margin-bottom:8px">Share Code</div>
+            <div style="font-family:monospace;font-size:16px;font-weight:900;color:#7C3AED;letter-spacing:3px" id="shareCodeDisplay">—</div>
+          </div>
+
+          <!-- QR for scanning -->
+          <div style="text-align:center;margin-top:12px">
+            <img id="mainQR" src="" alt="QR Code" style="width:120px;height:120px;border-radius:12px;display:none">
+          </div>
+
+          <!-- Scan other cards -->
+          <div class="card" style="margin-top:14px;text-align:center">
+            <div style="font-size:13px;font-weight:700;color:#334155;margin-bottom:6px">📷 Scan Someone's Card</div>
+            <div style="font-size:12px;color:#64748B;margin-bottom:10px">Enter a card code or open camera</div>
+            <div style="display:flex;gap:8px">
+              <input id="scanCodeInput" class="input" placeholder="PVC-XXXXXX" style="flex:1;height:36px;font-family:monospace;font-size:14px;font-weight:700;letter-spacing:2px">
+              <button onclick="scanCode()" class="btn btn-primary btn-sm" style="width:auto">Scan</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="./js/auth.js"></script>
+<script>if(!Auth.requireAuth()) throw '';</script>
+<script src="./js/api.js"></script>
+<script src="./js/layout.js"></script>
+<script>
+Layout.init('card');
+
+/* ══ STATE ══ */
+var cardData = {
+  theme:'professional', photo:null, logo:null,
+  fullName:'', jobTitle:'', businessName:'', bio:'',
+  phones:[{ label:'Mobile', number:'' }],
+  whatsapp:'', email:'', website:'',
+  location:{ city:'', country:'' },
+  socials:{ linkedin:'',twitter:'',instagram:'',facebook:'',tiktok:'',youtube:'',github:'',telegram:'' },
+  services:[],
+  privacy:{ showPhoto:true,showLogo:true,showBio:true,showPhones:true,showWhatsapp:true,showEmail:true,showWebsite:true,showLocation:true,showSocials:true,showServices:true },
+  shareCode:null,
+};
+
+var SOCIAL_META = [
+  { key:'linkedin',  icon:'💼', label:'LinkedIn',  url:'https://linkedin.com/in/' },
+  { key:'twitter',   icon:'🐦', label:'X / Twitter',url:'https://twitter.com/' },
+  { key:'instagram', icon:'📷', label:'Instagram', url:'https://instagram.com/' },
+  { key:'facebook',  icon:'📘', label:'Facebook',  url:'https://facebook.com/' },
+  { key:'tiktok',    icon:'🎵', label:'TikTok',    url:'https://tiktok.com/@' },
+  { key:'youtube',   icon:'📺', label:'YouTube',   url:'https://youtube.com/@' },
+  { key:'github',    icon:'💻', label:'GitHub',    url:'https://github.com/' },
+  { key:'telegram',  icon:'✈️', label:'Telegram',  url:'https://t.me/' },
+];
+
+var THEME_NAMES = { professional:'Professional — Dark Navy', minimal:'Minimal — Clean White', bold:'Bold — Dark Red', premium:'Premium — Gold', nature:'Nature — Teal Green' };
+
+var PRIVACY_LABELS = [
+  ['showPhoto','Passport Photo'],['showLogo','Company Logo'],['showBio','Bio'],
+  ['showPhones','Phone Numbers'],['showWhatsapp','WhatsApp'],['showEmail','Email'],
+  ['showWebsite','Website'],['showLocation','Location'],['showSocials','Social Media'],['showServices','Services'],
+];
+
+/* ── Load saved card ── */
+fetch('/api/trustid/cards',{headers:{Authorization:'Bearer '+Auth.getToken()}})
+  .then(function(r){return r.json();})
+  .then(function(r){
+    if(r.success&&r.data){
+      Object.assign(cardData, r.data);
+      populateForm();
+    }
+    buildPrivacyGrid();
+    renderCard();
+  });
+
+/* ── Form population ── */
+function populateForm(){
+  var fields=['fullName','jobTitle','businessName','bio','whatsapp','email','website'];
+  fields.forEach(function(f){ var el=document.getElementById('f-'+f); if(el) el.value=cardData[f]||''; });
+  if(cardData.location){ document.getElementById('f-city').value=cardData.location.city||''; document.getElementById('f-country').value=cardData.location.country||''; }
+  if(cardData.socials){ Object.keys(cardData.socials).forEach(function(k){ var el=document.getElementById('s-'+k); if(el) el.value=cardData.socials[k]||''; }); }
+  if(cardData.photo){ var pd=document.getElementById('photoPreview'); pd.innerHTML='<img src="'+cardData.photo+'" style="width:100%;height:100%;object-fit:cover">'; }
+  if(cardData.logo) { var ld=document.getElementById('logoPreview');  ld.innerHTML='<img src="'+cardData.logo+'" style="width:100%;height:100%;object-fit:cover">'; }
+  if(cardData.theme){ setTheme(cardData.theme,true); }
+  renderPhones(); renderServices();
+  if(cardData.shareCode){ document.getElementById('shareCodeDisplay').textContent=cardData.shareCode; updateQR(); document.getElementById('shareSection').style.display='block'; }
+}
+
+/* ── Theme ── */
+function setTheme(t, silent){
+  cardData.theme=t;
+  document.querySelectorAll('.theme-swatch').forEach(function(s){ s.classList.remove('active'); });
+  var sw=document.querySelector('.t-'+t+'-sw'); if(sw) sw.classList.add('active');
+  document.getElementById('themeName').textContent=THEME_NAMES[t]||t;
+  if(!silent) renderCard();
+}
+
+/* ── Photo upload ── */
+function loadPhoto(input, field){
+  var file=input.files[0]; if(!file) return;
+  if(file.size>3*1024*1024){ Layout.toast('Photo too large (max 3MB)','error'); return; }
+  var reader=new FileReader();
+  reader.onload=function(e){
+    cardData[field]=e.target.result;
+    var el=document.getElementById(field==='photo'?'photoPreview':'logoPreview');
+    el.innerHTML='<img src="'+e.target.result+'" style="width:100%;height:100%;object-fit:cover">';
+    renderCard();
+  };
+  reader.readAsDataURL(file);
+}
+
+/* ── Phones ── */
+function renderPhones(){
+  var list=document.getElementById('phonesList');
+  list.innerHTML=(cardData.phones||[]).map(function(p,i){
+    return '<div class="phone-row">'
+      +'<select class="phone-label-sel" onchange="updatePhones()"><option'+(p.label==='Mobile'?' selected':'')+'>Mobile</option><option'+(p.label==='Work'?' selected':'')+'>Work</option><option'+(p.label==='Home'?' selected':'')+'>Home</option><option'+(p.label==='Other'?' selected':'')+'>Other</option></select>'
+      +'<input class="input phone-num" value="'+esc(p.number||'')+'" placeholder="+233241234567" oninput="updatePhones()">'
+      +'<button onclick="removePhoneIdx('+i+')" style="background:none;border:none;cursor:pointer;color:#94A3B8;font-size:18px">×</button>'
+      +'</div>';
+  }).join('');
+}
+function addPhone(){ cardData.phones.push({label:'Mobile',number:''}); renderPhones(); }
+function removePhoneIdx(i){ cardData.phones.splice(i,1); renderPhones(); renderCard(); }
+function removePhone(btn){ btn.parentNode.remove(); updatePhones(); }
+function updatePhones(){
+  var rows=document.querySelectorAll('.phone-row');
+  cardData.phones=Array.from(rows).map(function(r){ return {label:r.querySelector('.phone-label-sel').value,number:r.querySelector('.phone-num').value.trim()}; });
+  renderCard();
+}
+
+/* ── Services ── */
+function renderServices(){
+  document.getElementById('svcChips').innerHTML=(cardData.services||[]).map(function(s,i){
+    return '<span class="svc-chip">'+esc(s)+'<button onclick="removeSvc('+i+')">×</button></span>';
+  }).join('');
+}
+function addService(){ var v=document.getElementById('svcInput').value.trim(); if(!v) return; cardData.services.push(v); document.getElementById('svcInput').value=''; renderServices(); renderCard(); }
+function removeSvc(i){ cardData.services.splice(i,1); renderServices(); renderCard(); }
+
+/* ── Privacy grid ── */
+function buildPrivacyGrid(){
+  document.getElementById('privacyGrid').innerHTML=PRIVACY_LABELS.map(function(pair){
+    var key=pair[0], lbl=pair[1], val=cardData.privacy[key]!==false;
+    return '<div class="priv-row"><span>'+lbl+'</span>'
+      +'<label style="position:relative;width:36px;height:20px;flex-shrink:0">'
+      +'<input type="checkbox" '+(val?'checked':'')+' onchange="togglePriv(\''+key+'\',this.checked)" style="opacity:0;width:0;height:0;position:absolute">'
+      +'<span onclick="" style="position:absolute;inset:0;border-radius:20px;background:'+(val?'#7C3AED':'#E2E8F0')+';cursor:pointer;transition:background 0.2s"><span style="position:absolute;top:2px;left:'+(val?'18':'2')+'px;width:16px;height:16px;border-radius:50%;background:#fff;transition:left 0.2s;box-shadow:0 1px 3px rgba(0,0,0,0.2)"></span></span>'
+      +'</label></div>';
+  }).join('');
+}
+function togglePriv(key,val){ cardData.privacy[key]=val; buildPrivacyGrid(); }
+
+/* ── Live update from form ── */
+function liveUpdate(){
+  var f=['fullName','jobTitle','businessName','bio','whatsapp','email','website'];
+  f.forEach(function(k){ var el=document.getElementById('f-'+k); if(el) cardData[k]=el.value; });
+  cardData.location.city    = document.getElementById('f-city').value;
+  cardData.location.country = document.getElementById('f-country').value;
+  Object.keys(cardData.socials).forEach(function(k){ var el=document.getElementById('s-'+k); if(el) cardData.socials[k]=el.value.trim(); });
+  renderCard();
+}
+
+/* ══ RENDER LIVE CARD ══ */
+function renderCard(){
+  var d=cardData, t=d.theme||'professional';
+  var viewUrl = d.shareCode ? (window.location.origin+'/trustid/card-view.html?code='+d.shareCode) : '';
+  var qrSrc   = viewUrl ? 'https://api.qrserver.com/v1/create-qr-code/?size=144x144&data='+encodeURIComponent(viewUrl) : '';
+  var phones  = (d.phones||[]).filter(function(p){return p.number;});
+  var socials = SOCIAL_META.filter(function(s){return d.socials&&d.socials[s.key];});
+
+  var html = '<div class="t-'+t+'">';
+  /* Header band for minimal theme */
+  if(t==='minimal') html += '<div class="dc-header-band"></div>';
+
+  html += '<div class="dc-header">';
+  /* Photo */
+  html += '<div class="dc-photo-wrap">';
+  if(d.photo) html += '<img class="dc-photo" src="'+d.photo+'" alt="Photo" draggable="false">';
+  else html += '<div class="dc-photo-empty">👤</div>';
+  if(d.logo) html += '<img class="dc-logo" src="'+d.logo+'" alt="Logo" draggable="false">';
+  else html += '<div class="dc-logo-empty">🏢</div>';
+  html += '</div>';
+  /* Name block */
+  html += '<div class="dc-name-block">'
+    +'<div class="dc-name">'+(d.fullName||'Your Name')+'</div>'
+    +'<div class="dc-job dc-accent">'+(d.jobTitle||'Job Title')+'</div>'
+    +'<div class="dc-biz">'+(d.businessName||'Company Name')+'</div>'
+    +'</div></div>';
+
+  html += '<div class="dc-body">';
+  /* Bio */
+  if(d.bio){ html += '<div class="dc-divider"></div><div class="dc-bio">'+esc(d.bio)+'</div>'; }
+
+  /* Contact details */
+  html += '<div class="dc-divider"></div><div class="dc-contact">';
+  phones.forEach(function(p){ html += '<div class="dc-row"><div class="dc-icon-bg">📞</div><div><div class="dc-label">'+esc(p.label)+'</div><div class="dc-row-val"><a href="tel:'+esc(p.number)+'">'+esc(p.number)+'</a></div></div></div>'; });
+  if(d.whatsapp) html += '<div class="dc-row"><div class="dc-icon-bg">💬</div><div><div class="dc-label">WHATSAPP</div><div class="dc-row-val"><a href="https://wa.me/'+d.whatsapp.replace(/\D/g,'')+'">'+esc(d.whatsapp)+'</a></div></div></div>';
+  if(d.email)    html += '<div class="dc-row"><div class="dc-icon-bg">📧</div><div><div class="dc-label">EMAIL</div><div class="dc-row-val"><a href="mailto:'+esc(d.email)+'">'+esc(d.email)+'</a></div></div></div>';
+  if(d.website)  html += '<div class="dc-row"><div class="dc-icon-bg">🌐</div><div><div class="dc-label">WEBSITE</div><div class="dc-row-val"><a href="'+esc(d.website)+'" target="_blank">'+esc(d.website.replace(/^https?:\/\//,''))+'</a></div></div></div>';
+  if(d.location&&(d.location.city||d.location.country)) html += '<div class="dc-row"><div class="dc-icon-bg">📍</div><div><div class="dc-label">LOCATION</div><div class="dc-row-val">'+[d.location.city,d.location.country].filter(Boolean).map(esc).join(', ')+'</div></div></div>';
+  html += '</div>';
+
+  /* Services */
+  if(d.services&&d.services.length){ html += '<div class="dc-divider"></div><div class="dc-label" style="margin-bottom:6px">SERVICES</div><div class="dc-services">'+d.services.map(function(s){ return '<span class="dc-svc-chip">'+esc(s)+'</span>'; }).join('')+'</div>'; }
+
+  /* Social media */
+  if(socials.length){
+    html += '<div class="dc-divider"></div><div class="dc-label" style="margin-bottom:8px">CONNECT</div><div class="dc-socials">';
+    socials.forEach(function(s){
+      var handle=(d.socials[s.key]||'').replace('@','');
+      var url = s.url + handle;
+      html += '<a class="dc-soc-btn dc-icon-bg" href="'+url+'" target="_blank" rel="noopener">'+s.icon+' '+esc(handle)+'</a>';
+    });
+    html += '</div>';
+  }
+  html += '</div>';
+
+  /* Footer with QR */
+  html += '<div class="dc-footer">';
+  html += '<div>';
+  if(d.shareCode) html += '<div style="font-size:9px;opacity:0.5;margin-bottom:3px">SCAN TO CONNECT</div><div style="font-family:monospace;font-size:11px;font-weight:700;opacity:0.7">'+esc(d.shareCode)+'</div>';
+  html += '</div>';
+  if(qrSrc) html += '<div class="dc-qr-wrap"><img src="'+qrSrc+'" alt="QR"><div class="dc-qr-label">Personal Vault</div></div>';
+  html += '</div>';
+
+  /* Watermark */
+  html += '<div class="dc-watermark">✦ Personal Vault ✦</div>';
+  html += '</div>';
+
+  document.getElementById('liveCard').innerHTML = html;
+  document.getElementById('liveCard').className = 'dc-card t-'+t;
+}
+
+/* ── Save card ── */
+async function saveCard(){
+  liveUpdate(); updatePhones();
+  var btn=document.getElementById('saveBtn'); btn.textContent='Saving…'; btn.disabled=true;
+  var r=await fetch('/api/trustid/cards',{method:'PUT',headers:{'Content-Type':'application/json',Authorization:'Bearer '+Auth.getToken()},body:JSON.stringify(cardData)}).then(function(x){return x.json();});
+  btn.textContent='💾 Save Card'; btn.disabled=false;
+  if(r.success){
+    cardData.shareCode=r.data.shareCode;
+    document.getElementById('shareCodeDisplay').textContent=r.data.shareCode;
+    document.getElementById('shareSection').style.display='block';
+    updateQR(); renderCard();
+    Layout.toast('Card saved! 🪪','success');
+  } else Layout.toast(r.message||'Error','error');
+}
+
+function updateQR(){
+  if(!cardData.shareCode) return;
+  var url=window.location.origin+'/trustid/card-view.html?code='+cardData.shareCode;
+  var qr=document.getElementById('mainQR');
+  qr.src='https://api.qrserver.com/v1/create-qr-code/?size=240x240&data='+encodeURIComponent(url);
+  qr.style.display='block';
+}
+
+/* ── Share actions ── */
+function getViewUrl(){ return window.location.origin+'/trustid/card-view.html?code='+cardData.shareCode; }
+function shareWhatsApp(){ window.open('https://wa.me/?text='+encodeURIComponent('Check out my Personal Vault digital card: '+getViewUrl()),'_blank'); }
+function shareEmail(){ window.location.href='mailto:?subject='+encodeURIComponent(cardData.fullName+' — Digital Card')+'&body='+encodeURIComponent('Here is my digital contact card:\n\n'+getViewUrl()); }
+function copyLink(){ navigator.clipboard.writeText(getViewUrl()).then(function(){ Layout.toast('Link copied! 🔗','success'); }); }
+function downloadQR(){ var a=document.createElement('a'); a.href='https://api.qrserver.com/v1/create-qr-code/?size=400x400&data='+encodeURIComponent(getViewUrl()); a.download='my-card-qr.png'; a.target='_blank'; a.click(); }
+function shareInChat(){ Layout.toast('Open Messages tab and tap "Share Card" in a chat','info'); setTimeout(function(){ window.location.href='./chat.html'; },1500); }
+
+/* ── Scan code ── */
+async function scanCode(){
+  var code=document.getElementById('scanCodeInput').value.trim().toUpperCase();
+  if(!code){ Layout.toast('Enter a card code','warning'); return; }
+  var r=await fetch('/api/trustid/cards/view/'+code).then(function(x){return x.json();});
+  if(r.success){
+    if(confirm('Save '+r.data.fullName+'\'s card to your contacts?')){
+      var s=await fetch('/api/trustid/cards/save',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+Auth.getToken()},body:JSON.stringify({shareCode:code})}).then(function(x){return x.json();});
+      if(s.success) Layout.toast('Contact saved! 👥','success');
+    } else {
+      window.open('./card-view.html?code='+code,'_blank');
+    }
+  } else Layout.toast(r.message||'Card not found','error');
+  document.getElementById('scanCodeInput').value='';
+}
+
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+/* Initial render */
+renderCard();
+</script>
+</body>
+</html>

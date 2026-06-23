@@ -135,6 +135,13 @@ module.exports = function attachSocket(httpServer, jwtDecode) {
       io.to('user:'+to).emit('chat:read', { by:socket.data.userId, ts:Date.now() });
     });
 
+    /* ── SHARE DIGITAL CONTACT CARD in chat ── */
+    socket.on('chat:card', ({ to, card }) => {
+      io.to('user:' + to).emit('chat:card', {
+        from: socket.data.userId, card, ts: Date.now(),
+      });
+    });
+
     /* ── EMOJI REACTION on a message ── */
     socket.on('chat:react', ({ to, messageId, emoji }) => {
       io.to('user:' + to).emit('chat:react', {
