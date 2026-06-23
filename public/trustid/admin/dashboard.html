@@ -187,7 +187,7 @@ async function previewClear() {
   btn.textContent = 'Loading…';
   btn.disabled = true;
 
-  var res = await fetch('../api/trustid/admin/data-counts', { headers:{ Authorization:'Bearer '+Auth.getToken() } }).then(function(r){return r.json();});
+  var res = await fetch('/api/trustid/admin/data-counts', { headers:{ Authorization:'Bearer '+Auth.getToken() } }).then(function(r){return r.json();});
 
   if (!res.success) { Layout.toast(res.message||'Error loading counts', 'error'); btn.textContent='🗑 Review & Clear'; btn.disabled=false; return; }
 
@@ -219,7 +219,7 @@ async function previewClear() {
   }
 
   btn.textContent = 'Clearing…';
-  var del = await fetch('../api/trustid/admin/clear-test-data', {
+  var del = await fetch('/api/trustid/admin/clear-test-data', {
     method: 'DELETE',
     headers:{ 'Content-Type':'application/json', Authorization:'Bearer '+Auth.getToken() },
     body: JSON.stringify({ confirm:'CLEAR ALL TEST DATA' })

@@ -47,7 +47,7 @@ var features = [];
 
 load();
 function load(){
-  fetch('../api/trustid/admin/features',{headers:{Authorization:'Bearer '+Auth.getToken()}})
+  fetch('/api/trustid/admin/features',{headers:{Authorization:'Bearer '+Auth.getToken()}})
     .then(function(r){return r.json();})
     .then(function(r){
       if(r.success){ features=r.data; render(); }
@@ -129,7 +129,7 @@ function render(){
 }
 
 async function toggleEnabled(name, enabled){
-  var r = await fetch('../api/trustid/admin/features/'+name,{
+  var r = await fetch('/api/trustid/admin/features/'+name,{
     method:'PUT', headers:{'Content-Type':'application/json',Authorization:'Bearer '+Auth.getToken()},
     body:JSON.stringify({enabled})
   }).then(function(x){return x.json();});
@@ -147,7 +147,7 @@ async function toggleTier(name, tier, currentlyOn){
   var tiers = (f.tiers||[]).slice();
   if(currentlyOn) tiers = tiers.filter(function(t){return t!==tier;});
   else if(!tiers.includes(tier)) tiers.push(tier);
-  var r = await fetch('../api/trustid/admin/features/'+name,{
+  var r = await fetch('/api/trustid/admin/features/'+name,{
     method:'PUT', headers:{'Content-Type':'application/json',Authorization:'Bearer '+Auth.getToken()},
     body:JSON.stringify({tiers})
   }).then(function(x){return x.json();});
@@ -157,7 +157,7 @@ async function toggleTier(name, tier, currentlyOn){
 
 async function initFeatures(){
   if(!confirm('Reset all feature flags to defaults?')) return;
-  var r = await fetch('../api/trustid/admin/features/init',{method:'POST',headers:{Authorization:'Bearer '+Auth.getToken()}}).then(function(x){return x.json();});
+  var r = await fetch('/api/trustid/admin/features/init',{method:'POST',headers:{Authorization:'Bearer '+Auth.getToken()}}).then(function(x){return x.json();});
   if(r.success){ Layout.toast('Feature flags reset to defaults','success'); load(); }
   else Layout.toast(r.message||'Error','error');
 }

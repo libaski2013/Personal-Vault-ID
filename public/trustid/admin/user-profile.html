@@ -50,7 +50,7 @@ else {
 var userData = null;
 
 function loadProfile(){
-  fetch('../api/trustid/admin/users/'+userId,{ headers:{Authorization:'Bearer '+Auth.getToken()} })
+  fetch('/api/trustid/admin/users/'+userId,{ headers:{Authorization:'Bearer '+Auth.getToken()} })
     .then(function(r){return r.json();})
     .then(function(r){
       if(!r.success){ document.getElementById('content').innerHTML='<div class="empty">User not found.</div>'; return; }
@@ -164,7 +164,7 @@ function infoRow(key, val){
 
 async function setStatus(status){
   var reason = status==='suspended' ? (document.getElementById('suspendReason').value.trim()||'') : '';
-  var r = await fetch('../api/trustid/admin/users/'+userId+'/status',{
+  var r = await fetch('/api/trustid/admin/users/'+userId+'/status',{
     method:'PUT', headers:{'Content-Type':'application/json',Authorization:'Bearer '+Auth.getToken()},
     body:JSON.stringify({status,reason})
   }).then(function(x){return x.json();});
@@ -173,7 +173,7 @@ async function setStatus(status){
 }
 
 async function setTier(tier){
-  var r = await fetch('../api/trustid/admin/users/'+userId+'/tier',{
+  var r = await fetch('/api/trustid/admin/users/'+userId+'/tier',{
     method:'PUT', headers:{'Content-Type':'application/json',Authorization:'Bearer '+Auth.getToken()},
     body:JSON.stringify({tier})
   }).then(function(x){return x.json();});
@@ -183,7 +183,7 @@ async function setTier(tier){
 
 async function saveNotes(){
   var notes = document.getElementById('notesArea').value;
-  var r = await fetch('../api/trustid/admin/users/'+userId+'/notes',{
+  var r = await fetch('/api/trustid/admin/users/'+userId+'/notes',{
     method:'PUT', headers:{'Content-Type':'application/json',Authorization:'Bearer '+Auth.getToken()},
     body:JSON.stringify({notes})
   }).then(function(x){return x.json();});
@@ -195,7 +195,7 @@ async function deleteUser(){
   if(!confirm('DELETE USER\n\nThis will permanently delete the user account and ALL their data.\n\nType YES to confirm.')) return;
   var typed = prompt('Type DELETE to confirm permanently deleting this user:');
   if((typed||'').trim()!=='DELETE'){ Layout.toast('Cancelled','info'); return; }
-  var r = await fetch('../api/trustid/admin/users/'+userId,{
+  var r = await fetch('/api/trustid/admin/users/'+userId,{
     method:'DELETE', headers:{Authorization:'Bearer '+Auth.getToken()}
   }).then(function(x){return x.json();});
   if(r.success){ Layout.toast(r.message,'success'); setTimeout(function(){ window.location.href='./users.html'; },1500); }
