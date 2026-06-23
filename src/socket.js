@@ -170,6 +170,102 @@ module.exports = function attachSocket(httpServer, jwtDecode) {
     });
   });
 
+  /* ══════════════════════════════════
+     SECRET ALBUM — ephemeral P2P relay
+     Photos NEVER stored on server.
+     Server only routes socket data.
+  ══════════════════════════════════ */
+  const albumRooms = new Map();
+  /* room: { hostSocketId, expiresAt, viewers:Set, active:true } */
+
+  socket.on('album:host', ({ roomId, expiresAt }) => {
+    if (!socket.data.userId) return;
+    albumRooms.set(roomId, {
+      hostSocketId: socket.id,
+      expiresAt:    new Date(expiresAt),
+      viewers:      new Set(),
+      active:       true,
+    });
+    socket.join('album:' + roomId);
+    socket.data.albumRoom = roomId;
+
+    /* Auto-expire */
+    const ms = new Date(expiresAt).getTime() - Date.now();
+    setTimeout(function() {
+      const room = albumRooms.get(roomId);
+      if (room && room.active) {
+        io.to('album:' + roomId).emit('album:expired');
+        albumRooms.delete(roomId);
+      }
+    }, Math.max(ms, 1000));
+  });
+
+  socket.on('album:join', ({ roomId }) => {
+    const room = albumRooms.get(roomId);
+    if (!room || !room.active) {
+      socket.emit('album:error', { message: 'This album link has expired or been closed.' });
+      return;
+    }
+    if (new Date() > room.expiresAt) {
+      socket.emit('album:error', { message: 'This viewing session has expired.' });
+      albumRooms.delete(roomId);
+      return;
+    }
+    socket.join('album:' + roomId);
+    room.viewers.add(socket.id);
+    /* Tell host a viewer joined */
+    io.to(room.hostSocketId).emit('album:viewer-joined', {
+      viewerCount: room.viewers.size,
+      socketId:    socket.id,
+    });
+    /* Tell viewer how long is left and photo count */
+    socket.emit('album:session-info', {
+      expiresAt:   room.expiresAt,
+      viewerCount: room.viewers.size,
+    });
+    /* Ask host to stream photos to this viewer */
+    io.to(room.hostSocketId).emit('album:stream-to', { viewerSocketId: socket.id });
+  });
+
+  /* Host streams a photo directly to a specific viewer */
+  socket.on('album:photo', ({ viewerSocketId, data, index, total, filename }) => {
+    if (!data || data.length > 10 * 1024 * 1024) return;  /* 10MB limit */
+    io.to(viewerSocketId).emit('album:photo', { data, index, total, filename });
+  });
+
+  /* Host broadcasts to ALL viewers in room */
+  socket.on('album:broadcast-photo', ({ roomId, data, index, total, filename }) => {
+    if (!data || data.length > 10 * 1024 * 1024) return;
+    socket.to('album:' + roomId).emit('album:photo', { data, index, total, filename });
+  });
+
+  /* Host closes session early */
+  socket.on('album:close', ({ roomId }) => {
+    io.to('album:' + roomId).emit('album:closed', { message: 'The host ended this viewing session.' });
+    albumRooms.delete(roomId);
+  });
+
+  /* Viewer leaves */
+  socket.on('album:leave', ({ roomId }) => {
+    const room = albumRooms.get(roomId);
+    if (room) {
+      room.viewers.delete(socket.id);
+      io.to(room.hostSocketId).emit('album:viewer-count', { viewerCount: room.viewers.size });
+    }
+  });
+
+  /* Clean up album rooms when host disconnects */
+  socket.on('disconnect', () => {
+    if (socket.data.albumRoom) {
+      const roomId = socket.data.albumRoom;
+      const room   = albumRooms.get(roomId);
+      if (room && room.hostSocketId === socket.id) {
+        io.to('album:' + roomId).emit('album:closed', { message: 'The host disconnected. Session ended.' });
+        albumRooms.delete(roomId);
+      }
+    }
+  });
+
   /* Clean up stale discovery entries every 2 minutes */
   setInterval(function() {
     const cutoff = Date.now() - 2*60*1000;

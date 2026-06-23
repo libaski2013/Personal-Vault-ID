@@ -6,61 +6,152 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <link rel="icon" href="./icon.svg">
   <link rel="stylesheet" href="./css/styles.css">
+  <script src="https://cdn.socket.io/4.8.0/socket.io.min.js"></script>
   <style>
-    /* Screenshot protection */
-    .album-protected { -webkit-user-select:none!important; user-select:none!important; }
-
-    /* PIN gate */
-    .pin-gate { max-width:360px; margin:60px auto; background:#fff; border-radius:24px; padding:36px; text-align:center; box-shadow:0 16px 48px rgba(0,0,0,0.08); border:1px solid #E8ECF4; }
-    .pin-icon { font-size:52px; margin-bottom:14px; }
-    .pin-row  { display:flex; gap:10px; justify-content:center; margin:20px 0; }
-    .pin-d    { width:52px; height:58px; border-radius:14px; border:2px solid #E2E8F0; font-size:26px; font-weight:700; text-align:center; outline:none; transition:border-color 0.15s; color:#0F172A; }
-    .pin-d:focus { border-color:#7C3AED; box-shadow:0 0 0 3px #7C3AED20; }
-    .pin-d.err   { border-color:#EF4444; animation:shake 0.3s; }
-    @keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-5px)}40%,80%{transform:translateX(5px)}}
-
-    /* Album grid */
-    .album-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:12px; }
-    .album-card { position:relative; border-radius:14px; overflow:hidden; aspect-ratio:1; background:#F1F5F9; cursor:pointer; border:2px solid transparent; transition:border-color 0.15s; }
-    .album-card:hover { border-color:#7C3AED; }
-    .album-card img,.album-card video { width:100%; height:100%; object-fit:cover; display:block; pointer-events:none; }
-    .album-card .del-btn { position:absolute; top:6px; right:6px; width:26px; height:26px; border-radius:50%; background:rgba(239,68,68,0.9); border:none; cursor:pointer; color:#fff; font-size:13px; display:none; align-items:center; justify-content:center; }
-    .album-card:hover .del-btn { display:flex; }
-    .album-card .type-badge { position:absolute; bottom:6px; left:6px; background:rgba(0,0,0,0.6); color:#fff; font-size:10px; font-weight:700; padding:2px 6px; border-radius:100px; }
-
-    /* Upload dropzone */
-    .dropzone { border:2px dashed #E2E8F0; border-radius:16px; padding:32px; text-align:center; cursor:pointer; transition:all 0.2s; background:#F8FAFC; }
-    .dropzone:hover,.dropzone.over { border-color:#7C3AED; background:#7C3AED08; }
-
-    /* Share album modal */
-    .anon-badge { background:linear-gradient(135deg,#0F0E2A,#312E81); color:#fff; border-radius:14px; padding:16px 20px; margin-bottom:16px; }
-
-    /* Lightbox */
-    .lightbox { position:fixed; inset:0; background:rgba(0,0,0,0.95); z-index:9999; display:none; align-items:center; justify-content:center; flex-direction:column; }
-    .lightbox img,.lightbox video { max-width:92vw; max-height:86vh; border-radius:12px; object-fit:contain; }
-    .lb-close { position:absolute; top:16px; right:20px; font-size:28px; color:#fff; cursor:pointer; background:none; border:none; }
-    .lb-info  { color:rgba(255,255,255,0.5); font-size:12px; margin-top:10px; }
-
-    @media(max-width:480px){ .album-grid{ grid-template-columns:repeat(3,1fr); gap:6px; } }
+    .album-shell { max-width:720px; margin:0 auto; }
+    /* Drop zone */
+    .drop-zone { border:2px dashed #7C3AED; border-radius:20px; padding:48px 24px; text-align:center; cursor:pointer; transition:all 0.2s; background:#F8FAFC; }
+    .drop-zone:hover, .drop-zone.over { background:#7C3AED08; border-color:#5B21B6; }
+    .drop-zone input { display:none; }
+    /* Preview grid */
+    .preview-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(120px,1fr)); gap:10px; margin-top:16px; }
+    .preview-card { position:relative; aspect-ratio:1; border-radius:12px; overflow:hidden; border:2px solid #E8ECF4; background:#F1F5F9; }
+    .preview-card img, .preview-card video { width:100%; height:100%; object-fit:cover; }
+    .preview-card .rm-btn { position:absolute; top:4px; right:4px; width:22px; height:22px; border-radius:50%; background:rgba(239,68,68,0.85); border:none; cursor:pointer; color:#fff; font-size:12px; display:flex; align-items:center; justify-content:center; }
+    /* Timer options */
+    .timer-opts { display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; }
+    .timer-opt  { padding:7px 14px; border-radius:10px; border:1.5px solid #E2E8F0; font-size:13px; font-weight:600; cursor:pointer; transition:all 0.15s; background:#fff; color:#64748B; }
+    .timer-opt.sel { border-color:#7C3AED; background:#7C3AED10; color:#7C3AED; }
+    /* Live session panel */
+    .session-card { background:linear-gradient(135deg,#0F0E2A,#1E1B4B); border-radius:20px; padding:28px; color:#fff; text-align:center; }
+    .qr-wrap { background:#fff; border-radius:16px; padding:16px; display:inline-block; margin:16px auto; }
+    .countdown { font-size:48px; font-weight:900; font-family:monospace; color:#22C55E; }
+    .countdown.warn { color:#F97316; }
+    .countdown.critical { color:#EF4444; animation:pulse 0.5s ease-in-out infinite; }
+    @keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.05)} }
+    .viewer-badge { display:inline-flex; align-items:center; gap:6px; padding:6px 14px; border-radius:100px; background:rgba(255,255,255,0.15); font-size:14px; font-weight:700; margin-top:10px; }
+    .progress-bar { background:rgba(255,255,255,0.15); border-radius:100px; height:6px; margin-top:16px; overflow:hidden; }
+    .progress-fill { height:100%; background:#22C55E; border-radius:100px; transition:width 1s linear; }
+    /* Streaming status */
+    .stream-status { font-size:13px; color:rgba(255,255,255,0.7); margin-top:8px; }
   </style>
 </head>
 <body>
-<div class="app-shell album-protected">
+<div class="app-shell">
   <div id="sidebar"></div>
   <div id="main">
     <div id="topbar"></div>
-    <div class="page-content" id="content"></div>
+    <div class="page-content">
+      <div class="album-shell">
+
+        <!-- Setup view -->
+        <div id="setupView">
+          <div class="page-header">
+            <div>
+              <h1 class="page-title">🖼️ Secret Album Share</h1>
+              <p class="page-sub">Select photos from your device → set a time limit → share the QR code. Nothing is uploaded or stored on the server.</p>
+            </div>
+          </div>
+
+          <!-- How it works -->
+          <div class="card" style="margin-bottom:18px;background:linear-gradient(135deg,#0F0E2A,#1E1B4B);color:#fff;border:none">
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;text-align:center">
+              <div><div style="font-size:28px;margin-bottom:6px">📂</div><div style="font-size:11px;opacity:0.7;line-height:1.5">Select photos<br>from your device</div></div>
+              <div><div style="font-size:28px;margin-bottom:6px">⏱️</div><div style="font-size:11px;opacity:0.7;line-height:1.5">Set how long<br>they can view</div></div>
+              <div><div style="font-size:28px;margin-bottom:6px">📲</div><div style="font-size:11px;opacity:0.7;line-height:1.5">Share the<br>QR code</div></div>
+              <div><div style="font-size:28px;margin-bottom:6px">🔒</div><div style="font-size:11px;opacity:0.7;line-height:1.5">Nothing stored.<br>Photos stream live.</div></div>
+            </div>
+          </div>
+
+          <!-- Drop zone -->
+          <div class="card" style="margin-bottom:18px">
+            <h3 style="font-size:15px;font-weight:800;margin-bottom:12px">📂 Select Photos & Videos</h3>
+            <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">
+              <input type="file" id="fileInput" multiple accept="image/*,video/*" onchange="addFiles(this.files)">
+              <div style="font-size:40px;margin-bottom:10px">📷</div>
+              <div style="font-size:15px;font-weight:700;color:#334155;margin-bottom:4px">Tap or drag photos & videos here</div>
+              <div style="font-size:12px;color:#94A3B8">JPG, PNG, GIF, MP4, MOV — max 10 MB each · No limit on count</div>
+            </div>
+            <div class="preview-grid" id="previewGrid"></div>
+          </div>
+
+          <!-- Time limit -->
+          <div class="card" style="margin-bottom:18px">
+            <h3 style="font-size:15px;font-weight:800;margin-bottom:6px">⏱️ Viewing Time Limit</h3>
+            <p style="font-size:12px;color:#64748B;margin-bottom:10px">How long can viewers see your photos before the session expires?</p>
+            <div class="timer-opts" id="timerOpts">
+              <div class="timer-opt" onclick="setTimer(60)">1 min</div>
+              <div class="timer-opt sel" onclick="setTimer(300)">5 min</div>
+              <div class="timer-opt" onclick="setTimer(900)">15 min</div>
+              <div class="timer-opt" onclick="setTimer(1800)">30 min</div>
+              <div class="timer-opt" onclick="setTimer(3600)">1 hour</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;margin-top:10px">
+              <input id="customMin" type="number" class="input" min="1" max="1440" placeholder="Custom minutes" style="width:160px;height:36px" oninput="setTimer(parseInt(this.value)*60||300)">
+              <span style="font-size:13px;color:#64748B">minutes</span>
+            </div>
+          </div>
+
+          <!-- Start button -->
+          <button id="startBtn" onclick="startSession()" class="btn btn-primary btn-full" style="height:52px;font-size:15px" disabled>
+            Select photos first to create a viewing room
+          </button>
+          <p style="font-size:12px;color:#94A3B8;text-align:center;margin-top:10px">🔒 Photos stream directly from this device. Nothing is saved to any server.</p>
+        </div>
+
+        <!-- Live session view -->
+        <div id="sessionView" style="display:none">
+          <div class="page-header">
+            <div><h1 class="page-title">🔴 Live Session</h1><p class="page-sub" id="sessionSub">Sharing active</p></div>
+            <button onclick="endSession()" class="btn btn-danger btn-sm" style="width:auto">⏹ End Session</button>
+          </div>
+
+          <div class="session-card">
+            <div style="font-size:13px;font-weight:700;letter-spacing:1px;opacity:0.5;margin-bottom:6px">TIME REMAINING</div>
+            <div class="countdown" id="countdown">05:00</div>
+            <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:100%"></div></div>
+
+            <div style="margin-top:20px">
+              <div class="qr-wrap">
+                <img id="qrImg" src="" alt="QR Code" style="width:200px;height:200px;display:block">
+              </div>
+              <div style="font-size:13px;opacity:0.6;margin-bottom:6px">Scan to view the album</div>
+              <div style="font-family:monospace;font-size:16px;font-weight:800;letter-spacing:3px" id="roomCode"></div>
+            </div>
+
+            <div class="viewer-badge" id="viewerBadge">👁 <span id="viewerCount">0</span> viewers connected</div>
+            <div class="stream-status" id="streamStatus">Waiting for viewers to scan the QR code…</div>
+
+            <div style="display:flex;gap:10px;justify-content:center;margin-top:16px;flex-wrap:wrap">
+              <button onclick="copyLink()" style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);color:#fff;padding:8px 18px;border-radius:10px;cursor:pointer;font-size:13px;font-weight:600">📋 Copy Link</button>
+              <button onclick="downloadQR()" style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);color:#fff;padding:8px 18px;border-radius:10px;cursor:pointer;font-size:13px;font-weight:600">⬇️ Download QR</button>
+              <button onclick="shareLink()" style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);color:#fff;padding:8px 18px;border-radius:10px;cursor:pointer;font-size:13px;font-weight:600">📤 Share</button>
+            </div>
+
+            <div style="font-size:11px;opacity:0.4;margin-top:16px">Keep this page open — photos are on your device only. Close it to end the session.</div>
+          </div>
+
+          <!-- Photo thumbnails (local only, never uploaded) -->
+          <div class="card" style="margin-top:16px">
+            <h3 style="font-size:14px;font-weight:800;margin-bottom:10px">📷 Photos being shared (<span id="photoCount">0</span>)</h3>
+            <div class="preview-grid" id="sessionThumb" style="max-height:200px;overflow-y:auto"></div>
+          </div>
+        </div>
+
+        <!-- Session ended -->
+        <div id="endedView" style="display:none;text-align:center;padding:60px 20px">
+          <div style="font-size:56px;margin-bottom:14px">🔒</div>
+          <h2 style="font-size:22px;font-weight:900;color:#0F172A;margin-bottom:8px">Session Ended</h2>
+          <p style="color:#64748B;margin-bottom:24px">All photos have been cleared from viewers' screens. Nothing was saved.</p>
+          <button onclick="resetToSetup()" class="btn btn-primary" style="width:auto;min-width:200px">+ Start New Session</button>
+        </div>
+
+      </div>
+    </div>
   </div>
 </div>
 
-<!-- Lightbox -->
-<div class="lightbox" id="lb" onclick="closeLb()">
-  <button class="lb-close" onclick="closeLb()">×</button>
-  <img id="lbImg" style="display:none" oncontextmenu="return false" draggable="false">
-  <video id="lbVid" controls style="display:none" oncontextmenu="return false"></video>
-  <div class="lb-info" id="lbInfo"></div>
-</div>
-
+<script src="https://cdn.socket.io/4.8.0/socket.io.min.js"></script>
 <script src="./js/auth.js"></script>
 <script>if(!Auth.requireAuth()) throw '';</script>
 <script src="./js/api.js"></script>
@@ -68,256 +159,190 @@
 <script>
 Layout.init('album');
 
-var UNLOCKED = sessionStorage.getItem('pv_album_unlocked')==='true';
-var items    = [];
+var selectedFiles = [];   /* FileReader results: { name, type, data (base64) } */
+var timerSecs     = 300;  /* 5 minutes default */
+var socket        = null;
+var roomId        = null;
+var sessionExpiry = null;
+var countdownInt  = null;
+var viewerCount   = 0;
+var totalTimer    = 300;
 
-/* ── Screenshot prevention ── */
-document.addEventListener('keyup', function(e){
-  if(e.key==='PrintScreen'){
-    navigator.clipboard&&navigator.clipboard.writeText('');
-    alert('⛔ Screenshots are not allowed in Secret Album');
-  }
-});
-document.addEventListener('contextmenu', function(e){
-  if(e.target.tagName==='IMG'||e.target.tagName==='VIDEO') e.preventDefault();
-});
-document.addEventListener('visibilitychange', function(){
-  if(document.hidden){ var o=document.getElementById('lbImg'); if(o) o.style.filter='blur(40px)'; }
-  else { var o2=document.getElementById('lbImg'); if(o2) o2.style.filter=''; }
-});
-
-/* ── Vault PIN gate (shared with vault.html) ── */
-function renderGate(isFirst){
-  document.getElementById('content').innerHTML =
-    '<div class="pin-gate">'
-    +'<div class="pin-icon">🖼️</div>'
-    +'<h2 style="font-size:20px;font-weight:900;color:#0F172A;margin-bottom:8px">'+(isFirst?'Set Up Album PIN':'Secret Album')+'</h2>'
-    +'<p style="font-size:13px;color:#64748B;margin-bottom:4px">'+(isFirst?'Create a 4-digit PIN to protect your private album':'Enter your PIN to access your secret album')+'</p>'
-    +'<div class="pin-row" id="pinRow">'
-    +'<input class="pin-d" maxlength="1" type="password" inputmode="numeric">'
-    +'<input class="pin-d" maxlength="1" type="password" inputmode="numeric">'
-    +'<input class="pin-d" maxlength="1" type="password" inputmode="numeric">'
-    +'<input class="pin-d" maxlength="1" type="password" inputmode="numeric">'
-    +'</div>'
-    +(isFirst?'<p style="font-size:12px;color:#64748B;margin:0 0 16px">You can use the same PIN as your Secret Vault</p>':'')
-    +'<button onclick="submitPin('+isFirst+')" class="btn btn-primary btn-full" style="max-width:240px;margin:0 auto">'+( isFirst?'Set PIN 🔐':'Unlock Album 🔓')+'</button>'
-    +'<p style="font-size:12px;color:#94A3B8;margin-top:14px">Your album is end-to-end protected</p>'
-    +'</div>';
-  setupPinInputs();
-}
-
-function setupPinInputs(){
-  var ds = document.querySelectorAll('.pin-d');
-  ds.forEach(function(d,i){
-    d.addEventListener('input', function(){ if(d.value&&i<ds.length-1) ds[i+1].focus(); });
-    d.addEventListener('keydown', function(e){
-      if(e.key==='Backspace'&&!d.value&&i>0){ ds[i-1].focus(); ds[i-1].value=''; }
-      if(e.key==='Enter') submitPin(false);
-    });
-  });
-  if(ds.length) ds[0].focus();
-}
-
-async function submitPin(isFirst){
-  var pin = Array.from(document.querySelectorAll('.pin-d')).map(function(d){return d.value;}).join('');
-  if(pin.length<4){ shakePins(); return; }
-  if(isFirst){
-    var r = await fetch('/api/trustid/vault/setup-pin',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+Auth.getToken()},body:JSON.stringify({pin})}).then(function(x){return x.json();});
-    if(r.success){ sessionStorage.setItem('pv_album_unlocked','true'); UNLOCKED=true; loadAlbum(); }
-    else{ Layout.toast(r.message||'Error','error'); shakePins(); }
-    return;
-  }
-  var r = await fetch('/api/trustid/vault/verify-pin',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+Auth.getToken()},body:JSON.stringify({pin})}).then(function(x){return x.json();});
-  if(r.success){
-    if(r.firstTime){ renderGate(true); return; }
-    sessionStorage.setItem('pv_album_unlocked','true'); UNLOCKED=true; loadAlbum();
-  } else { shakePins(); Layout.toast('Incorrect PIN','error'); }
-}
-
-function shakePins(){
-  document.querySelectorAll('.pin-d').forEach(function(d){ d.classList.add('err'); d.value=''; setTimeout(function(){d.classList.remove('err');},400); });
-  document.querySelectorAll('.pin-d')[0].focus();
-}
-
-/* ── Album loaded ── */
-function loadAlbum(){
-  document.getElementById('content').innerHTML = Layout.spinner();
-  fetch('/api/trustid/vault/items',{headers:{Authorization:'Bearer '+Auth.getToken()}})
-    .then(function(r){return r.json();})
-    .then(function(r){
-      items = (r.success?r.data:[]).filter(function(i){ return i.type==='photo'||i.type==='video'; });
-      renderAlbum();
-    });
-}
-
-function renderAlbum(){
-  var html =
-    '<div class="page-header">'
-    +'<div><h1 class="page-title">🖼️ Secret Album</h1><p class="page-sub">PIN-protected private photos & videos — only you can see these</p></div>'
-    +'<div style="display:flex;gap:10px">'
-    +'<button onclick="sessionStorage.removeItem(\'pv_album_unlocked\');location.reload()" class="btn btn-ghost btn-sm" style="width:auto">🔒 Lock</button>'
-    +'<button onclick="showShareModal()" class="btn btn-primary btn-sm" style="width:auto">🔗 Share Anonymously</button>'
-    +'</div></div>'
-
-    /* Upload zone */
-    +'<div class="dropzone" id="dropzone" onclick="document.getElementById(\'albumUpload\').click()" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">'
-    +'<input type="file" id="albumUpload" multiple accept="image/*,video/*" style="display:none" onchange="handleFiles(this.files)">'
-    +'<div style="font-size:36px;margin-bottom:10px">📷 🎬</div>'
-    +'<div style="font-size:14px;font-weight:700;color:#334155;margin-bottom:4px">Tap or drag photos & videos here</div>'
-    +'<div style="font-size:12px;color:#94A3B8">Supports JPG, PNG, GIF, MP4, MOV — max 10MB each</div>'
-    +'</div>'
-
-    +(items.length?
-      '<div style="margin:20px 0 12px;display:flex;justify-content:space-between;align-items:center">'
-      +'<h3 style="font-size:14px;font-weight:800;color:#0F172A">'+items.length+' item'+(items.length!==1?'s':'')+'</h3>'
-      +'<span style="font-size:12px;color:#64748B">Tap to view full screen</span>'
-      +'</div>'
-      +'<div class="album-grid">'
-      +items.map(function(item,i){
-          var isVideo = item.type==='video';
-          var thumb = item.content||'';
-          return '<div class="album-card" onclick="openLb('+i+')">'
-            +(thumb?'<img src="'+thumb+'" alt="'+(item.title||'Photo')+'" oncontextmenu="return false" draggable="false">':'<div style="display:flex;align-items:center;justify-content:center;height:100%;font-size:40px">'+(isVideo?'🎬':'📷')+'</div>')
-            +'<span class="type-badge">'+(isVideo?'🎬 Video':'🖼 Photo')+'</span>'
-            +'<button class="del-btn" onclick="event.stopPropagation();delItem(\''+item._id+'\')">×</button>'
-            +'</div>';
-        }).join('')
-      +'</div>'
-      :'<div class="empty" style="padding:60px"><div style="font-size:40px;margin-bottom:12px">🖼️</div><div style="font-size:15px;font-weight:600;margin-bottom:6px">No photos or videos yet</div><div>Add your first private memory above</div></div>'
-    )
-
-    /* Anonymous share section */
-    +'<div style="margin-top:24px;background:#F8FAFC;border-radius:16px;padding:20px;border:1px solid #E8ECF4">'
-    +'<h3 style="font-size:14px;font-weight:800;margin-bottom:8px">🕵️ Anonymous Sharing</h3>'
-    +'<p style="font-size:13px;color:#64748B;line-height:1.6">You can select specific photos or videos from this album and generate an anonymous share link. The link does not reveal your identity — recipients only see what you choose to share.</p>'
-    +'</div>';
-
-  document.getElementById('content').innerHTML = html;
-  setupDragDrop();
-}
-
-/* ── File handling ── */
-function handleFiles(files){
-  Array.from(files).forEach(function(file){
-    if(file.size > 10*1024*1024){ Layout.toast(file.name+' is too large (max 10MB)','error'); return; }
+/* ── File selection ── */
+function addFiles(fileList){
+  Array.from(fileList).forEach(function(file){
+    if(file.size > 10*1024*1024){ Layout.toast(file.name+' is too large (max 10 MB)','error'); return; }
     var reader = new FileReader();
     reader.onload = function(e){
-      var base64 = e.target.result;
-      var isVideo = file.type.startsWith('video/');
-      fetch('/api/trustid/vault/items',{
-        method:'POST',
-        headers:{'Content-Type':'application/json',Authorization:'Bearer '+Auth.getToken()},
-        body:JSON.stringify({ title:file.name, type:isVideo?'video':'photo', content:base64, tags:['album'] })
-      }).then(function(r){return r.json();}).then(function(r){
-        if(r.success){ items.unshift(r.data); renderAlbum(); Layout.toast('Added to secret album 🖼️','success'); }
-        else Layout.toast(r.message||'Upload failed','error');
-      });
+      selectedFiles.push({ name:file.name, type:file.type, data:e.target.result });
+      renderPreviews();
     };
     reader.readAsDataURL(file);
   });
 }
+function onDragOver(e){ e.preventDefault(); document.getElementById('dropZone').classList.add('over'); }
+function onDragLeave(){ document.getElementById('dropZone').classList.remove('over'); }
+function onDrop(e){ e.preventDefault(); document.getElementById('dropZone').classList.remove('over'); addFiles(e.dataTransfer.files); }
 
-function setupDragDrop(){
-  var dz = document.getElementById('dropzone');
-  if(!dz) return;
-}
-function onDragOver(e){ e.preventDefault(); document.getElementById('dropzone').classList.add('over'); }
-function onDragLeave(){ document.getElementById('dropzone').classList.remove('over'); }
-function onDrop(e){ e.preventDefault(); document.getElementById('dropzone').classList.remove('over'); handleFiles(e.dataTransfer.files); }
-
-/* ── Lightbox ── */
-function openLb(i){
-  var item = items[i];
-  if(!item) return;
-  var lb    = document.getElementById('lb');
-  var lbImg = document.getElementById('lbImg');
-  var lbVid = document.getElementById('lbVid');
-  var lbInf = document.getElementById('lbInfo');
-  lb.style.display = 'flex';
-  if(item.type==='video'){ lbImg.style.display='none'; lbVid.style.display='block'; lbVid.src=item.content||''; }
-  else { lbVid.style.display='none'; lbImg.style.display='block'; lbImg.src=item.content||''; }
-  lbInf.textContent = (item.title||'Photo')+'  ·  '+(i+1)+' of '+items.length;
-}
-function closeLb(){ document.getElementById('lb').style.display='none'; document.getElementById('lbVid').pause&&document.getElementById('lbVid').pause(); }
-
-/* ── Delete ── */
-async function delItem(id){
-  if(!confirm('Remove this from your secret album?')) return;
-  var r = await fetch('/api/trustid/vault/items/'+id,{method:'DELETE',headers:{Authorization:'Bearer '+Auth.getToken()}}).then(function(x){return x.json();});
-  if(r.success){ items=items.filter(function(i){return i._id!==id;}); renderAlbum(); Layout.toast('Removed','info'); }
-}
-
-/* ── Anonymous share modal ── */
-function showShareModal(){
-  if(!items.length){ Layout.toast('Add photos or videos first','warning'); return; }
-  var modal = document.createElement('div');
-  modal.className = 'modal-backdrop';
-  modal.style.cssText = 'display:flex';
-  modal.innerHTML =
-    '<div class="modal" style="max-width:480px" onclick="event.stopPropagation()">'
-    +'<div class="modal-header"><span class="modal-title">🕵️ Share Anonymously</span>'
-    +'<button onclick="this.closest(\'.modal-backdrop\').remove()" style="background:#F1F5F9;border:none;cursor:pointer;width:32px;height:32px;border-radius:8px;font-size:18px;color:#64748B">×</button></div>'
-    +'<div class="anon-badge"><div style="font-size:13px;font-weight:700;margin-bottom:4px">🔒 Anonymous mode</div><div style="font-size:12px;opacity:0.7">The share link will not reveal your name or account. Recipients only see the photos/videos you select. The link expires after your chosen time.</div></div>'
-    +'<div style="font-size:13px;font-weight:700;color:#334155;margin-bottom:10px">Select photos to include:</div>'
-    +'<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px;max-height:200px;overflow-y:auto">'
-    +items.map(function(item,i){
-        var thumb = item.content||'';
-        return '<div id="asel-'+i+'" onclick="toggleAnonSel('+i+',this)" style="aspect-ratio:1;border-radius:10px;overflow:hidden;border:3px solid #E2E8F0;cursor:pointer;position:relative;transition:border-color 0.15s">'
-          +(thumb?'<img src="'+thumb+'" style="width:100%;height:100%;object-fit:cover">':'<div style="display:flex;align-items:center;justify-content:center;height:100%;background:#F1F5F9;font-size:24px">'+(item.type==='video'?'🎬':'📷')+'</div>')
-          +'<div id="acheck-'+i+'" style="display:none;position:absolute;top:3px;right:3px;width:18px;height:18px;border-radius:50%;background:#7C3AED;display:none;align-items:center;justify-content:center;font-size:10px;color:#fff">✓</div>'
-          +'</div>';
-      }).join('')
-    +'</div>'
-    +'<div class="field"><label class="label">Link expires after</label>'
-    +'<select id="anonExpiry" class="input"><option value="0.042">1 hour</option><option value="0.25">6 hours</option><option value="1">24 hours</option><option value="7">7 days</option><option value="30">30 days</option></select></div>'
-    +'<button onclick="createAnonShare(this)" class="btn btn-primary btn-full" style="margin-top:14px">🔗 Generate Anonymous Link</button>'
-    +'<div id="anonResult" style="display:none;margin-top:14px"></div>'
-    +'</div>';
-  document.body.appendChild(modal);
-  modal.addEventListener('click', function(e){ if(e.target===modal) modal.remove(); });
-}
-
-var anonSelected = new Set();
-function toggleAnonSel(i, el){
-  if(anonSelected.has(i)){ anonSelected.delete(i); el.style.borderColor='#E2E8F0'; var ch=document.getElementById('acheck-'+i); if(ch) ch.style.display='none'; }
-  else { anonSelected.add(i); el.style.borderColor='#7C3AED'; var ch2=document.getElementById('acheck-'+i); if(ch2) ch2.style.display='flex'; }
-}
-
-async function createAnonShare(btn){
-  if(!anonSelected.size){ Layout.toast('Select at least one photo','warning'); return; }
-  btn.textContent='Generating…'; btn.disabled=true;
-  /* Create a share card with anonymous flag */
-  var expDays = parseFloat(document.getElementById('anonExpiry').value)||1;
-  var r = await fetch('/api/trustid/share',{
-    method:'POST',
-    headers:{'Content-Type':'application/json',Authorization:'Bearer '+Auth.getToken()},
-    body:JSON.stringify({ title:'Anonymous Album Share', customMessage:'', sections:['album'], expiresInDays:expDays, anonymous:true, albumItemIds:Array.from(anonSelected).map(function(i){return items[i]._id;}) })
-  }).then(function(x){return x.json();});
-  btn.textContent='Generate Anonymous Link'; btn.disabled=false;
-  if(r.success){
-    var url = window.location.origin+'/trustid/view.html?code='+r.shareCode;
-    document.getElementById('anonResult').style.display='block';
-    document.getElementById('anonResult').innerHTML =
-      '<div style="background:#22C55E12;border:1px solid #22C55E30;border-radius:12px;padding:14px;text-align:center">'
-      +'<div style="font-size:13px;font-weight:700;color:#15803D;margin-bottom:8px">✅ Anonymous link created</div>'
-      +'<div style="font-family:monospace;font-size:18px;font-weight:900;letter-spacing:3px;color:#7C3AED;margin-bottom:10px">'+r.shareCode+'</div>'
-      +Layout.qrImg(url, 140)
-      +'<div style="display:flex;gap:8px;justify-content:center;margin-top:10px">'
-      +'<button onclick="navigator.clipboard&&navigator.clipboard.writeText(\''+url+'\')" style="padding:7px 14px;border-radius:8px;background:#7C3AED;color:#fff;border:none;cursor:pointer;font-size:12px;font-weight:600">📋 Copy Link</button>'
-      +'</div>'
-      +'<div style="font-size:11px;color:#64748B;margin-top:8px">🕵️ Your identity is hidden from recipients</div>'
+function renderPreviews(){
+  var grid = document.getElementById('previewGrid');
+  grid.innerHTML = selectedFiles.map(function(f,i){
+    var isVideo = f.type.startsWith('video/');
+    return '<div class="preview-card">'
+      +(isVideo?'<video src="'+f.data+'" muted></video>':'<img src="'+f.data+'" alt="'+f.name+'">')
+      +'<button class="rm-btn" onclick="removeFile('+i+')">×</button>'
       +'</div>';
-  } else Layout.toast(r.message||'Error','error');
-  anonSelected.clear();
+  }).join('');
+  var btn = document.getElementById('startBtn');
+  btn.disabled = selectedFiles.length === 0;
+  btn.textContent = selectedFiles.length > 0
+    ? 'Create Viewing Room → Share '+selectedFiles.length+' photo'+(selectedFiles.length>1?'s':'')
+    : 'Select photos first to create a viewing room';
 }
 
-/* ── Boot ── */
-if(UNLOCKED){ loadAlbum(); }
-else{
-  fetch('/api/trustid/vault/verify-pin',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+Auth.getToken()},body:JSON.stringify({pin:''})})
-    .then(function(r){return r.json();})
-    .then(function(r){ renderGate(r.firstTime||false); })
-    .catch(function(){ renderGate(false); });
+function removeFile(i){ selectedFiles.splice(i,1); renderPreviews(); }
+
+/* ── Timer ── */
+function setTimer(secs){
+  timerSecs = secs || 300;
+  totalTimer = timerSecs;
+  document.querySelectorAll('.timer-opt').forEach(function(el){ el.classList.remove('sel'); });
+  var map = {60:0,300:1,900:2,1800:3,3600:4};
+  if(map[secs]!==undefined) document.querySelectorAll('.timer-opt')[map[secs]].classList.add('sel');
+}
+
+/* ── Start session ── */
+function startSession(){
+  if(!selectedFiles.length) return;
+  connectSocket();
+}
+
+function connectSocket(){
+  socket = io(window.location.origin, { transports:['websocket','polling'] });
+  socket.on('connect', function(){
+    /* Generate room ID */
+    roomId = 'PVA-'+Math.random().toString(36).slice(2,8).toUpperCase();
+    sessionExpiry = new Date(Date.now() + timerSecs * 1000);
+    totalTimer    = timerSecs;
+
+    socket.emit('album:host',{ roomId, expiresAt: sessionExpiry.toISOString() });
+
+    showSessionView();
+  });
+
+  socket.on('album:viewer-joined', function(d){
+    viewerCount = d.viewerCount;
+    document.getElementById('viewerCount').textContent = viewerCount;
+    document.getElementById('streamStatus').textContent = 'Streaming '+selectedFiles.length+' photo(s) to viewer…';
+    /* Stream all photos to this specific viewer */
+    streamToViewer(d.socketId);
+  });
+
+  socket.on('album:viewer-count', function(d){
+    viewerCount = d.viewerCount;
+    document.getElementById('viewerCount').textContent = viewerCount;
+  });
+
+  socket.on('album:stream-to', function(d){
+    streamToViewer(d.viewerSocketId);
+  });
+
+  socket.on('album:expired', function(){
+    endedView('Session expired. Viewers\' screens have been cleared.');
+  });
+}
+
+function streamToViewer(viewerSocketId){
+  document.getElementById('streamStatus').textContent = 'Sending '+selectedFiles.length+' photo(s)…';
+  selectedFiles.forEach(function(f, i){
+    setTimeout(function(){
+      socket.emit('album:photo',{
+        viewerSocketId: viewerSocketId,
+        data:           f.data,
+        index:          i,
+        total:          selectedFiles.length,
+        filename:       f.name,
+      });
+    }, i * 300);   /* stagger 300ms apart */
+  });
+  setTimeout(function(){
+    document.getElementById('streamStatus').textContent = 'All photos streamed. '+viewerCount+' viewer(s) connected.';
+  }, selectedFiles.length * 300 + 500);
+}
+
+/* ── Session UI ── */
+function showSessionView(){
+  document.getElementById('setupView').style.display = 'none';
+  document.getElementById('sessionView').style.display = 'block';
+  document.getElementById('endedView').style.display  = 'none';
+
+  var viewUrl = window.location.origin + '/trustid/album-view.html?room=' + roomId;
+  document.getElementById('roomCode').textContent = roomId;
+  document.getElementById('qrImg').src = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' + encodeURIComponent(viewUrl);
+
+  /* Thumbnails */
+  document.getElementById('photoCount').textContent = selectedFiles.length;
+  document.getElementById('sessionThumb').innerHTML = selectedFiles.map(function(f){
+    return '<div class="preview-card" style="pointer-events:none">'
+      +(f.type.startsWith('video/')?'<video src="'+f.data+'" muted>':'<img src="'+f.data+'" alt="">')
+      +'</div>';
+  }).join('');
+
+  /* Countdown */
+  startCountdown();
+}
+
+function startCountdown(){
+  var start = Date.now(), duration = timerSecs * 1000;
+  countdownInt = setInterval(function(){
+    var elapsed = Date.now() - start;
+    var left    = Math.max(0, duration - elapsed);
+    var leftSec = Math.ceil(left / 1000);
+    var mins    = String(Math.floor(leftSec/60)).padStart(2,'0');
+    var secs    = String(leftSec%60).padStart(2,'0');
+    var el      = document.getElementById('countdown');
+    if(el){ el.textContent = mins+':'+secs; el.className='countdown'+(leftSec<=60?' warn':'')+(leftSec<=10?' critical':''); }
+    var pct = (left / duration) * 100;
+    var fill = document.getElementById('progressFill');
+    if(fill) fill.style.width = pct + '%';
+    if(left <= 0){ clearInterval(countdownInt); endedView('Time limit reached. Session closed.'); }
+  }, 1000);
+}
+
+function endSession(){
+  if(!confirm('End this session? Viewers will immediately lose access.')) return;
+  if(socket && roomId) socket.emit('album:close',{ roomId });
+  clearInterval(countdownInt);
+  endedView('You ended the session.');
+}
+
+function endedView(msg){
+  clearInterval(countdownInt);
+  if(socket) socket.disconnect();
+  document.getElementById('setupView').style.display = 'none';
+  document.getElementById('sessionView').style.display = 'none';
+  document.getElementById('endedView').style.display  = 'block';
+  document.querySelector('#endedView p').textContent = msg + ' Nothing was saved.';
+}
+
+function resetToSetup(){
+  selectedFiles = []; roomId = null; socket = null; viewerCount = 0;
+  document.getElementById('setupView').style.display = 'block';
+  document.getElementById('sessionView').style.display = 'none';
+  document.getElementById('endedView').style.display  = 'none';
+  document.getElementById('previewGrid').innerHTML = '';
+  renderPreviews();
+}
+
+/* ── Share helpers ── */
+function getViewUrl(){ return window.location.origin + '/trustid/album-view.html?room=' + roomId; }
+function copyLink(){ navigator.clipboard.writeText(getViewUrl()).then(function(){ Layout.toast('Link copied!','success'); }); }
+function downloadQR(){
+  var a=document.createElement('a'); a.href=document.getElementById('qrImg').src; a.download='album-qr.png'; a.target='_blank'; a.click();
+}
+function shareLink(){
+  if(navigator.share) navigator.share({ title:'Personal Vault Album', url:getViewUrl() });
+  else copyLink();
 }
 </script>
 </body>

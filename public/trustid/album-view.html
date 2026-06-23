@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Personal Vault — Viewing Album</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#0F0E2A">
+  <link rel="icon" href="./icon.svg">
+  <!-- Screenshot prevention: no external stylesheet to avoid leaks -->
+  <style>
+    /* ══ ANTI-SCREENSHOT ══ */
+    *, *::before, *::after {
+      -webkit-user-select: none !important;
+      -moz-user-select:    none !important;
+      user-select:         none !important;
+      -webkit-touch-callout: none !important;
+    }
+    body { margin:0; font-family:Inter,system-ui,sans-serif; background:#0F0E2A; color:#fff; min-height:100vh; }
+
+    /* Header */
+    .hdr { background:rgba(255,255,255,0.06); padding:14px 20px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid rgba(255,255,255,0.08); }
+    .hdr-logo { display:flex; align-items:center; gap:8px; font-size:15px; font-weight:800; }
+    .hdr-logo-ic { width:32px; height:32px; border-radius:8px; background:linear-gradient(135deg,#7C3AED,#5B21B6); display:flex; align-items:center; justify-content:center; font-size:16px; }
+    .timer-badge { background:rgba(34,197,94,0.2); border:1px solid rgba(34,197,94,0.4); border-radius:100px; padding:5px 14px; font-size:13px; font-weight:700; color:#22C55E; font-family:monospace; }
+    .timer-badge.warn { background:rgba(249,115,22,0.2); border-color:rgba(249,115,22,0.4); color:#F97316; }
+    .timer-badge.critical { background:rgba(239,68,68,0.2); border-color:rgba(239,68,68,0.4); color:#EF4444; animation:pulse 0.5s ease-in-out infinite; }
+    @keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.05)} }
+
+    /* Watermark — contains viewer metadata so screenshots are traceable */
+    .watermark { position:fixed; inset:0; pointer-events:none; z-index:9998; background:repeating-linear-gradient(-45deg,transparent,transparent 100px,rgba(124,58,237,0.04) 100px,rgba(124,58,237,0.04) 102px); display:flex; align-items:center; justify-content:center; }
+    .watermark span { font-size:11px; color:rgba(124,58,237,0.07); font-weight:700; transform:rotate(-35deg); white-space:nowrap; letter-spacing:2px; }
+
+    /* Black overlay (on focus loss) */
+    .black-overlay { position:fixed; inset:0; background:#000; z-index:9999; display:none; align-items:center; justify-content:center; flex-direction:column; gap:12px; }
+    .black-overlay.show { display:flex; }
+
+    /* Loading state */
+    .state-screen { display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:70vh; text-align:center; padding:40px; }
+    .spinner { width:40px; height:40px; border-radius:50%; border:3px solid rgba(124,58,237,0.3); border-top-color:#7C3AED; animation:spin 0.8s linear infinite; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+
+    /* Gallery */
+    .gallery { padding:16px 14px; }
+    .gallery-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:10px; }
+    .photo-card { border-radius:14px; overflow:hidden; background:#1E1B4B; aspect-ratio:1; position:relative; }
+    .photo-card img, .photo-card video { width:100%; height:100%; object-fit:cover; display:block; pointer-events:none; -webkit-user-drag:none; }
+    .photo-card .photo-loading { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; }
+
+    /* Full-screen viewer */
+    .fs-view { position:fixed; inset:0; background:rgba(0,0,0,0.95); z-index:500; display:none; align-items:center; justify-content:center; flex-direction:column; }
+    .fs-view.show { display:flex; }
+    .fs-view img, .fs-view video { max-width:94vw; max-height:85vh; object-fit:contain; border-radius:12px; pointer-events:none; -webkit-user-drag:none; }
+    .fs-close { position:absolute; top:14px; right:18px; font-size:28px; color:#fff; cursor:pointer; background:none; border:none; }
+    .fs-nav { position:absolute; bottom:16px; display:flex; gap:12px; }
+    .fs-btn { background:rgba(255,255,255,0.15); border:1px solid rgba(255,255,255,0.25); color:#fff; padding:8px 18px; border-radius:10px; cursor:pointer; font-size:13px; font-weight:600; }
+
+    /* Notice banner */
+    .notice { background:rgba(124,58,237,0.15); border:1px solid rgba(124,58,237,0.3); border-radius:12px; padding:12px 16px; font-size:12px; color:rgba(255,255,255,0.7); line-height:1.6; margin:14px; }
+
+    /* Session ended */
+    @media(max-width:480px){ .gallery-grid { grid-template-columns:repeat(2,1fr); } }
+  </style>
+</head>
+<body>
+
+<!-- Black overlay on screen-switch / screenshot attempt -->
+<div class="black-overlay" id="blackOverlay">
+  <div style="font-size:40px">🚫</div>
+  <div style="font-size:16px;font-weight:700">Content Protected</div>
+  <div style="font-size:13px;opacity:0.6">Return to the album to continue viewing</div>
+</div>
+
+<!-- Watermark (traceable if screenshot taken) -->
+<div class="watermark"><span id="wmText">PERSONAL VAULT PROTECTED VIEW</span></div>
+
+<div class="hdr">
+  <div class="hdr-logo">
+    <div class="hdr-logo-ic">🔐</div>
+    Personal Vault · Shared Album
+  </div>
+  <div class="timer-badge" id="timerBadge">Connecting…</div>
+</div>
+
+<div class="notice">
+  🔒 <strong>Protected view.</strong> These photos stream directly from the owner's device. Nothing is downloaded or saved to this device. Screenshots are blocked and the owner is notified of any attempt.
+</div>
+
+<div id="mainContent">
+  <div class="state-screen" id="loadingState">
+    <div class="spinner" style="margin-bottom:16px"></div>
+    <div style="font-size:15px;font-weight:700;margin-bottom:6px">Connecting to album…</div>
+    <div style="font-size:13px;opacity:0.6" id="loadingMsg">Joining the viewing session</div>
+  </div>
+
+  <div id="galleryState" style="display:none">
+    <div class="gallery">
+      <div style="margin-bottom:12px;font-size:13px;opacity:0.6;text-align:center" id="photoStatus">Receiving photos…</div>
+      <div class="gallery-grid" id="galleryGrid"></div>
+    </div>
+  </div>
+
+  <div class="state-screen" id="endedState" style="display:none">
+    <div style="font-size:52px;margin-bottom:14px">🔒</div>
+    <div style="font-size:18px;font-weight:800;margin-bottom:8px">Session Ended</div>
+    <div style="font-size:13px;opacity:0.6;max-width:280px;line-height:1.6" id="endedMsg">The viewing session has ended. All photos have been cleared from your screen.</div>
+  </div>
+</div>
+
+<!-- Full-screen photo viewer -->
+<div class="fs-view" id="fsView">
+  <button class="fs-close" onclick="closeFS()">×</button>
+  <img id="fsImg" src="" alt="" oncontextmenu="return false" draggable="false" style="display:none">
+  <video id="fsVid" controls controlslist="nodownload" oncontextmenu="return false" style="display:none"></video>
+  <div class="fs-nav">
+    <button class="fs-btn" onclick="fsNav(-1)">← Prev</button>
+    <span id="fsIndex" style="font-size:12px;opacity:0.6;align-self:center"></span>
+    <button class="fs-btn" onclick="fsNav(1)">Next →</button>
+  </div>
+</div>
+
+<script src="https://cdn.socket.io/4.8.0/socket.io.min.js"></script>
+<script>
+/* ══ SCREENSHOT PREVENTION ══ */
+(function(){
+  /* PrintScreen key */
+  document.addEventListener('keyup', function(e){
+    if(e.key === 'PrintScreen'){
+      navigator.clipboard && navigator.clipboard.writeText('');
+      showBlack(2000);
+      notifyHost('PrintScreen key detected');
+    }
+  });
+  /* Mac screenshot shortcuts */
+  document.addEventListener('keydown', function(e){
+    if(e.metaKey && e.shiftKey && (e.key==='3'||e.key==='4'||e.key==='s'||e.key==='S')){
+      e.preventDefault(); showBlack(1500); notifyHost('Mac screenshot shortcut detected');
+    }
+    /* Ctrl+P (print) */
+    if((e.ctrlKey||e.metaKey) && e.key==='p'){ e.preventDefault(); }
+  });
+  /* Visibility change — user switches to screenshot tool */
+  document.addEventListener('visibilitychange', function(){
+    if(document.hidden) showBlack(1800);
+    else hideBlack();
+  });
+  /* Right-click */
+  document.addEventListener('contextmenu', function(e){ e.preventDefault(); });
+  /* Drag prevention */
+  document.addEventListener('dragstart', function(e){ e.preventDefault(); });
+})();
+
+function showBlack(ms){
+  document.getElementById('blackOverlay').classList.add('show');
+  if(ms) setTimeout(hideBlack, ms);
+}
+function hideBlack(){ document.getElementById('blackOverlay').classList.remove('show'); }
+function notifyHost(reason){
+  if(socket) socket.emit('album:screenshot-attempt', { roomId, reason });
+}
+
+/* ══ MAIN ══ */
+var roomId   = new URLSearchParams(window.location.search).get('room');
+var socket   = null;
+var photos   = [];   /* received photos */
+var totalExpected = 0;
+var fsIndex  = 0;
+var countdownInt = null;
+
+if(!roomId){
+  document.getElementById('loadingMsg').textContent = 'No room code in URL. Scan the QR code again.';
+} else {
+  connect();
+}
+
+function connect(){
+  socket = io(window.location.origin, { transports:['websocket','polling'] });
+
+  socket.on('connect', function(){
+    socket.emit('album:join', { roomId });
+  });
+
+  socket.on('album:error', function(d){
+    showEnded(d.message || 'This session is no longer available.');
+  });
+
+  socket.on('album:session-info', function(d){
+    document.getElementById('loadingState').style.display = 'none';
+    document.getElementById('galleryState').style.display = 'block';
+    startCountdown(new Date(d.expiresAt));
+  });
+
+  socket.on('album:photo', function(d){
+    photos.push(d);
+    if(d.total) totalExpected = d.total;
+    appendPhoto(d, photos.length - 1);
+    document.getElementById('photoStatus').textContent = photos.length + (totalExpected?' of '+totalExpected:'') + ' photo(s) received';
+  });
+
+  socket.on('album:expired', function(){
+    showEnded('The viewing time limit has been reached. Session closed.');
+  });
+
+  socket.on('album:closed', function(d){
+    showEnded(d.message || 'The host ended this session.');
+  });
+
+  socket.on('disconnect', function(){
+    showEnded('Connection lost. The session may have ended.');
+  });
+}
+
+/* ── Countdown ── */
+function startCountdown(expiresAt){
+  var badge = document.getElementById('timerBadge');
+  countdownInt = setInterval(function(){
+    var left = Math.max(0, expiresAt.getTime() - Date.now());
+    var s    = Math.ceil(left / 1000);
+    var m    = String(Math.floor(s/60)).padStart(2,'0');
+    var ss   = String(s%60).padStart(2,'0');
+    badge.textContent = '⏱ ' + m + ':' + ss;
+    badge.className   = 'timer-badge' + (s<=60?' warn':'') + (s<=10?' critical':'');
+    if(left <= 0){ clearInterval(countdownInt); showEnded('Time limit reached.'); }
+  }, 1000);
+}
+
+/* ── Append photo to gallery ── */
+function appendPhoto(d, idx){
+  var grid = document.getElementById('galleryGrid');
+  var isVideo = d.filename && /\.(mp4|mov|webm|avi)$/i.test(d.filename);
+  var card = document.createElement('div');
+  card.className = 'photo-card';
+  card.setAttribute('data-idx', idx);
+  card.onclick = function(){ openFS(idx); };
+  if(isVideo){
+    card.innerHTML = '<video src="'+d.data+'" muted loop autoplay playsinline style="pointer-events:none" controlslist="nodownload" oncontextmenu="return false"></video>';
+  } else {
+    card.innerHTML = '<img src="'+d.data+'" alt="Photo '+(idx+1)+'" oncontextmenu="return false" draggable="false">';
+  }
+  grid.appendChild(card);
+}
+
+/* ── Full-screen viewer ── */
+function openFS(idx){
+  fsIndex = idx;
+  renderFS();
+  document.getElementById('fsView').classList.add('show');
+}
+function closeFS(){ document.getElementById('fsView').classList.remove('show'); document.getElementById('fsVid').pause && document.getElementById('fsVid').pause(); }
+function fsNav(dir){ fsIndex = Math.max(0, Math.min(photos.length-1, fsIndex+dir)); renderFS(); }
+function renderFS(){
+  var d = photos[fsIndex];
+  if(!d) return;
+  var isVideo = d.filename && /\.(mp4|mov|webm|avi)$/i.test(d.filename);
+  document.getElementById('fsImg').style.display = isVideo?'none':'block';
+  document.getElementById('fsVid').style.display = isVideo?'block':'none';
+  if(isVideo){ document.getElementById('fsVid').src=d.data; }
+  else { document.getElementById('fsImg').src=d.data; }
+  document.getElementById('fsIndex').textContent = (fsIndex+1)+' / '+photos.length;
+}
+
+/* ── Ended state ── */
+function showEnded(msg){
+  clearInterval(countdownInt);
+  /* Wipe all photo data from memory */
+  photos = [];
+  document.getElementById('galleryGrid').innerHTML = '';
+  document.getElementById('fsView').classList.remove('show');
+  document.getElementById('galleryState').style.display = 'none';
+  document.getElementById('loadingState').style.display = 'none';
+  document.getElementById('endedState').style.display   = 'block';
+  document.getElementById('endedMsg').textContent       = msg + ' All photos have been cleared from this screen.';
+  document.getElementById('timerBadge').textContent     = '🔒 Ended';
+  document.getElementById('timerBadge').className       = 'timer-badge';
+  if(socket) socket.disconnect();
+}
+</script>
+</body>
+</html>
