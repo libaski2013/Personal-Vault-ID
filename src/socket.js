@@ -135,6 +135,20 @@ module.exports = function attachSocket(httpServer, jwtDecode) {
       io.to('user:'+to).emit('chat:read', { by:socket.data.userId, ts:Date.now() });
     });
 
+    /* ── EMOJI REACTION on a message ── */
+    socket.on('chat:react', ({ to, messageId, emoji }) => {
+      io.to('user:' + to).emit('chat:react', {
+        from: socket.data.userId, messageId, emoji, ts: Date.now(),
+      });
+    });
+
+    /* ── EMOTION BURST (large animated emoji share) ── */
+    socket.on('chat:emotion', ({ to, emoji, label }) => {
+      io.to('user:' + to).emit('chat:emotion', {
+        from: socket.data.userId, emoji, label: label||'', ts: Date.now(),
+      });
+    });
+
     /* ── SCREENSHOT ALERT ── */
     socket.on('chat:screenshot', ({ to }) => {
       io.to('user:'+to).emit('chat:screenshot-alert', { from:socket.data.userId, ts:Date.now() });
