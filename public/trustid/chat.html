@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Personal Vault - Messages</title>
+  <title>Personal Vault - Social Network</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <link rel="icon" href="./icon.svg">
   <link rel="stylesheet" href="./css/styles.css">
@@ -74,9 +74,27 @@
     .album-thumb{aspect-ratio:1;border-radius:8px;overflow:hidden;border:2.5px solid transparent;cursor:pointer;transition:border-color 0.15s;}
     .album-thumb.sel{border-color:#7C3AED;}
     .album-thumb img{width:100%;height:100%;object-fit:cover;}
+    .social-mobile-bar{display:none;}
+    .social-mobile-btn{border:1.5px solid #E2E8F0;background:#fff;color:#334155;border-radius:12px;height:42px;padding:0 12px;font-size:12px;font-weight:800;align-items:center;justify-content:center;gap:6px;cursor:pointer;min-width:0;}
+    .social-mobile-btn.primary{border:none;background:linear-gradient(135deg,#7C3AED,#8B5CF6);color:#fff;}
+    .disc-overlay{display:none;}
+    .disc-close{display:none;}
     @media(max-width:640px){
-      .disc-panel{position:absolute;z-index:20;height:calc(100vh - 56px);width:260px;transform:translateX(-100%);transition:transform 0.25s;}
+      .social-mobile-bar{display:flex;gap:8px;padding:8px 10px;background:#fff;border-bottom:1px solid #E8ECF4;position:sticky;top:0;z-index:18;}
+      .social-mobile-btn{display:flex;flex:1;}
+      .chat-shell{height:calc(100vh - 118px);}
+      .disc-overlay.show{display:block;position:fixed;left:0;right:0;top:62px;bottom:64px;background:rgba(15,23,42,0.36);z-index:19;}
+      .disc-panel{position:fixed;left:0;top:62px;bottom:64px;z-index:20;height:auto;width:min(86vw,320px);box-shadow:12px 0 32px rgba(15,23,42,0.18);transform:translateX(-105%);transition:transform 0.25s;}
       .disc-panel.mob-open{transform:translateX(0);}
+      .disc-hdr{position:relative;padding-right:48px;}
+      .disc-close{display:flex;position:absolute;right:10px;top:10px;width:32px;height:32px;border-radius:10px;border:1px solid #E2E8F0;background:#F8FAFC;color:#64748B;align-items:center;justify-content:center;font-size:18px;cursor:pointer;}
+      .chat-tabs{padding:6px 8px 0;}
+      .msg-hdr{padding:9px 10px;}
+      .msg-body{padding:10px 10px 12px;}
+      .msg-foot{padding:8px;gap:5px;}
+      .icon-btn{width:34px;height:34px;}
+      .bub{max-width:84%;}
+      .no-chats-hint{padding:26px 18px;}
     }
 
     /* ── Emoji Picker ── */
@@ -133,10 +151,16 @@
   <div id="sidebar"></div>
   <div id="main">
     <div id="topbar"></div>
+    <div class="social-mobile-bar" aria-label="Social Network mobile navigation">
+      <button class="social-mobile-btn primary" onclick="openDiscoveryPanel()">📡 Nearby Discovery</button>
+      <button class="social-mobile-btn" onclick="focusActiveChat()">💬 Active Chats</button>
+    </div>
+    <div id="discOverlay" class="disc-overlay" onclick="closeDiscoveryPanel()"></div>
     <div class="chat-shell chat-protected" id="chatShell">
       <div class="disc-panel" id="discPanel">
         <div class="disc-hdr">
-          <div style="font-size:14px;font-weight:800;color:#0F172A;margin-bottom:8px">People Nearby</div>
+          <button class="disc-close" onclick="closeDiscoveryPanel()" title="Close">×</button>
+          <div style="font-size:14px;font-weight:800;color:#0F172A;margin-bottom:8px">Nearby Discovery</div>
           <div class="disc-toggle">
             <div>
               <div style="font-size:12px;font-weight:700;color:#334155">Discovery Mode</div>
@@ -158,7 +182,7 @@
         </div>
         <div style="padding:8px 10px;border-top:1px solid #E8ECF4;font-size:11px;color:#94A3B8;text-align:center" id="chatCountBar"></div>
         <div style="margin:0 10px 8px;padding:8px 12px;background:#22C55E08;border:1px solid #22C55E30;border-radius:10px;font-size:10px;color:#15803D;line-height:1.6">
-          🔒 <strong>End-to-end encrypted</strong> — Messages are private between you and the recipient. Admins <em>cannot</em> read your chats.
+          🔒 <strong>End-to-end encrypted</strong> — Social Network chats are private between you and the recipient. Admins <em>cannot</em> read your chats.
         </div>
       </div>
       <div class="chat-area" id="chatArea">
@@ -251,7 +275,7 @@ function connectSocket(){
   socket.on("chat:sent",function(d){var el=document.getElementById("msg-"+d.tempId);if(el){var t=el.querySelector(".btime");if(t)t.innerHTML=fmtTime(d.ts)+" checkcheck";}});
   socket.on("chat:live-type",function(d){var uid=String(d.from);if(!chats[uid])return;clearTimeout(chats[uid].typTimer);if(!d.text){removeLivePreview(uid);return;}showLivePreview(uid,d.text);chats[uid].typTimer=setTimeout(function(){removeLivePreview(uid);},3000);if(uid===activeUid)scrollBottom(uid);});
   socket.on("chat:read",function(d){var thread=document.getElementById("thread-"+d.by);if(thread)thread.querySelectorAll(".bub.me .btime").forEach(function(t){if(!t.textContent.includes("checkcheck"))t.innerHTML=t.textContent.replace("check","")+"checkcheck";});});
-  socket.on("chat:ended",function(d){var uid=String(d.by);if(!d.self&&chats[uid]){var body=document.getElementById("body-"+uid);if(body){var el=document.createElement("div");el.className="sys-msg";el.innerHTML=(chats[uid].other.name||"User")+" ended the chat. Messages cleared.";body.innerHTML="";body.appendChild(el);}}});
+  socket.on("chat:ended",function(d){var uid=String(d.by);if(!d.self&&chats[uid]){var body=document.getElementById("body-"+uid);if(body){var el=document.createElement("div");el.className="sys-msg";el.innerHTML=(chats[uid].other.name||"User")+" ended the chat. Social chat cleared.";body.innerHTML="";body.appendChild(el);}}});
   socket.on("chat:mood",function(d){var uid=String(d.from);if(!chats[uid])return;var body=document.getElementById("body-"+uid);if(body){var el=document.createElement("div");el.className="sys-msg";el.textContent=(chats[uid].other.name||"User")+" feels "+d.emoji+(d.reason?" - "+d.reason:"");body.appendChild(el);if(uid===activeUid)scrollBottom(uid);}});
 
   /* ── Receive shared digital card ── */
@@ -288,6 +312,10 @@ function toggleDiscovery(on){
   }else{socket.emit("discovery:off");nearbyMap={};buildNearbyList();document.getElementById("discSub").textContent="Off - invisible to everyone";}
 }
 
+function openDiscoveryPanel(){var p=document.getElementById("discPanel");if(p)p.classList.add("mob-open");var o=document.getElementById("discOverlay");if(o)o.classList.add("show");}
+function closeDiscoveryPanel(){var p=document.getElementById("discPanel");if(p)p.classList.remove("mob-open");var o=document.getElementById("discOverlay");if(o)o.classList.remove("show");}
+function focusActiveChat(){closeDiscoveryPanel();if(activeUid){switchTab(activeUid);return;}Layout.toast("Open Nearby Discovery to start a social chat.","info");}
+
 function buildNearbyList(){
   var keys=Object.keys(nearbyMap),cc=Object.keys(chats).length;
   document.getElementById("chatCountBar").textContent=cc>0?cc+" active chat"+(cc>1?"s":""):"";
@@ -300,7 +328,7 @@ function buildNearbyList(){
   }).join("");
 }
 
-function handleNearbyTap(uid){if(chats[uid]){switchTab(uid);}else{socket.emit("chat:request",{to:uid,fromName:(me.firstName||"")+" "+(me.lastName||"")});Layout.toast("Chat request sent...","info");}}
+function handleNearbyTap(uid){if(chats[uid]){switchTab(uid);closeDiscoveryPanel();}else{socket.emit("chat:request",{to:uid,fromName:(me.firstName||"")+" "+(me.lastName||"")});Layout.toast("Chat request sent...","info");}}
 function acceptChat(){document.getElementById("incomingCard").style.display="none";socket.emit("chat:accept",{to:pendingFrom});var n=nearbyMap[pendingFrom]||{};openChat({uid:pendingFrom,name:n.name||pendingFromName,ini:(n.ini||(pendingFromName||"U")[0]).toUpperCase()});}
 function declineChat(){document.getElementById("incomingCard").style.display="none";socket.emit("chat:decline",{to:pendingFrom});pendingFrom=null;}
 
@@ -324,7 +352,7 @@ function openChat(other,doSwitch){
     +'</div>';
   wrap.appendChild(div);
   renderTabs();
-  if(doSwitch!==false)switchTab(uid);
+  if(doSwitch!==false){switchTab(uid);closeDiscoveryPanel();}
   buildNearbyList();
 }
 

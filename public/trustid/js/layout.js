@@ -41,7 +41,7 @@ var Layout = (function () {
       id:    'connect',
       label: '💬 Connect',
       items: [
-        { id:'chat',  icon:'💬', label:'Messages',      href:'/trustid/chat.html' },
+        { id:'chat',  icon:'📡', label:'Social Network',href:'/trustid/chat.html' },
         { id:'share', icon:'📤', label:'Share My Vault',href:'/trustid/share.html' },
       ],
     },
@@ -71,7 +71,7 @@ var Layout = (function () {
   var BOTTOM_NAV = [
     { id:'dashboard', icon:'🏠', label:'Home',     href:'/trustid/dashboard.html' },
     { id:'documents', icon:'📁', label:'Docs',     href:'/trustid/documents.html' },
-    { id:'chat',      icon:'💬', label:'Messages', href:'/trustid/chat.html' },
+    { id:'chat',      icon:'📡', label:'Social',   href:'/trustid/chat.html' },
     { id:'vault',     icon:'🔐', label:'Vault',    href:'/trustid/vault.html' },
     { id:'profile',   icon:'👤', label:'Profile',  href:'/trustid/profile.html' },
   ];
@@ -81,7 +81,7 @@ var Layout = (function () {
     academics:'Academics & Awards', cv:'CV Builder', card:'Digital Contact Card', contacts:'Saved Contacts', lifestory:'Life Story', expenses:'Expenses',
     reminders:'Reminders', todo:'To-Do List', calendar:'Calendar',
     address:'My Address', vault:'Secret Vault', album:'Secret Album',
-    legacy:'Digital Legacy', chat:'Messages', share:'Share My Vault',
+    legacy:'Digital Legacy', chat:'Social Network', share:'Share My Vault',
     profile:'Profile', settings:'Settings',
     'admin-dashboard':'Platform Overview', 'admin-users':'User Management',
     'admin-docs':'Verification Queue', 'admin-trustids':'ID Registry', 'admin-features':'Feature Control', 'admin-activity':'Activity Log',
