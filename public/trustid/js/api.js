@@ -13,7 +13,7 @@ var Api = (function () {
       ),
     };
     if (body != null) opts.body = JSON.stringify(body);
-    return fetch(BASE + path, opts)
+    return fetch((window.PV && PV.url ? PV.url(BASE + path) : BASE + path), opts)
       .then(function (res) {
         if (res.status === 401 && path.indexOf('/auth/login') === -1) {
           Auth.logout();
