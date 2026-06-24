@@ -74,6 +74,7 @@ fastify.register(require('./routes/chat'),       { prefix:'/api/trustid/chat' })
 fastify.register(require('./routes/cv'),         { prefix:'/api/trustid/cv' });
 fastify.register(require('./routes/cards'),      { prefix:'/api/trustid/cards' });
 try { fastify.register(require('./routes/social'), { prefix:'/api/trustid/social' }); } catch {}
+fastify.register(require('./routes/calendar'),   { prefix: '/api/trustid/calendar' });
 
 /* ── Track user activity ── */
 fastify.addHook('onRequest', async (request) => {

@@ -7,9 +7,16 @@ module.exports = async function reminderRoutes(fastify) {
   });
 
   fastify.post('/', { onRequest: [fastify.authenticate] }, async (req, reply) => {
-    const { title, dueDate, priority } = req.body || {};
+    const { title, dueDate, alarmAt, alarm, priority } = req.body || {};
     if (!title) return reply.code(400).send({ success: false, message: 'title required' });
-    const data = await Reminder.create({ userId: req.user.userId, title, dueDate, priority: priority || 'medium' });
+    const data = await Reminder.create({
+      userId: req.user.userId,
+      title,
+      dueDate: dueDate || null,
+      alarmAt: alarmAt || dueDate || null,
+      alarm: alarm !== false,
+      priority: priority || 'medium'
+    });
     return reply.code(201).send({ success: true, data });
   });
 

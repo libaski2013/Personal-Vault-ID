@@ -2,14 +2,22 @@ const { Todo } = require('../db/models');
 
 module.exports = async function todoRoutes(fastify) {
   fastify.get('/', { onRequest: [fastify.authenticate] }, async (req) => {
-    const data = await Todo.find({ userId: req.user.userId }).sort({ createdAt: -1 });
+    const data = await Todo.find({ userId: req.user.userId }).sort({ done: 1, dueDate: 1, createdAt: -1 });
     return { success: true, data };
   });
 
   fastify.post('/', { onRequest: [fastify.authenticate] }, async (req, reply) => {
-    const { title, priority, category } = req.body || {};
+    const { title, priority, category, dueDate, alarmAt, alarm } = req.body || {};
     if (!title) return reply.code(400).send({ success: false, message: 'title required' });
-    const data = await Todo.create({ userId: req.user.userId, title, priority: priority || 'medium', category: category || 'General' });
+    const data = await Todo.create({
+      userId: req.user.userId,
+      title,
+      dueDate: dueDate || null,
+      alarmAt: alarmAt || dueDate || null,
+      alarm: alarm === true,
+      priority: priority || 'medium',
+      category: category || 'General'
+    });
     return reply.code(201).send({ success: true, data });
   });
 

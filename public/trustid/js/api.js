@@ -75,5 +75,10 @@ var Api = (function () {
     socialDisconnect: function (id)     { return req('POST', '/social/chats/' + id + '/disconnect'); },
     socialReport: function (id, reason) { return req('POST', '/social/chats/' + id + '/report', { reason: reason }); },
     socialBlock:  function (token)      { return req('POST', '/social/block/' + encodeURIComponent(token)); },
+
+    /* ── Calendar ── */
+    getCalendarEvents: function ()      { return req('GET', '/calendar/events'); },
+    addCalendarEvent: function (body)   { return req('POST', '/calendar/events', body); },
+    deleteCalendarEvent: function (id)  { return req('DELETE', '/calendar/events/' + id); },
   };
 })();
