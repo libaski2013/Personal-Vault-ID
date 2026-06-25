@@ -101,6 +101,8 @@ const expenseSchema = new Schema({
 const reminderSchema = new Schema({
   userId: { type: OID, ref: 'pvusers', required: true },
   title: { type: String, required: true }, dueDate: Date,
+  alarmAt: Date,
+  alarm: { type: Boolean, default: true },
   done: { type: Boolean, default: false },
   priority: { type: String, enum: ['low','medium','high'], default: 'medium' },
 }, { timestamps: true });
@@ -109,6 +111,9 @@ const reminderSchema = new Schema({
 const todoSchema = new Schema({
   userId: { type: OID, ref: 'pvusers', required: true },
   title: { type: String, required: true }, done: { type: Boolean, default: false },
+  dueDate: Date,
+  alarmAt: Date,
+  alarm: { type: Boolean, default: false },
   priority: { type: String, enum: ['low','medium','high'], default: 'medium' },
   category: { type: String, default: 'General' },
 }, { timestamps: true });
@@ -128,6 +133,16 @@ const messageSchema = new Schema({
   to:    { type: OID, ref: 'pvusers', required: true },
   text:  { type: String, required: true, trim: true },
   read:  { type: Boolean, default: false },
+}, { timestamps: true });
+
+/* ── Calendar Event ── */
+const calendarEventSchema = new Schema({
+  userId: { type: OID, ref: 'pvusers', required: true },
+  title: { type: String, required: true },
+  date: { type: Date, required: true },
+  tag: { type: String, default: 'event' },
+  color: { type: String, default: '#7C3AED' },
+  notes: { type: String, default: '' },
 }, { timestamps: true });
 
 /* ── Digital Legacy (Dead Man's Switch) ── */
@@ -278,4 +293,5 @@ module.exports = {
   Expense:   mongoose.model('pvexpenses',  expenseSchema),
   Reminder:  mongoose.model('pvreminders', reminderSchema),
   Todo:      mongoose.model('pvtodos',     todoSchema),
+  CalendarEvent: mongoose.model('pvcalendarevents', calendarEventSchema),
 };

@@ -18,6 +18,16 @@ function haversineM(lat1, lon1, lat2, lon2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
 function normalIp(ip) { return (ip || '').replace(/^::ffff:/, '').split(',')[0].trim(); }
+const ALIAS_ADJ = ['Nova','Echo','Velvet','Orbit','Cinder','Lumen','Mosaic','Quartz','Halo','Cipher','Ember','Aster'];
+const ALIAS_NOUN = ['Signal','Drift','Pulse','Comet','Harbor','Quest','Vibe','Rune','Spark','Atlas','Muse','Beacon'];
+function aliasFor(uid) {
+  let n = 0;
+  String(uid || '').split('').forEach((ch) => { n = (n * 31 + ch.charCodeAt(0)) >>> 0; });
+  return ALIAS_ADJ[n % ALIAS_ADJ.length] + ' ' + ALIAS_NOUN[Math.floor(n / ALIAS_ADJ.length) % ALIAS_NOUN.length];
+}
+function iniFor(alias) {
+  return String(alias || '?').split(/\s+/).map((p) => p[0] || '').join('').slice(0, 2).toUpperCase() || '?';
+}
 
 module.exports = function attachSocket(httpServer, jwtDecode) {
   const io = new Server(httpServer, {
@@ -29,6 +39,35 @@ module.exports = function attachSocket(httpServer, jwtDecode) {
 
   /* In-memory discovery map: userId → { uid, name, ini, lat, lng, socketId, ts } */
   const discovery = new Map();
+  const chatSessions = new Map();
+  const CHAT_IDLE_MS = 15 * 60 * 1000;
+
+  function chatKey(a, b) {
+    return [String(a), String(b)].sort().join(':');
+  }
+  function touchChat(a, b) {
+    if (!a || !b) return;
+    const key = chatKey(a, b);
+    const existing = chatSessions.get(key);
+    if (existing && existing.timer) clearTimeout(existing.timer);
+    const timer = setTimeout(() => {
+      const s = chatSessions.get(key);
+      if (!s) return;
+      io.to('user:' + s.a).emit('chat:ended', { by:'system', peer:s.b, reason:'inactive', ts:Date.now() });
+      io.to('user:' + s.b).emit('chat:ended', { by:'system', peer:s.a, reason:'inactive', ts:Date.now() });
+      chatSessions.delete(key);
+    }, CHAT_IDLE_MS);
+    chatSessions.set(key, { a:String(a), b:String(b), timer, ts:Date.now() });
+  }
+  function endChatBoth(a, b, reason) {
+    if (!a || !b) return;
+    const key = chatKey(a, b);
+    const s = chatSessions.get(key);
+    if (s && s.timer) clearTimeout(s.timer);
+    chatSessions.delete(key);
+    io.to('user:' + a).emit('chat:ended', { by:a, peer:b, self:true, reason:reason || 'ended', ts:Date.now() });
+    io.to('user:' + b).emit('chat:ended', { by:a, peer:a, reason:reason || 'ended', ts:Date.now() });
+  }
 
   /* Find users within 5 km by GPS — no network requirement */
   function findNearby(uid, lat, lng) {
@@ -38,7 +77,7 @@ module.exports = function attachSocket(httpServer, jwtDecode) {
       if (lat == null || lng == null || d.lat == null || d.lng == null) continue;
       const dist = haversineM(lat, lng, d.lat, d.lng);
       if (dist <= 5000) {
-        nearby.push({ uid:id, name:d.name, ini:d.ini, sameNetwork:false, distanceM: Math.round(dist), distanceKm: (dist/1000).toFixed(1) });
+        nearby.push({ uid:id, name:d.alias, ini:d.ini, alias:d.alias, sameNetwork:false, distanceM: Math.round(dist), distanceKm: (dist/1000).toFixed(1) });
       }
     }
     return nearby;
@@ -59,15 +98,16 @@ module.exports = function attachSocket(httpServer, jwtDecode) {
     });
 
     /* ── DISCOVERY ON ── */
-    socket.on('discovery:on', ({ name, ini, lat, lng }) => {
+    socket.on('discovery:on', ({ lat, lng }) => {
       const uid = socket.data.userId;
       if (!uid) return;
-      discovery.set(uid, { uid, name:name||'?', ini:ini||'?', lat:lat||null, lng:lng||null, socketId:socket.id, ts:Date.now() });
+      const alias = aliasFor(uid);
+      discovery.set(uid, { uid, alias, ini:iniFor(alias), ip, lat:lat||null, lng:lng||null, socketId:socket.id, ts:Date.now() });
       const nearby = findNearby(uid, lat, lng);
       socket.emit('discovery:nearby', nearby);
       /* Tell nearby users this person appeared */
       nearby.forEach(function(n) {
-        io.to('user:'+n.uid).emit('discovery:appeared', { uid, name:name||'?', ini:ini||'?', sameNetwork:false, distanceM:n.distanceM });
+        io.to('user:'+n.uid).emit('discovery:appeared', { uid, name:alias, alias, ini:iniFor(alias), sameNetwork:false, distanceM:n.distanceM });
       });
     });
 
@@ -81,12 +121,18 @@ module.exports = function attachSocket(httpServer, jwtDecode) {
     });
 
     /* ── REQUEST CHAT — tap a nearby person ── */
-    socket.on('chat:request', ({ to, fromName }) => {
-      io.to('user:'+to).emit('chat:incoming', { from: socket.data.userId, fromName });
+    socket.on('chat:request', ({ to }) => {
+      const alias = aliasFor(socket.data.userId);
+      io.to('user:'+to).emit('chat:incoming', { from: socket.data.userId, fromName: alias, alias, ini: iniFor(alias) });
     });
 
     socket.on('chat:accept', ({ to }) => {
-      io.to('user:'+to).emit('chat:accepted', { by: socket.data.userId });
+      touchChat(socket.data.userId, to);
+      io.to('user:'+to).emit('chat:accepted', { by: socket.data.userId, alias: aliasFor(socket.data.userId), ini: iniFor(aliasFor(socket.data.userId)) });
+    });
+
+    socket.on('chat:resume', ({ to }) => {
+      touchChat(socket.data.userId, to);
     });
 
     socket.on('chat:decline', ({ to }) => {
@@ -102,6 +148,7 @@ module.exports = function attachSocket(httpServer, jwtDecode) {
     socket.on('chat:send', ({ to, text, tempId }) => {
       const uid = socket.data.userId;
       if (!uid || !String(text||'').trim()) return;
+      touchChat(uid, to);
       const msg = { id:tempId||('m'+Date.now()), from:uid, to, text:String(text).trim(), ts:Date.now(), type:'text' };
       io.to('user:'+to).emit('chat:message', msg);
       socket.emit('chat:sent', { tempId, id:msg.id, ts:msg.ts });
@@ -113,6 +160,7 @@ module.exports = function attachSocket(httpServer, jwtDecode) {
       const uid = socket.data.userId;
       if (!uid || !data) return;
       if (data.length > 5*1024*1024) { socket.emit('chat:error',{message:'Photo too large (max 5 MB)'}); return; }
+      touchChat(uid, to);
       const msg = { id:tempId||('img'+Date.now()), from:uid, to, data, filename:filename||'photo.jpg', ts:Date.now(), type:'photo', fromAlbum:!!fromAlbum };
       io.to('user:'+to).emit('chat:message', msg);
       socket.emit('chat:sent', { tempId, id:msg.id, ts:msg.ts });
@@ -135,13 +183,31 @@ module.exports = function attachSocket(httpServer, jwtDecode) {
 
     /* ── SHARE DIGITAL CONTACT CARD in chat ── */
     socket.on('chat:card', ({ to, card }) => {
+      touchChat(socket.data.userId, to);
       io.to('user:' + to).emit('chat:card', {
         from: socket.data.userId, card, ts: Date.now(),
       });
     });
 
+    socket.on('chat:edit', ({ to, messageId, text }) => {
+      const uid = socket.data.userId;
+      if (!uid || !to || !messageId || !String(text || '').trim()) return;
+      touchChat(uid, to);
+      io.to('user:' + to).emit('chat:edited', { from:uid, messageId, text:String(text).trim(), ts:Date.now() });
+      socket.emit('chat:edited', { from:uid, messageId, text:String(text).trim(), self:true, ts:Date.now() });
+    });
+
+    socket.on('chat:delete', ({ to, messageId }) => {
+      const uid = socket.data.userId;
+      if (!uid || !to || !messageId) return;
+      touchChat(uid, to);
+      io.to('user:' + to).emit('chat:deleted', { from:uid, messageId, ts:Date.now() });
+      socket.emit('chat:deleted', { from:uid, messageId, self:true, ts:Date.now() });
+    });
+
     /* ── EMOJI REACTION on a message ── */
     socket.on('chat:react', ({ to, messageId, emoji }) => {
+      touchChat(socket.data.userId, to);
       io.to('user:' + to).emit('chat:react', {
         from: socket.data.userId, messageId, emoji, ts: Date.now(),
       });
@@ -149,6 +215,7 @@ module.exports = function attachSocket(httpServer, jwtDecode) {
 
     /* ── EMOTION BURST (large animated emoji share) ── */
     socket.on('chat:emotion', ({ to, emoji, label }) => {
+      touchChat(socket.data.userId, to);
       io.to('user:' + to).emit('chat:emotion', {
         from: socket.data.userId, emoji, label: label||'', ts: Date.now(),
       });
@@ -161,8 +228,7 @@ module.exports = function attachSocket(httpServer, jwtDecode) {
 
     /* ── END CHAT ── */
     socket.on('chat:end', ({ to }) => {
-      io.to('user:'+to).emit('chat:ended', { by:socket.data.userId, ts:Date.now() });
-      socket.emit('chat:ended', { by:socket.data.userId, self:true, ts:Date.now() });
+      endChatBoth(socket.data.userId, to, 'ended');
     });
 
     /* ── DISCONNECT ── */

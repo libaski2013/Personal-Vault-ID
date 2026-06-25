@@ -1,6 +1,6 @@
 {
   "appId": "com.trustid.personalvault",
-  "appName": "TrustID Personal Vault",
+  "appName": "Personal Vault",
   "webDir": "public/trustid",
   "server": {
     "url": "https://trustid-realtime.onrender.com",

@@ -600,7 +600,7 @@ function shareWhatsApp(){ window.open('https://wa.me/?text='+encodeURIComponent(
 function shareEmail(){ window.location.href='mailto:?subject='+encodeURIComponent((D.fullName||'My')+' Digital Card')+'&body='+encodeURIComponent(getUrl()); }
 function copyLink(){ navigator.clipboard.writeText(getUrl()).then(function(){Layout.toast('Link copied!','success');}); }
 function downloadQR(){ var a=document.createElement('a'); a.href='https://api.qrserver.com/v1/create-qr-code/?size=400x400&data='+encodeURIComponent(getUrl()); a.download='card-qr.png'; a.target='_blank'; a.click(); }
-function shareInChat(){ Layout.toast('Open Messages tab and tap 🪪 in a chat to share','info'); setTimeout(function(){window.location.href='./chat.html';},1500); }
+function shareInChat(){ Layout.toast('Open Social Network and tap 🪪 in a chat to share','info'); setTimeout(function(){window.location.href='./chat.html';},1500); }
 
 async function scanCode(){
   var code=document.getElementById('scanInput').value.trim().toUpperCase();

@@ -2,10 +2,11 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Personal Vault - Messages</title>
+  <title>Personal Vault - Social Network</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <link rel="icon" href="./icon.svg">
   <link rel="stylesheet" href="./css/styles.css">
+  <script src="./js/config.js"></script>
   <script src="https://cdn.socket.io/4.8.0/socket.io.min.js"></script>
   <script src="./js/screen-guard.js"></script>
   <style>
@@ -56,6 +57,9 @@
     .bub.me{background:linear-gradient(135deg,#7C3AED,#8B5CF6);color:#fff;border-bottom-right-radius:3px;}
     .bub.them{background:#fff;color:#0F172A;border:1px solid #E8ECF4;border-bottom-left-radius:3px;}
     .bub img{max-width:200px;max-height:200px;border-radius:10px;display:block;cursor:pointer;object-fit:cover;}
+    .msg-actions{display:none;gap:5px;margin-top:5px;justify-content:flex-end;}
+    .brow.me .bub:hover .msg-actions{display:flex;}
+    .msg-act{border:none;border-radius:8px;background:rgba(255,255,255,0.18);color:inherit;font-size:10px;font-weight:800;padding:3px 7px;cursor:pointer;}
     .btime{font-size:10px;opacity:0.6;margin-top:3px;display:block;}
     .bub.me .btime{text-align:right;}
     .live-bub{background:#E8ECF4;color:#334155;border-bottom-left-radius:3px;font-style:italic;opacity:0.85;}
@@ -68,26 +72,41 @@
     .td:nth-child(2){animation-delay:.2s}.td:nth-child(3){animation-delay:.4s}
     @keyframes bounce{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-5px)}}
     .end-btn{padding:5px 10px;border-radius:20px;background:#EF444412;border:1px solid #EF444430;color:#EF4444;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;}
+    .msg-actions{display:flex;gap:4px;margin-top:5px;opacity:.75}
+    .msg-action{border:0;background:rgba(15,23,42,.07);border-radius:8px;padding:3px 7px;font-size:10px;font-weight:800;color:#475569;cursor:pointer}
+    .brow.me .msg-actions{justify-content:flex-end}
     .chat-protected{-webkit-user-select:none!important;user-select:none!important;}
     .ss-warn{position:fixed;top:74px;left:50%;transform:translateX(-50%);background:#EF4444;color:#fff;padding:8px 18px;border-radius:10px;font-weight:700;font-size:12px;z-index:9999;}
     .album-grid-sm{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;max-height:240px;overflow-y:auto;}
     .album-thumb{aspect-ratio:1;border-radius:8px;overflow:hidden;border:2.5px solid transparent;cursor:pointer;transition:border-color 0.15s;}
     .album-thumb.sel{border-color:#7C3AED;}
     .album-thumb img{width:100%;height:100%;object-fit:cover;}
+    .social-mobile-bar{display:none;}
+    .social-mobile-btn{border:1.5px solid #E2E8F0;background:#fff;color:#334155;border-radius:12px;height:42px;padding:0 12px;font-size:12px;font-weight:800;align-items:center;justify-content:center;gap:6px;cursor:pointer;min-width:0;}
+    .social-mobile-btn.primary{border:none;background:linear-gradient(135deg,#7C3AED,#8B5CF6);color:#fff;}
+    .disc-overlay{display:none;}
+    .disc-close{display:none;}
     @media(max-width:640px){
-      .disc-panel{position:absolute;z-index:20;height:calc(100vh - 56px);width:260px;transform:translateX(-100%);transition:transform 0.25s;}
+      .social-mobile-bar{display:flex;gap:8px;padding:8px 10px;background:#fff;border-bottom:1px solid #E8ECF4;position:sticky;top:0;z-index:18;}
+      .social-mobile-btn{display:flex;flex:1;}
+      .chat-shell{height:calc(100vh - 118px);}
+      .disc-overlay.show{display:block;position:fixed;left:0;right:0;top:62px;bottom:64px;background:rgba(15,23,42,0.36);z-index:19;}
+      .disc-panel{position:fixed;left:0;top:62px;bottom:64px;z-index:20;height:auto;width:min(86vw,320px);box-shadow:12px 0 32px rgba(15,23,42,0.18);transform:translateX(-105%);transition:transform 0.25s;}
       .disc-panel.mob-open{transform:translateX(0);}
-      .disc-mob-overlay{display:block!important;}
+      .disc-hdr{position:relative;padding-right:48px;}
+      .disc-close{display:flex;position:absolute;right:10px;top:10px;width:32px;height:32px;border-radius:10px;border:1px solid #E2E8F0;background:#F8FAFC;color:#64748B;align-items:center;justify-content:center;font-size:18px;cursor:pointer;}
+      .chat-tabs{padding:6px 8px 0;}
+      .msg-hdr{padding:9px 10px;}
+      .msg-body{padding:10px 10px 12px;}
+      .msg-foot{padding:8px;gap:5px;}
+      .icon-btn{width:34px;height:34px;}
+      .bub{max-width:84%;}
+      .no-chats-hint{padding:26px 18px;}
     }
-    .disc-mob-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:19;backdrop-filter:blur(2px);}
-    .mob-disc-btn{display:none;position:fixed;bottom:80px;right:16px;z-index:18;width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#7C3AED,#8B5CF6);border:none;cursor:pointer;font-size:22px;box-shadow:0 4px 16px rgba(124,58,237,0.4);align-items:center;justify-content:center;color:#fff;transition:transform 0.15s;}
+    .mob-disc-btn{display:none;position:fixed;bottom:80px;right:16px;z-index:21;width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#7C3AED,#8B5CF6);border:none;cursor:pointer;font-size:22px;box-shadow:0 4px 16px rgba(124,58,237,0.4);align-items:center;justify-content:center;color:#fff;transition:transform 0.15s;}
     .mob-disc-btn:hover{transform:scale(1.1);}
     .mob-disc-btn.disc-on{background:linear-gradient(135deg,#22C55E,#16A34A);box-shadow:0 4px 16px rgba(34,197,94,0.4);}
-    .mob-disc-close{display:none;position:absolute;top:10px;right:10px;background:rgba(255,255,255,0.15);border:none;cursor:pointer;width:28px;height:28px;border-radius:8px;color:#64748B;font-size:16px;align-items:center;justify-content:center;}
-    @media(max-width:640px){
-      .mob-disc-btn{display:flex;}
-      .mob-disc-close{display:flex;}
-    }
+    @media(max-width:640px){.mob-disc-btn{display:flex;}}
 
     /* ── Emoji Picker ── */
     .emoji-picker {
@@ -143,14 +162,16 @@
   <div id="sidebar"></div>
   <div id="main">
     <div id="topbar"></div>
+    <div class="social-mobile-bar" aria-label="Social Network mobile navigation">
+      <button class="social-mobile-btn primary" onclick="openDiscoveryPanel()">📡 Nearby Discovery</button>
+      <button class="social-mobile-btn" onclick="focusActiveChat()">💬 Active Chats</button>
+    </div>
+    <div id="discOverlay" class="disc-overlay" onclick="closeDiscoveryPanel()"></div>
     <div class="chat-shell chat-protected" id="chatShell">
-      <div class="disc-mob-overlay" id="discOverlay" onclick="closeMobDisc()"></div>
       <div class="disc-panel" id="discPanel">
         <div class="disc-hdr">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-            <div style="font-size:14px;font-weight:800;color:#0F172A">People Nearby</div>
-            <button class="mob-disc-close" onclick="closeMobDisc()" title="Close">✕</button>
-          </div>
+          <button class="disc-close" onclick="closeDiscoveryPanel()" title="Close">×</button>
+          <div style="font-size:14px;font-weight:800;color:#0F172A;margin-bottom:8px">Nearby Discovery</div>
           <div class="disc-toggle">
             <div>
               <div style="font-size:12px;font-weight:700;color:#334155">Discovery Mode</div>
@@ -168,20 +189,20 @@
           </div>
         </div>
         <div class="disc-body" id="nearbyList">
-          <div style="text-align:center;padding:28px 12px;color:#94A3B8;font-size:12px;line-height:1.7"><div style="font-size:30px;margin-bottom:8px">📡</div>Turn on Discovery to find people within 5 km. Tap anyone to chat. Open as many chats as you like at the same time.</div>
+          <div style="text-align:center;padding:28px 12px;color:#94A3B8;font-size:12px;line-height:1.7"><div style="font-size:30px;margin-bottom:8px">📡</div>Turn on Discovery to meet anonymous nearby profiles. Real names stay hidden until someone shares a contact card.</div>
         </div>
         <div style="padding:8px 10px;border-top:1px solid #E8ECF4;font-size:11px;color:#94A3B8;text-align:center" id="chatCountBar"></div>
         <div style="margin:0 10px 8px;padding:8px 12px;background:#22C55E08;border:1px solid #22C55E30;border-radius:10px;font-size:10px;color:#15803D;line-height:1.6">
-          🔒 <strong>End-to-end encrypted</strong> — Messages are private between you and the recipient. Admins <em>cannot</em> read your chats.
+          🔒 <strong>End-to-end encrypted</strong> — Social Network chats are private between you and the recipient. Admins <em>cannot</em> read your chats.
         </div>
       </div>
       <div class="chat-area" id="chatArea">
         <div class="chat-tabs" id="tabsBar" style="display:none"></div>
         <div class="no-chats-hint" id="noChatHint">
           <div style="font-size:46px;margin-bottom:12px">💬</div>
-          <div style="font-size:15px;font-weight:700;color:#334155;margin-bottom:6px">No active chats</div>
-          <div style="font-size:12px;max-width:240px;line-height:1.6">Turn on Discovery to find people nearby, then tap someone to chat.</div>
-          <button onclick="openMobDisc()" style="margin-top:16px;padding:10px 20px;border-radius:50px;background:linear-gradient(135deg,#7C3AED,#8B5CF6);border:none;color:#fff;font-size:13px;font-weight:700;cursor:pointer;display:none" id="noChatsDiscBtn">📡 Turn on Discovery</button>
+          <div style="font-size:15px;font-weight:700;color:#334155;margin-bottom:6px">Who is nearby?</div>
+          <div style="font-size:12px;max-width:280px;line-height:1.6">Turn on Nearby Discovery to meet anonymous profiles within 5 km. Reveal identity only when you share a card.</div>
+          <button onclick="openDiscoveryPanel()" style="margin-top:16px;padding:10px 20px;border-radius:50px;background:linear-gradient(135deg,#7C3AED,#8B5CF6);border:none;color:#fff;font-size:13px;font-weight:700;cursor:pointer;display:none" id="noChatsDiscBtn">📡 Discover Nearby</button>
         </div>
         <div id="threadsWrap" style="display:flex;flex-direction:column;flex:1;min-height:0"></div>
       </div>
@@ -189,7 +210,7 @@
   </div>
 </div>
 <!-- Mobile floating discover button -->
-<button class="mob-disc-btn" id="mobDiscBtn" onclick="toggleMobDisc()" title="Discover nearby people">📡</button>
+<button class="mob-disc-btn" id="mobDiscBtn" onclick="openDiscoveryPanel()" title="Discover nearby people">📡</button>
 
 <!-- Emoji picker (per-thread, positioned relative to footer) -->
 <div id="emojiPicker" class="emoji-picker">
@@ -240,6 +261,18 @@ var chats={},activeUid=null,socket=null,nearbyMap={};
 var pendingFrom=null,pendingFromName="";
 var albumUnlocked=sessionStorage.getItem("pv_album_unlocked")==="true";
 var albumItems=[],albumSel=new Set(),albumTargetUid=null;
+var CHAT_STORE_KEY="pv_social_chats";
+var CHAT_IDLE_MS=15*60*1000;
+var sessionTimer=null;
+
+function chatName(peer){return (peer&&peer.name)||"Mystery Profile";}
+function chatIni(peer){return ((peer&&peer.ini)||chatName(peer).split(/\s+/).map(function(p){return p[0]||"";}).join("").slice(0,2)||"?").toUpperCase();}
+function touchSession(){localStorage.setItem("pv_chat_last_active",String(Date.now()));saveChatSession();resetSessionTimer();}
+function resetSessionTimer(){clearTimeout(sessionTimer);sessionTimer=setTimeout(function(){expireIdleChats();},CHAT_IDLE_MS+1000);}
+function expireIdleChats(){var last=Number(localStorage.getItem("pv_chat_last_active")||0);if(last&&Date.now()-last>=CHAT_IDLE_MS){Object.keys(chats).forEach(function(uid){clearChatLocal(uid,"inactive");});Layout.toast("Inactive social chats expired after 15 minutes.","info");localStorage.removeItem(CHAT_STORE_KEY);renderTabs();buildNearbyList();}else resetSessionTimer();}
+function saveChatSession(){var data={ts:Date.now(),activeUid:activeUid,chats:{}};Object.keys(chats).forEach(function(uid){data.chats[uid]={other:chats[uid].other,messages:chats[uid].messages||[]};});localStorage.setItem(CHAT_STORE_KEY,JSON.stringify(data));}
+function restoreChatSession(){try{var data=JSON.parse(localStorage.getItem(CHAT_STORE_KEY)||"null");if(!data||Date.now()-(data.ts||0)>CHAT_IDLE_MS){localStorage.removeItem(CHAT_STORE_KEY);return;}Object.keys(data.chats||{}).forEach(function(uid){var c=data.chats[uid];openChat(c.other,false,true);(c.messages||[]).forEach(function(m){appendBubble(uid,m,false,true);});});if(data.activeUid&&chats[data.activeUid])switchTab(data.activeUid);else renderTabs();}catch(e){localStorage.removeItem(CHAT_STORE_KEY);}}
+function clearChatLocal(uid,reason){var t=document.getElementById("thread-"+uid);if(t)t.remove();delete chats[uid];var remaining=Object.keys(chats);activeUid=remaining.length?remaining[0]:null;if(activeUid)switchTab(activeUid);else renderTabs();saveChatSession();}
 
 /* Enable full screen guard for chat */
 ScreenGuard.enable({
@@ -250,32 +283,34 @@ ScreenGuard.enable({
 });
 
 function connectSocket(){
-  socket=io(window.location.origin,{transports:["websocket","polling"],reconnection:true,reconnectionDelay:400});
-  socket.on("connect",function(){socket.emit("chat:join",token);});
+  socket=io((window.PV&&PV.origin?PV.origin():window.location.origin),{transports:["websocket","polling"],reconnection:true,reconnectionDelay:400});
+  socket.on("connect",function(){socket.emit("chat:join",token);Object.keys(chats).forEach(function(uid){socket.emit("chat:resume",{to:uid});});});
   socket.on("discovery:nearby",function(list){nearbyMap={};list.forEach(function(p){nearbyMap[p.uid]=p;});buildNearbyList();});
-  socket.on("discovery:appeared",function(d){nearbyMap[d.uid]=d;buildNearbyList();Layout.toast((d.name||"Someone")+" appeared nearby","info");});
+  socket.on("discovery:appeared",function(d){nearbyMap[d.uid]=d;buildNearbyList();Layout.toast((d.name||"Mystery Profile")+" appeared nearby","info");});
   socket.on("discovery:gone",function(d){delete nearbyMap[d.uid];buildNearbyList();});
-  socket.on("chat:incoming",function(d){pendingFrom=d.from;pendingFromName=d.fromName||"Someone";document.getElementById("incomingName").textContent=pendingFromName;document.getElementById("incomingCard").style.display="block";Layout.toast(pendingFromName+" wants to chat!","info");});
-  socket.on("chat:accepted",function(d){var n=nearbyMap[d.by]||{};openChat({uid:d.by,name:n.name||"User",ini:(n.ini||(n.name||"U")[0]).toUpperCase()});});
+  socket.on("chat:incoming",function(d){pendingFrom=d.from;pendingFromName=d.fromName||d.alias||"Mystery Profile";document.getElementById("incomingName").textContent=pendingFromName;document.getElementById("incomingCard").style.display="block";Layout.toast(pendingFromName+" wants to chat!","info");});
+  socket.on("chat:accepted",function(d){var n=nearbyMap[d.by]||{};openChat({uid:d.by,name:d.alias||n.name||"Mystery Profile",ini:d.ini||chatIni(n)});touchSession();});
   socket.on("chat:declined",function(){Layout.toast("Chat request declined","warning");});
   socket.on("chat:message",function(msg){
     var fromUid=String(msg.from),toUid=String(msg.to),chatUid=fromUid===myId?toUid:fromUid;
-    if(!chats[chatUid]){var n=nearbyMap[chatUid]||{};openChat({uid:chatUid,name:n.name||"User",ini:(n.ini||(n.name||"U")[0]).toUpperCase()},false);}
+    if(!chats[chatUid]){var n=nearbyMap[chatUid]||{};openChat({uid:chatUid,name:n.name||"Mystery Profile",ini:chatIni(n)},false);}
     removeLivePreview(chatUid);appendBubble(chatUid,msg);
     if(chatUid!==activeUid){chats[chatUid].unread=(chats[chatUid].unread||0)+1;renderTabs();}
     else scrollBottom(chatUid);
     socket.emit("chat:read",{to:fromUid});
   });
-  socket.on("chat:sent",function(d){var el=document.getElementById("msg-"+d.tempId);if(el){var t=el.querySelector(".btime");if(t)t.innerHTML=fmtTime(d.ts)+" checkcheck";}});
+  socket.on("chat:sent",function(d){var el=document.getElementById("msg-"+d.tempId);if(el){var t=el.querySelector(".btime");if(t)t.innerHTML=fmtTime(d.ts)+" checkcheck";}saveChatSession();});
   socket.on("chat:live-type",function(d){var uid=String(d.from);if(!chats[uid])return;clearTimeout(chats[uid].typTimer);if(!d.text){removeLivePreview(uid);return;}showLivePreview(uid,d.text);chats[uid].typTimer=setTimeout(function(){removeLivePreview(uid);},3000);if(uid===activeUid)scrollBottom(uid);});
   socket.on("chat:read",function(d){var thread=document.getElementById("thread-"+d.by);if(thread)thread.querySelectorAll(".bub.me .btime").forEach(function(t){if(!t.textContent.includes("checkcheck"))t.innerHTML=t.textContent.replace("check","")+"checkcheck";});});
-  socket.on("chat:ended",function(d){var uid=String(d.by);if(!d.self&&chats[uid]){var body=document.getElementById("body-"+uid);if(body){var el=document.createElement("div");el.className="sys-msg";el.innerHTML=(chats[uid].other.name||"User")+" ended the chat. Messages cleared.";body.innerHTML="";body.appendChild(el);}}});
-  socket.on("chat:mood",function(d){var uid=String(d.from);if(!chats[uid])return;var body=document.getElementById("body-"+uid);if(body){var el=document.createElement("div");el.className="sys-msg";el.textContent=(chats[uid].other.name||"User")+" feels "+d.emoji+(d.reason?" - "+d.reason:"");body.appendChild(el);if(uid===activeUid)scrollBottom(uid);}});
+  socket.on("chat:ended",function(d){var uid=String(d.peer||d.by);if(chats[uid]){clearChatLocal(uid,d.reason);Layout.toast((d.reason==="inactive"?"Inactive chat expired.":"Social chat ended and cleared."),"info");}});
+  socket.on("chat:edited",function(d){applyMessageEdit(d.messageId,d.text);saveChatSession();});
+  socket.on("chat:deleted",function(d){applyMessageDelete(d.messageId);saveChatSession();});
+  socket.on("chat:mood",function(d){var uid=String(d.from);if(!chats[uid])return;var body=document.getElementById("body-"+uid);if(body){var el=document.createElement("div");el.className="sys-msg";el.textContent=chatName(chats[uid].other)+" feels "+d.emoji+(d.reason?" - "+d.reason:"");body.appendChild(el);if(uid===activeUid)scrollBottom(uid);touchSession();}});
 
   /* ── Receive shared digital card ── */
   socket.on("chat:card",function(d){
     var uid=String(d.from);
-    if(!chats[uid]){var n=nearbyMap[uid]||{};openChat({uid:uid,name:n.name||"User",ini:(n.ini||(n.name||"U")[0]).toUpperCase()},false);}
+    if(!chats[uid]){var n=nearbyMap[uid]||{};openChat({uid:uid,name:n.name||"Mystery Profile",ini:chatIni(n)},false);}
     appendCardBubble(uid, d.card, false);
     if(uid!==activeUid){chats[uid].unread=(chats[uid].unread||0)+1;renderTabs();}
     else scrollBottom(uid);
@@ -291,7 +326,7 @@ function connectSocket(){
   /* ── Emotion burst received ── */
   socket.on("chat:emotion",function(d){
     var uid=String(d.from);
-    if(!chats[uid]){var n=nearbyMap[uid]||{};openChat({uid:uid,name:n.name||"User",ini:(n.ini||(n.name||"U")[0]).toUpperCase()},false);}
+    if(!chats[uid]){var n=nearbyMap[uid]||{};openChat({uid:uid,name:n.name||"Mystery Profile",ini:chatIni(n)},false);}
     appendEmotionBurst(uid, d.emoji, d.label, false);
     if(uid!==activeUid){chats[uid]&&(chats[uid].unread=(chats[uid].unread||0)+1);renderTabs();}
     else scrollBottom(uid);
@@ -303,51 +338,56 @@ function toggleDiscovery(on){
   if(on){
     document.getElementById("discSub").textContent="Getting location...";
     if(!navigator.geolocation){
-      Layout.toast("GPS not available on this device. Discovery needs location access.","warning");
+      Layout.toast("GPS not available. Discovery needs location access.","warning");
       document.getElementById("discToggle").checked=false;
       return;
     }
     navigator.geolocation.getCurrentPosition(function(p){
-      socket.emit("discovery:on",{name:(me.firstName||"")+" "+(me.lastName||""),ini:ini,lat:p.coords.latitude,lng:p.coords.longitude});
-      document.getElementById("discSub").textContent="On - within 5 km";
-      if(btn){btn.textContent="📡";btn.classList.add("disc-on");}
-      if(window.innerWidth<=640)setTimeout(closeMobDisc,600);
+      socket.emit("discovery:on",{lat:p.coords.latitude,lng:p.coords.longitude});
+      document.getElementById("discSub").textContent="On - anonymous within 5 km";
+      if(btn)btn.classList.add("disc-on");
+      if(window.innerWidth<=640)setTimeout(closeDiscoveryPanel,700);
     },function(){
-      Layout.toast("Location access denied. Enable GPS to discover people nearby.","warning");
+      Layout.toast("Location denied. Enable GPS to discover people nearby.","warning");
       document.getElementById("discToggle").checked=false;
       document.getElementById("discSub").textContent="Off - location denied";
     },{enableHighAccuracy:true,timeout:8000});
   }else{
     socket.emit("discovery:off");nearbyMap={};buildNearbyList();
     document.getElementById("discSub").textContent="Off - invisible to everyone";
-    if(btn){btn.textContent="📡";btn.classList.remove("disc-on");}
+    if(btn)btn.classList.remove("disc-on");
   }
 }
+
+function openDiscoveryPanel(){var p=document.getElementById("discPanel");if(p)p.classList.add("mob-open");var o=document.getElementById("discOverlay");if(o)o.classList.add("show");}
+function closeDiscoveryPanel(){var p=document.getElementById("discPanel");if(p)p.classList.remove("mob-open");var o=document.getElementById("discOverlay");if(o)o.classList.remove("show");}
+function focusActiveChat(){closeDiscoveryPanel();if(activeUid){switchTab(activeUid);return;}Layout.toast("Open Nearby Discovery to start a social chat.","info");}
 
 function buildNearbyList(){
   var keys=Object.keys(nearbyMap),cc=Object.keys(chats).length;
   document.getElementById("chatCountBar").textContent=cc>0?cc+" active chat"+(cc>1?"s":""):"";
   var el=document.getElementById("nearbyList");
-  if(!keys.length){el.innerHTML='<div style="text-align:center;padding:24px 12px;color:#94A3B8;font-size:12px"><div style="font-size:28px;margin-bottom:8px">📡</div>No one nearby yet.</div>';return;}
+  if(!keys.length){el.innerHTML='<div style="text-align:center;padding:24px 12px;color:#94A3B8;font-size:12px;line-height:1.6"><div style="font-size:28px;margin-bottom:8px">📡</div>No anonymous profiles nearby yet. Keep discovery on and watch for a mystery signal.</div>';return;}
   el.innerHTML=keys.map(function(uid){
     var p=nearbyMap[uid],chatting=!!chats[uid];
     var dist=p.sameNetwork?"Same network":(p.distanceKm?p.distanceKm+" km":p.distanceM?p.distanceM+"m":"nearby");
-    return '<div class="nearby-card'+(chatting?" chatting":"")+'" onclick="handleNearbyTap(\''+uid+'\')"><div class="nearby-av">'+p.ini+'<span class="prox-dot '+(p.sameNetwork?"prox-net":"prox-gps")+'"></span></div><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:700;color:#0F172A;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(p.name||"User")+'</div><div style="font-size:10px;color:#94A3B8">'+dist+(chatting?" - Chatting":"")+"</div></div><span style=\"font-size:18px\">"+(chatting?"💬":"➕")+"</span></div>";
+    return '<div class="nearby-card'+(chatting?" chatting":"")+'" onclick="handleNearbyTap(\''+uid+'\')"><div class="nearby-av">'+(p.ini||chatIni(p))+'<span class="prox-dot '+(p.sameNetwork?"prox-net":"prox-gps")+'"></span></div><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:700;color:#0F172A;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(p.name||"Mystery Profile")+'</div><div style="font-size:10px;color:#94A3B8">'+dist+(chatting?" - Chatting":" - Tap to discover")+"</div></div><span style=\"font-size:18px\">"+(chatting?"💬":"➕")+"</span></div>";
   }).join("");
 }
 
-function handleNearbyTap(uid){if(chats[uid]){switchTab(uid);}else{socket.emit("chat:request",{to:uid,fromName:(me.firstName||"")+" "+(me.lastName||"")});Layout.toast("Chat request sent...","info");}}
-function acceptChat(){document.getElementById("incomingCard").style.display="none";socket.emit("chat:accept",{to:pendingFrom});var n=nearbyMap[pendingFrom]||{};openChat({uid:pendingFrom,name:n.name||pendingFromName,ini:(n.ini||(pendingFromName||"U")[0]).toUpperCase()});}
+function handleNearbyTap(uid){if(chats[uid]){switchTab(uid);closeDiscoveryPanel();}else{socket.emit("chat:request",{to:uid});Layout.toast("Anonymous chat request sent...","info");}}
+function acceptChat(){document.getElementById("incomingCard").style.display="none";socket.emit("chat:accept",{to:pendingFrom});var n=nearbyMap[pendingFrom]||{};openChat({uid:pendingFrom,name:n.name||pendingFromName||"Mystery Profile",ini:chatIni(n)});touchSession();}
 function declineChat(){document.getElementById("incomingCard").style.display="none";socket.emit("chat:decline",{to:pendingFrom});pendingFrom=null;}
 
-function openChat(other,doSwitch){
+function openChat(other,doSwitch,restoring){
   var uid=String(other.uid);
   if(chats[uid]){switchTab(uid);return;}
-  chats[uid]={other:other,unread:0,typTimer:null};
+  other.name=other.name||"Mystery Profile";other.ini=other.ini||chatIni(other);
+  chats[uid]={other:other,unread:0,typTimer:null,messages:[]};
   var wrap=document.getElementById("threadsWrap");
   var div=document.createElement("div");div.className="msg-thread";div.id="thread-"+uid;
-  div.innerHTML='<div class="msg-hdr"><div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#7C3AED,#8B5CF6);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:13px;flex-shrink:0">'+other.ini+'</div><div style="flex:1"><div style="font-size:13px;font-weight:800;color:#0F172A">'+(other.name||"User")+'</div><div style="font-size:10px;color:#64748B">Nearby - Ephemeral chat</div></div><span style="font-size:10px;background:#FEF3C7;color:#92400E;padding:2px 7px;border-radius:100px;font-weight:700;margin-right:6px">Ephemeral</span><button class="end-btn" onclick="endChat(\''+uid+'\')">End x</button></div><div class="msg-body" id="body-'+uid+'"><div class="sys-msg">Ephemeral chat with '+(other.name||"User")+" - messages vanish when ended</div></div>"
-    +'<div style="padding:0 12px 2px"><div class="ty-row" id="ty-'+uid+'"><div class="td"></div><div class="td"></div><div class="td"></div><span style="font-size:10px;color:#94A3B8;margin-left:4px">'+(other.name||"User")+" is typing...</span></div></div>"
+  div.innerHTML='<div class="msg-hdr"><div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#7C3AED,#8B5CF6);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:13px;flex-shrink:0">'+other.ini+'</div><div style="flex:1"><div style="font-size:13px;font-weight:800;color:#0F172A">'+other.name+'</div><div style="font-size:10px;color:#64748B">Anonymous nearby chat - reveal only by choice</div></div><span style="font-size:10px;background:#FEF3C7;color:#92400E;padding:2px 7px;border-radius:100px;font-weight:700;margin-right:6px">15 min idle</span><button class="end-btn" onclick="endChat(\''+uid+'\')">End</button></div><div class="msg-body" id="body-'+uid+'"><div class="sys-msg">Chat with '+other.name+" - identities stay hidden until a card is shared</div></div>"
+    +'<div style="padding:0 12px 2px"><div class="ty-row" id="ty-'+uid+'"><div class="td"></div><div class="td"></div><div class="td"></div><span style="font-size:10px;color:#94A3B8;margin-left:4px">'+other.name+" is typing...</span></div></div>"
     +'<div class="msg-foot" id="foot-'+uid+'" style="position:relative">'
     +'<button class="icon-btn gal-btn" onclick="toggleEmoji(\''+uid+'\')" title="Emoji">😊</button>'
     +'<button class="icon-btn gal-btn" onclick="toggleEmotion(\''+uid+'\')" title="Share feeling">💫</button>'
@@ -355,12 +395,13 @@ function openChat(other,doSwitch){
     +'<button class="icon-btn gal-btn" onclick="openAlbumPicker(\''+uid+'\')">🖼</button>'
     +'<button class="icon-btn gal-btn" onclick="document.getElementById(\'gi-'+uid+'\').click()">📷</button>'
     +'<input type="file" id="gi-'+uid+'" accept="image/*,video/*" style="display:none" onchange="sendGalleryPhoto(this,\''+uid+'\')">'
-    +'<textarea class="msg-inp" id="inp-'+uid+'" placeholder="Message '+(other.name||"User")+'..." rows="1" oninput="onInput(\''+uid+'\')" onkeydown="onKey(event,\''+uid+'\')"></textarea>'
+    +'<textarea class="msg-inp" id="inp-'+uid+'" placeholder="Message '+other.name+'..." rows="1" oninput="onInput(\''+uid+'\')" onkeydown="onKey(event,\''+uid+'\')"></textarea>'
     +'<button class="icon-btn send-btn" onclick="sendMsg(\''+uid+'\')">➤</button>'
     +'</div>';
   wrap.appendChild(div);
   renderTabs();
-  if(doSwitch!==false)switchTab(uid);
+  if(doSwitch!==false){switchTab(uid);closeDiscoveryPanel();}
+  if(!restoring)touchSession();
   buildNearbyList();
 }
 
@@ -377,8 +418,8 @@ function renderTabs(){
 
 function switchTab(uid){activeUid=uid;document.querySelectorAll(".msg-thread").forEach(function(t){t.classList.remove("active");});var t=document.getElementById("thread-"+uid);if(t)t.classList.add("active");if(chats[uid])chats[uid].unread=0;renderTabs();scrollBottom(uid);var inp=document.getElementById("inp-"+uid);if(inp)inp.focus();}
 
-function sendMsg(uid){var inp=document.getElementById("inp-"+uid);if(!inp)return;var text=inp.value.trim();if(!text||!socket)return;inp.value="";inp.style.height="auto";socket.emit("chat:live-type",{to:uid,text:""});var tid="t"+Date.now()+Math.random().toString(36).slice(2,5);appendBubble(uid,{id:tid,from:myId,to:uid,text:text,ts:Date.now(),type:"text"},true);scrollBottom(uid);socket.emit("chat:send",{to:uid,text:text,tempId:tid});}
-function onInput(uid){var inp=document.getElementById("inp-"+uid);if(!inp)return;inp.style.height="auto";inp.style.height=Math.min(inp.scrollHeight,100)+"px";socket.emit("chat:live-type",{to:uid,text:inp.value});}
+function sendMsg(uid){var inp=document.getElementById("inp-"+uid);if(!inp)return;var text=inp.value.trim();if(!text||!socket)return;inp.value="";inp.style.height="auto";socket.emit("chat:live-type",{to:uid,text:""});var tid="t"+Date.now()+Math.random().toString(36).slice(2,5);appendBubble(uid,{id:tid,from:myId,to:uid,text:text,ts:Date.now(),type:"text"},true);scrollBottom(uid);socket.emit("chat:send",{to:uid,text:text,tempId:tid});touchSession();}
+function onInput(uid){var inp=document.getElementById("inp-"+uid);if(!inp)return;inp.style.height="auto";inp.style.height=Math.min(inp.scrollHeight,100)+"px";socket.emit("chat:live-type",{to:uid,text:inp.value});touchSession();}
 function onKey(e,uid){if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendMsg(uid);}}
 /* ── Share my digital card in chat ── */
 function shareMyCard(uid){
@@ -442,7 +483,7 @@ function appendCardBubble(uid, card, isMine){
 
 function sendGalleryPhoto(input,uid){var file=input.files[0];if(!file)return;if(file.size>5*1024*1024){Layout.toast("Photo too large","error");return;}var reader=new FileReader();reader.onload=function(e){var b64=e.target.result;var tid="img"+Date.now();appendBubble(uid,{id:tid,from:myId,to:uid,data:b64,type:"photo",ts:Date.now()},true);scrollBottom(uid);socket.emit("chat:photo",{to:uid,data:b64,tempId:tid,filename:file.name});};reader.readAsDataURL(file);input.value="";}
 
-function appendBubble(uid,msg,optimistic){
+function appendBubble(uid,msg,optimistic,restoring){
   var body=document.getElementById("body-"+uid); if(!body) return;
   var isMine=String(msg.from)===myId;
   var msgId=String(msg.id||Date.now());
@@ -451,38 +492,34 @@ function appendBubble(uid,msg,optimistic){
   if(msg.type==="photo"&&msg.data){
     row.innerHTML='<div class="bub '+(isMine?"me":"them")+'"><img src="'+msg.data+'" onclick="openLb(\''+msg.data+'\')" draggable="false" oncontextmenu="return false"><span class="btime">'+fmtTime(msg.ts)+tick+"</span></div>";
   } else {
-    row.innerHTML='<div class="bub '+(isMine?"me":"them")+'">'+escHtml(String(msg.text||""))+'<span class="btime">'+fmtTime(msg.ts)+tick+"</span></div>";
+    row.innerHTML='<div class="bub '+(isMine?"me":"them")+'"><span class="msg-text">'+escHtml(String(msg.text||""))+'</span><span class="btime">'+fmtTime(msg.ts)+tick+'</span>'+(isMine?'<div class="msg-actions"><button class="msg-action" onclick="event.stopPropagation();editMessage(\''+uid+'\',\''+msgId+'\')">Edit</button><button class="msg-action" onclick="event.stopPropagation();deleteMessage(\''+uid+'\',\''+msgId+'\')">Delete</button></div>':'')+"</div>";
   }
   removeLivePreview(uid);
   body.appendChild(row);
+  if(chats[uid]&&!restoring){chats[uid].messages=chats[uid].messages||[];chats[uid].messages.push({id:msgId,from:msg.from,to:msg.to,text:msg.text||"",data:msg.data||"",type:msg.type||"text",ts:msg.ts||Date.now()});touchSession();}
   /* Wire reaction interactions after DOM is ready */
   setTimeout(function(){ wireBubbleTap(uid, msgId, isMine); }, 0);
 }
 function showLivePreview(uid,text){var body=document.getElementById("body-"+uid);if(!body)return;var existing=document.getElementById("lp-"+uid);if(!existing){var r=document.createElement("div");r.className="brow them";r.id="lp-"+uid;r.innerHTML='<div class="bub them live-bub" id="lpb-'+uid+'"></div>';body.appendChild(r);}var b=document.getElementById("lpb-"+uid);if(b)b.innerHTML=escHtml(text)+'<span class="live-cur"></span>';}
 function removeLivePreview(uid){var el=document.getElementById("lp-"+uid);if(el)el.remove();}
 
+function editMessage(uid,msgId){var row=document.getElementById("msg-"+msgId),txt=row&&row.querySelector(".msg-text");if(!txt)return;var next=prompt("Edit message",txt.textContent);if(next===null)return;next=next.trim();if(!next)return;applyMessageEdit(msgId,next);if(socket)socket.emit("chat:edit",{to:uid,messageId:msgId,text:next});touchSession();}
+function deleteMessage(uid,msgId){
+  Layout.confirm("Delete this message for both of you?",function(){
+    applyMessageDelete(msgId);if(socket)socket.emit("chat:delete",{to:uid,messageId:msgId});touchSession();
+  },{title:"Delete Message?",icon:"💬",yesLabel:"Yes, Delete"});
+}
+function applyMessageEdit(msgId,text){var row=document.getElementById("msg-"+msgId),txt=row&&row.querySelector(".msg-text");if(txt)txt.textContent=text;Object.keys(chats).forEach(function(uid){(chats[uid].messages||[]).forEach(function(m){if(String(m.id)===String(msgId)){m.text=text;m.edited=true;}});});}
+function applyMessageDelete(msgId){var row=document.getElementById("msg-"+msgId);if(row)row.remove();Object.keys(chats).forEach(function(uid){chats[uid].messages=(chats[uid].messages||[]).filter(function(m){return String(m.id)!==String(msgId);});});}
 function endChat(uid){
-  var name=(chats[uid]&&chats[uid].other.name)||"User";
-  Layout.confirm("End chat with <strong>"+name+"</strong>? All messages will be permanently cleared.",function(){
-    if(socket)socket.emit("chat:end",{to:uid});
-    var t=document.getElementById("thread-"+uid);if(t)t.remove();
-    delete chats[uid];
-    var remaining=Object.keys(chats);
-    activeUid=remaining.length?remaining[0]:null;
-    if(activeUid)switchTab(activeUid);else renderTabs();
-    buildNearbyList();
-  },{title:"End Chat?",yesLabel:"Yes, End Chat",danger:true,icon:"💬"});
+  var name=(chats[uid]&&chats[uid].other.name)||"Mystery Profile";
+  Layout.confirm("End chat with <strong>"+name+"</strong>? It will disappear from both devices.",function(){
+    if(socket)socket.emit("chat:end",{to:uid});clearChatLocal(uid,"ended");buildNearbyList();
+  },{title:"End Chat?",icon:"💬",yesLabel:"Yes, End Chat",danger:true});
 }
 
-/* ── Mobile discovery panel ── */
-function openMobDisc(){var p=document.getElementById("discPanel"),o=document.getElementById("discOverlay");if(p){p.classList.add("mob-open");if(o)o.style.display="block";document.body.style.overflow="hidden";}}
-function closeMobDisc(){var p=document.getElementById("discPanel"),o=document.getElementById("discOverlay");if(p){p.classList.remove("mob-open");if(o)o.style.display="none";document.body.style.overflow="";}}
-function toggleMobDisc(){var p=document.getElementById("discPanel");if(p&&p.classList.contains("mob-open"))closeMobDisc();else openMobDisc();}
-
-/* Show "Turn on Discovery" button on mobile */
-(function showMobDiscHintBtn(){
-  if(window.innerWidth<=640){var b=document.getElementById("noChatsDiscBtn");if(b)b.style.display="block";}
-})();
+/* Show discover hint button on mobile */
+(function(){ if(window.innerWidth<=640){var b=document.getElementById("noChatsDiscBtn");if(b)b.style.display="block";} })();
 
 function openAlbumPicker(uid){albumTargetUid=uid;albumSel.clear();document.getElementById("albumModal").style.display="flex";if(albumUnlocked){document.getElementById("albumPinArea").style.display="none";document.getElementById("albumPickGrid").style.display="block";loadAlbumGrid();}else{document.getElementById("albumPinArea").style.display="block";document.getElementById("albumPickGrid").style.display="none";var ds=document.querySelectorAll("#apinRow input");ds.forEach(function(d,i){d.value="";d.addEventListener("input",function(){if(d.value&&i<ds.length-1)ds[i+1].focus();});});if(ds.length)ds[0].focus();}}
 function closeAlbumPicker(){document.getElementById("albumModal").style.display="none";}
@@ -670,8 +707,13 @@ window.showReactBar=showReactBar;
 
 /* ══ INIT ══ */
 initEmojiPicker();
+restoreChatSession();
+resetSessionTimer();
+["click","keydown","touchstart"].forEach(function(ev){document.addEventListener(ev,function(){if(Object.keys(chats).length)touchSession();},{passive:true});});
 
 connectSocket();
+restoreChatSession();
+touchSession();
 </script>
 </body>
 </html>

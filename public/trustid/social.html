@@ -14,7 +14,16 @@
     .mine{align-self:flex-end;background:#7C3AED;color:#fff}
     .theirs{align-self:flex-start;background:#fff;border:1px solid #E2E8F0;color:#334155}
     .privacy-note{background:#EEF2FF;border:1px solid #C7D2FE;color:#3730A3;border-radius:14px;padding:14px;font-size:13px;line-height:1.6}
-    @media(max-width:900px){.social-grid{grid-template-columns:1fr}}
+    .discovery-card{position:sticky;top:76px;z-index:5}
+    .discovery-action{height:52px;font-size:15px}
+    .mobile-discovery-bar{display:none}
+    @media(max-width:900px){
+      .social-grid{grid-template-columns:1fr}
+      .discovery-card{position:static}
+      .mobile-discovery-bar{display:block;position:sticky;bottom:12px;z-index:30;margin-top:12px}
+      .token-card{align-items:flex-start;flex-direction:column}
+      .token-card .btn{width:100%}
+    }
   </style>
 </head>
 <body>
@@ -52,10 +61,10 @@ function render(){
     '<div class="page-header"><div><h1 class="page-title">Social Network</h1><p class="page-sub">Anonymous nearby discovery and 24-hour temporary chats</p></div></div>'
     + '<div class="social-grid">'
     + '<div style="display:flex;flex-direction:column;gap:16px">'
-    + '<div class="card"><h3 style="font-size:15px;font-weight:800;margin-bottom:12px">Nearby Discovery</h3>'
+    + '<div class="card discovery-card"><h3 style="font-size:15px;font-weight:800;margin-bottom:12px">Nearby Discovery</h3>'
     + '<div class="privacy-note">Strictly opt-in. Your real name, email, phone and exact location are hidden. This web version uses a temporary server token by zone; native Wi-Fi/Bluetooth discovery can be added in the mobile shell later.</div>'
     + '<label class="label" style="margin-top:14px">Discovery Zone</label><input id="zone" class="input" value="'+esc(zone)+'" placeholder="nearby, campus, event-name">'
-    + (session?'<div style="margin-top:14px;padding:12px;border-radius:12px;background:#22C55E12;color:#15803D;font-size:13px"><strong>'+esc(session.alias)+'</strong><br>'+esc(session.token)+'</div><button onclick="turnOff()" class="btn btn-danger btn-full" style="margin-top:12px">Turn Off Discovery</button>':'<button onclick="turnOn()" class="btn btn-primary btn-full" style="margin-top:14px">Turn On Discovery</button>')
+    + (session?'<div style="margin-top:14px;padding:12px;border-radius:12px;background:#22C55E12;color:#15803D;font-size:13px"><strong>'+esc(session.alias)+'</strong><br>'+esc(session.token)+'</div><button onclick="turnOff()" class="btn btn-danger btn-full discovery-action" style="margin-top:12px">Turn Off Discovery</button>':'<button onclick="turnOn()" class="btn btn-primary btn-full discovery-action" style="margin-top:14px">Turn On Discovery</button>')
     + '</div>'
     + '<div class="card"><h3 style="font-size:15px;font-weight:800;margin-bottom:12px">Nearby Anonymous Profiles</h3>'
     + (nearby.length?nearby.map(function(n){return '<div class="token-card"><div><strong>'+esc(n.alias)+'</strong><div style="font-size:12px;color:#64748B">'+esc(n.token)+'</div></div><div style="display:flex;gap:6px"><button class="btn btn-primary btn-sm" onclick="startChat(\''+n.token+'\')">Chat</button><button class="btn btn-ghost btn-sm" onclick="blockToken(\''+n.token+'\')">Block</button></div></div>';}).join(''):'<div class="empty" style="padding:30px">No nearby anonymous users yet.</div>')
@@ -64,7 +73,10 @@ function render(){
     + '<div class="card"><h3 style="font-size:15px;font-weight:800;margin-bottom:12px">Temporary Chats</h3>'
     + (chats.length?'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">'+chats.map(function(c,i){return '<button class="btn '+(activeChat&&activeChat._id===c._id?'btn-primary':'btn-ghost')+' btn-sm" onclick="selectChat(\''+c._id+'\')">Chat '+(i+1)+'</button>';}).join('')+'</div>':'<div class="empty" style="padding:26px">Start a chat from a nearby token.</div>')
     + (activeChat?chatPanel(activeChat):'')
-    + '</div></div></div>';
+    + '</div></div></div>'
+    + '<div class="mobile-discovery-bar">'
+    + (session?'<button onclick="turnOff()" class="btn btn-danger btn-full discovery-action">Turn Off Discovery</button>':'<button onclick="turnOnFromBar()" class="btn btn-primary btn-full discovery-action">Turn On Discovery</button>')
+    + '</div>';
 }
 
 function chatPanel(c){
@@ -76,6 +88,7 @@ function chatPanel(c){
 }
 
 function turnOn(){ zone=document.getElementById('zone').value.trim()||'nearby'; Api.socialOn(zone).then(function(r){ if(r.success){ session=r.data; Layout.toast('Anonymous discovery is on.'); loadAll(); } }); }
+function turnOnFromBar(){ var z=document.getElementById('zone'); zone=z&&z.value.trim()?z.value.trim():zone; turnOn(); }
 function turnOff(){ Api.socialOff().then(function(){ session=null; nearby=[]; Layout.toast('Discovery turned off.','info'); render(); }); }
 function startChat(t){ Api.socialStart(t).then(function(r){ if(r.success){ activeChat=r.data; loadChats(); } else Layout.toast(r.message||'Could not start chat','error'); }); }
 function selectChat(id){ activeChat=chats.find(function(c){return c._id===id;}); render(); setTimeout(function(){var b=document.getElementById('chatBox'); if(b)b.scrollTop=b.scrollHeight;},0); }

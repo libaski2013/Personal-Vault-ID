@@ -29,9 +29,13 @@
         <input id="remTitle" class="input" placeholder="e.g. Renew passport">
       </div>
       <div>
-        <label class="label">Due Date</label>
-        <input id="remDate" class="input" type="date">
+        <label class="label">Due Date & Time</label>
+        <input id="remDate" class="input" type="datetime-local">
       </div>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#334155;font-weight:600">
+        <input id="remAlarm" type="checkbox" checked style="width:17px;height:17px;accent-color:#7C3AED">
+        Trigger phone/app alarm
+      </label>
       <div>
         <label class="label">Priority</label>
         <div style="display:flex;gap:10px">
@@ -52,6 +56,7 @@
 <script>if(!Auth.requireAuth()) throw '';</script>
 <script src="./js/api.js"></script>
 <script src="./js/layout.js"></script>
+<script src="./js/alarms.js"></script>
 <script>
 Layout.init('reminders');
 document.getElementById('loading').innerHTML = Layout.spinner();
@@ -65,7 +70,12 @@ function closeRemModal() {
   document.getElementById('remModal').style.display = 'none';
   document.getElementById('remTitle').value = '';
   document.getElementById('remDate').value  = '';
+  document.getElementById('remAlarm').checked = true;
   selPriority = 'low';
+}
+
+function fmtDateTime(d) {
+  return d ? new Date(d).toLocaleString([], { month:'short', day:'numeric', year:'numeric', hour:'2-digit', minute:'2-digit' }) : 'No due date';
 }
 
 function setPriority(p) {
@@ -108,7 +118,7 @@ function renderReminders() {
           + '<div onclick="toggleReminder(\'' + r._id + '\',' + (r.done ? 'true' : 'false') + ')" style="width:24px;height:24px;border-radius:50%;border:2.5px solid ' + c + ';cursor:pointer;flex-shrink:0"></div>'
           + '<div style="flex:1">'
           +   '<div style="font-weight:700;font-size:14px;color:#0F172A">' + r.title + '</div>'
-          +   '<div style="font-size:12px;color:#64748B;margin-top:3px">' + (r.dueDate ? '📅 ' + Layout.fmtDate(r.dueDate) : 'No due date') + '</div>'
+          +   '<div style="font-size:12px;color:#64748B;margin-top:3px">' + (r.dueDate ? '📅 ' + fmtDateTime(r.dueDate) : 'No due date') + (r.alarm !== false && r.dueDate ? ' · 🔔 Alarm' : '') + '</div>'
           + '</div>'
           + '<span style="padding:3px 10px;border-radius:100px;background:' + c + '15;color:' + c + ';font-size:11px;font-weight:700;text-transform:capitalize">' + (r.priority||'medium') + '</span>'
           + '<button onclick="deleteReminder(\'' + r._id + '\')" style="background:none;border:none;cursor:pointer;color:#CBD5E1;font-size:17px;padding:4px">🗑</button>'
@@ -154,17 +164,19 @@ function deleteReminder(id) {
 function submitReminder() {
   var title   = document.getElementById('remTitle').value.trim();
   var dueDate = document.getElementById('remDate').value;
+  var alarm   = document.getElementById('remAlarm').checked;
   if (!title) { Layout.toast('Title is required.', 'error'); return; }
 
   var btn = document.getElementById('remBtn');
   btn.disabled    = true;
   btn.textContent = 'Adding…';
 
-  Api.addReminder({ title: title, dueDate: dueDate || null, priority: selPriority }).then(function(res) {
+  Api.addReminder({ title: title, dueDate: dueDate || null, alarmAt: dueDate || null, alarm: alarm, priority: selPriority }).then(function(res) {
     btn.disabled    = false;
     btn.textContent = 'Add Reminder';
     if (res.success) {
       allReminders.unshift(res.data);
+      if (window.PVAlarms) PVAlarms.schedule('reminder', res.data);
       renderReminders();
       closeRemModal();
       Layout.toast('Reminder added!');
@@ -180,7 +192,7 @@ Api.getReminders().then(function(res) {
   document.getElementById('content').innerHTML =
     '<div class="page-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">'
     + '<div><h1 class="page-title">Reminders</h1><p class="page-sub">Stay on top of deadlines</p></div>'
-    + '<button onclick="openRemModal()" class="btn btn-primary">➕ Add Reminder</button>'
+    + '<div style="display:flex;gap:8px;flex-wrap:wrap"><button onclick="PVAlarms.ask().then(function(ok){Layout.toast(ok?\'Alarms enabled\':\'Notifications are blocked\', ok?\'success\':\'warning\')})" class="btn btn-ghost">🔔 Enable Alarms</button><button onclick="openRemModal()" class="btn btn-primary">➕ Add Reminder</button></div>'
     + '</div>'
 
     + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:22px">'
@@ -198,6 +210,7 @@ Api.getReminders().then(function(res) {
     + '</div>';
 
   renderReminders();
+  if (window.PVAlarms) PVAlarms.scheduleAll(allReminders, []);
 }).catch(function() {
   document.getElementById('content').innerHTML = '<div class="empty">Failed to load reminders. Please refresh.</div>';
 });

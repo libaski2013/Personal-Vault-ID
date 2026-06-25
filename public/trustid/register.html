@@ -203,6 +203,8 @@
   </div>
 </div>
 
+<script src="./js/auth.js"></script>
+<script src="./js/config.js"></script>
 <script>
   /* Redirect logged-in users */
   (function(){
@@ -274,7 +276,7 @@
     try{
       /* Try request-otp first to check if email is configured */
       var phone=document.getElementById('phone')?document.getElementById('phone').value.trim():'';
-      var res=await fetch('/api/trustid/auth/request-otp',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({firstName,middleName,lastName,email,phone,password})});
+      var res=await PV.fetch('/api/trustid/auth/request-otp',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({firstName,middleName,lastName,email,phone,password})});
       var data=await res.json();
       if(data.success){
         _email=email; _firstName=firstName;
@@ -304,7 +306,7 @@
           var fallbackCode=data.devCode||'';
           if(fallbackCode){
             /* Auto-verify silently */
-            var vRes=await fetch('/api/trustid/auth/verify-otp',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,code:fallbackCode})});
+            var vRes=await PV.fetch('/api/trustid/auth/verify-otp',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,code:fallbackCode})});
             var vData=await vRes.json();
             if(vData.success&&vData.token){
               localStorage.setItem('tid_token',vData.token);
@@ -360,7 +362,7 @@
     if(code.length<6){showErr('err2','Please enter all 6 digits.');return;}
     setLoading('btn2','sp2','bt2',true,'Verifying…');
     try{
-      var res=await fetch('/api/trustid/auth/verify-otp',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:_email,code:code})});
+      var res=await PV.fetch('/api/trustid/auth/verify-otp',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:_email,code:code})});
       var data=await res.json();
       if(data.success&&data.token){
         localStorage.setItem('tid_token',data.token);
@@ -376,7 +378,7 @@
     var firstName=document.getElementById('firstName').value.trim()||_firstName;
     var password=document.getElementById('password').value;
     try{
-      var res=await fetch('/api/trustid/auth/request-otp',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({firstName,email:_email,password})});
+      var res=await PV.fetch('/api/trustid/auth/request-otp',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({firstName,email:_email,password})});
       var data=await res.json();
       document.getElementById('err2').style.display='none';
       if(data.devCode){

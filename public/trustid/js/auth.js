@@ -1,5 +1,38 @@
 /* ── TrustID Auth Helper ── */
 /* Uses var so it is accessible from every other <script> tag */
+var PV = window.PV || (window.PV = {});
+PV.BACKEND_ORIGIN = 'https://trustid-realtime.onrender.com';
+PV.isNative = function () {
+  return /^(capacitor|ionic|file):$/.test(window.location.protocol);
+};
+PV.origin = function () {
+  return PV.isNative() ? PV.BACKEND_ORIGIN : window.location.origin;
+};
+PV.url = function (path) {
+  if (/^https?:\/\//i.test(path)) return path;
+  if (path.charAt(0) !== '/') path = '/' + path;
+  return PV.origin() + path;
+};
+PV.appPath = function (path) {
+  if (PV.isNative() && path.charAt(0) === '/') return path.replace(/^\/trustid\//, './');
+  return path;
+};
+
+/* Native WebViews can resolve /api against capacitor://localhost. Keep every API call on the central backend. */
+(function () {
+  if (window.__pvFetchPatched) return;
+  window.__pvFetchPatched = true;
+  var originalFetch = window.fetch.bind(window);
+  window.fetch = function (input, init) {
+    if (typeof input === 'string' && input.indexOf('/api/') === 0) {
+      input = PV.url(input);
+    } else if (input && typeof input.url === 'string' && input.url.indexOf('/api/') === 0) {
+      input = new Request(PV.url(input.url), input);
+    }
+    return originalFetch(input, init);
+  };
+})();
+
 var Auth = (function () {
   var TOKEN_KEY = 'tid_token';
   var USER_KEY  = 'tid_user';
@@ -25,12 +58,12 @@ var Auth = (function () {
     logout: function () {
       localStorage.removeItem(TOKEN_KEY);
       localStorage.removeItem(USER_KEY);
-      window.location.href = '/trustid/login.html';
+      window.location.href = PV.appPath('/trustid/login.html');
     },
 
     requireAuth: function () {
       if (!localStorage.getItem(TOKEN_KEY)) {
-        window.location.replace('/trustid/login.html');
+        window.location.replace(PV.appPath('/trustid/login.html'));
         return false;
       }
       return true;
@@ -38,17 +71,17 @@ var Auth = (function () {
 
     requireAdmin: function () {
       if (!localStorage.getItem(TOKEN_KEY)) {
-        window.location.replace('/trustid/login.html');
+        window.location.replace(PV.appPath('/trustid/login.html'));
         return false;
       }
       try {
         var user = JSON.parse(localStorage.getItem(USER_KEY) || 'null');
         if (!user || user.role !== 'admin') {
-          window.location.replace('/trustid/dashboard.html');
+          window.location.replace(PV.appPath('/trustid/dashboard.html'));
           return false;
         }
       } catch (e) {
-        window.location.replace('/trustid/login.html');
+        window.location.replace(PV.appPath('/trustid/login.html'));
         return false;
       }
       return true;
@@ -60,11 +93,11 @@ var Auth = (function () {
           var user = JSON.parse(localStorage.getItem(USER_KEY) || 'null');
           window.location.replace(
             user && user.role === 'admin'
-              ? '/trustid/admin/dashboard.html'
-              : '/trustid/dashboard.html'
+              ? PV.appPath('/trustid/admin/dashboard.html')
+              : PV.appPath('/trustid/dashboard.html')
           );
         } catch (e) {
-          window.location.replace('/trustid/dashboard.html');
+          window.location.replace(PV.appPath('/trustid/dashboard.html'));
         }
         return false;
       }

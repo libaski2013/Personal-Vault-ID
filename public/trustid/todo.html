@@ -33,6 +33,14 @@
         <input id="todoCategory" class="input" placeholder="e.g. Documents, Finance…">
       </div>
       <div>
+        <label class="label">Due Date & Time</label>
+        <input id="todoDate" class="input" type="datetime-local">
+      </div>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:#334155;font-weight:600">
+        <input id="todoAlarm" type="checkbox" style="width:17px;height:17px;accent-color:#7C3AED">
+        Trigger phone/app alarm
+      </label>
+      <div>
         <label class="label">Priority</label>
         <div style="display:flex;gap:10px">
           <button id="tp-low"    onclick="setTodoPriority('low')"    style="flex:1;height:40px;border-radius:10px;background:#22C55E20;border:1.5px solid #22C55E;cursor:pointer;font-weight:700;font-size:13px;color:#22C55E">Low</button>
@@ -52,6 +60,7 @@
 <script>if(!Auth.requireAuth()) throw '';</script>
 <script src="./js/api.js"></script>
 <script src="./js/layout.js"></script>
+<script src="./js/alarms.js"></script>
 <script>
 Layout.init('todo');
 document.getElementById('loading').innerHTML = Layout.spinner();
@@ -65,7 +74,13 @@ function closeTodoModal() {
   document.getElementById('todoModal').style.display = 'none';
   document.getElementById('todoTitle').value    = '';
   document.getElementById('todoCategory').value = '';
+  document.getElementById('todoDate').value = '';
+  document.getElementById('todoAlarm').checked = false;
   selPriority = 'low';
+}
+
+function fmtDateTime(d) {
+  return d ? new Date(d).toLocaleString([], { month:'short', day:'numeric', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '';
 }
 
 function setTodoPriority(p) {
@@ -108,7 +123,7 @@ function renderTodos() {
           + '<div onclick="toggleTodo(\'' + t._id + '\',' + (t.done ? 'true' : 'false') + ')" style="width:22px;height:22px;border-radius:50%;border:2px solid ' + c + ';cursor:pointer;flex-shrink:0"></div>'
           + '<div style="flex:1">'
           +   '<div style="font-weight:600;font-size:13px;color:#0F172A">' + t.title + '</div>'
-          +   '<div style="font-size:11px;color:#64748B;margin-top:2px">' + (t.category || 'General') + '</div>'
+          +   '<div style="font-size:11px;color:#64748B;margin-top:2px">' + (t.category || 'General') + (t.dueDate ? ' · 📅 ' + fmtDateTime(t.dueDate) : '') + (t.alarm && t.dueDate ? ' · 🔔 Alarm' : '') + '</div>'
           + '</div>'
           + '<span style="padding:2px 8px;border-radius:100px;background:' + c + '15;color:' + c + ';font-size:10px;font-weight:700;text-transform:capitalize">' + (t.priority||'medium') + '</span>'
           + '<button onclick="deleteTodo(\'' + t._id + '\')" style="background:none;border:none;cursor:pointer;color:#CBD5E1;font-size:15px;padding:4px">🗑</button>'
@@ -154,17 +169,20 @@ function deleteTodo(id) {
 function submitTodo() {
   var title    = document.getElementById('todoTitle').value.trim();
   var category = document.getElementById('todoCategory').value.trim() || 'General';
+  var dueDate  = document.getElementById('todoDate').value;
+  var alarm    = document.getElementById('todoAlarm').checked;
   if (!title) { Layout.toast('Task title is required.', 'error'); return; }
 
   var btn = document.getElementById('todoBtn');
   btn.disabled    = true;
   btn.textContent = 'Adding…';
 
-  Api.addTodo({ title: title, category: category, priority: selPriority }).then(function(res) {
+  Api.addTodo({ title: title, category: category, dueDate: dueDate || null, alarmAt: dueDate || null, alarm: alarm, priority: selPriority }).then(function(res) {
     btn.disabled    = false;
     btn.textContent = 'Add Task';
     if (res.success) {
       allTodos.unshift(res.data);
+      if (window.PVAlarms) PVAlarms.schedule('todo', res.data);
       renderTodos();
       closeTodoModal();
       Layout.toast('Task added!');
@@ -182,7 +200,7 @@ Api.getTodos().then(function(res) {
   document.getElementById('content').innerHTML =
     '<div class="page-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">'
     + '<div><h1 class="page-title">To-Do List</h1><p class="page-sub">' + active + ' pending · ' + done + ' completed</p></div>'
-    + '<button onclick="openTodoModal()" class="btn btn-primary">➕ Add Task</button>'
+    + '<div style="display:flex;gap:8px;flex-wrap:wrap"><button onclick="PVAlarms.ask().then(function(ok){Layout.toast(ok?\'Alarms enabled\':\'Notifications are blocked\', ok?\'success\':\'warning\')})" class="btn btn-ghost">🔔 Enable Alarms</button><button onclick="openTodoModal()" class="btn btn-primary">➕ Add Task</button></div>'
     + '</div>'
 
     + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:22px">'
@@ -200,6 +218,7 @@ Api.getTodos().then(function(res) {
     + '</div>';
 
   renderTodos();
+  if (window.PVAlarms) PVAlarms.scheduleAll([], allTodos);
 }).catch(function() {
   document.getElementById('content').innerHTML = '<div class="empty">Failed to load tasks. Please refresh.</div>';
 });

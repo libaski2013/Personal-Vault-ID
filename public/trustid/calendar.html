@@ -2,10 +2,16 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>TrustID — Calendar</title>
+  <title>TrustID - Calendar</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <link rel="icon" href="./icon.svg">
   <link rel="stylesheet" href="./css/styles.css">
+  <style>
+    .cal-layout{display:grid;grid-template-columns:1fr 320px;gap:22px}
+    .day-cell{min-height:68px;border-radius:10px;border:1px solid transparent;cursor:pointer;padding:6px 4px;display:flex;flex-direction:column;align-items:center}
+    .event-chip{width:92%;margin:1px auto;font-size:8px;border-radius:3px;padding:1px 3px;font-weight:700;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+    @media(max-width:900px){.cal-layout{grid-template-columns:1fr}.day-cell{min-height:58px}}
+  </style>
 </head>
 <body>
 <div class="app-shell">
@@ -15,6 +21,24 @@
     <div class="page-content" id="content"><div id="loading"></div></div>
   </div>
 </div>
+
+<div id="eventModal" class="modal-backdrop" style="display:none">
+  <div class="modal" style="max-width:460px;width:100%">
+    <div class="modal-header">
+      <h2 class="modal-title">Tag Calendar Date</h2>
+      <button onclick="closeEventModal()" style="background:none;border:none;font-size:24px;cursor:pointer;color:#94A3B8">&times;</button>
+    </div>
+    <div style="padding:24px;display:flex;flex-direction:column;gap:14px">
+      <div><label class="label">Event Title</label><input id="evTitle" class="input" placeholder="Meeting, birthday, trip..."></div>
+      <div><label class="label">Date & Time</label><input id="evDate" class="input" type="datetime-local"></div>
+      <div><label class="label">Tag</label><input id="evTag" class="input" placeholder="family, work, health, travel"></div>
+      <div><label class="label">Color</label><input id="evColor" class="input" type="color" value="#7C3AED" style="padding:4px"></div>
+      <div><label class="label">Notes</label><textarea id="evNotes" class="input" style="height:78px;padding:10px;resize:vertical"></textarea></div>
+      <button onclick="saveEvent()" class="btn btn-primary btn-full">Save Event</button>
+    </div>
+  </div>
+</div>
+
 <script src="./js/auth.js"></script>
 <script>if(!Auth.requireAuth()) throw '';</script>
 <script src="./js/api.js"></script>
@@ -23,177 +47,73 @@
 Layout.init('calendar');
 document.getElementById('loading').innerHTML = Layout.spinner();
 
-var MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-var DAYS   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-var PCOL   = { high:'#EF4444', medium:'#F97316', low:'#22C55E' };
+var MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
+var DAYS=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+var PCOL={high:'#EF4444',medium:'#F97316',low:'#22C55E',event:'#7C3AED',todo:'#3B82F6'};
+var now=new Date(), curMonth=now.getMonth(), curYear=now.getFullYear(), selDay=null;
+var items=[];
 
-var now       = new Date();
-var curMonth  = now.getMonth();
-var curYear   = now.getFullYear();
-var selDay    = null;
-var reminders = [];
+function esc(v){return String(v||'').replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+function localInputValue(d){var x=new Date(d); x.setMinutes(x.getMinutes()-x.getTimezoneOffset()); return x.toISOString().slice(0,16);}
+function sameDay(item,d){var x=new Date(item.date); return x.getFullYear()===curYear&&x.getMonth()===curMonth&&x.getDate()===d;}
+function dayItems(d){return items.filter(function(i){return sameDay(i,d);});}
+function monthItems(){return items.filter(function(i){var x=new Date(i.date);return x.getFullYear()===curYear&&x.getMonth()===curMonth;});}
 
-function eventsOnDay(d) {
-  return reminders.filter(function(r) {
-    if (!r.dueDate) return false;
-    var rd = new Date(r.dueDate);
-    return rd.getFullYear() === curYear && rd.getMonth() === curMonth && rd.getDate() === d;
+function load(){
+  Promise.all([Api.getReminders(),Api.getTodos(),Api.getCalendarEvents()]).then(function(res){
+    var rem=res[0].success?res[0].data:[], todos=res[1].success?res[1].data:[], evs=res[2].success?res[2].data:[];
+    items = []
+      .concat(rem.filter(function(r){return r.dueDate;}).map(function(r){return {_id:r._id,type:'reminder',title:r.title,date:r.dueDate,color:PCOL[r.priority]||PCOL.event,tag:r.priority||'reminder'};}))
+      .concat(todos.filter(function(t){return t.dueDate;}).map(function(t){return {_id:t._id,type:'todo',title:t.title,date:t.dueDate,color:PCOL.todo,tag:t.category||'todo'};}))
+      .concat(evs.map(function(e){return {_id:e._id,type:'event',title:e.title,date:e.date,color:e.color||PCOL.event,tag:e.tag||'event',notes:e.notes};}));
+    renderShell();
   });
 }
 
-function eventsInMonth() {
-  return reminders.filter(function(r) {
-    if (!r.dueDate) return false;
-    var rd = new Date(r.dueDate);
-    return rd.getFullYear() === curYear && rd.getMonth() === curMonth;
-  });
-}
-
-function renderCalendar() {
-  var days  = new Date(curYear, curMonth + 1, 0).getDate();
-  var first = new Date(curYear, curMonth, 1).getDay();
-  var cells = [];
-  var i;
-  for (i = 0; i < first; i++) cells.push(null);
-  for (i = 1; i <= days; i++) cells.push(i);
-  while (cells.length % 7 !== 0) cells.push(null);
-
-  /* Calendar grid */
-  var gridHTML = DAYS.map(function(d) {
-    return '<div style="text-align:center;padding:8px 0;font-size:12px;font-weight:700;color:#94A3B8">' + d + '</div>';
-  }).join('');
-
-  gridHTML += '<div style="display:contents">';
-  cells.forEach(function(d, idx) {
-    if (d === null) {
-      gridHTML += '<div></div>';
-      return;
-    }
-    var evs   = eventsOnDay(d);
-    var isSel = d === selDay;
-    var bg    = isSel ? '#7C3AED' : (evs.length ? '#7C3AED08' : 'transparent');
-    var bord  = isSel ? '2px solid #7C3AED' : (evs.length ? '1px solid #7C3AED20' : '1px solid transparent');
-    var dots  = evs.slice(0, 2).map(function(e) {
-      var pc = PCOL[e.priority] || '#94A3B8';
-      return '<div style="width:90%;margin:1px auto;font-size:8px;background:' + pc + (isSel ? '40' : '25') + ';color:' + (isSel ? '#fff' : pc) + ';border-radius:3px;padding:1px 3px;font-weight:600;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">' + e.title + '</div>';
-    }).join('');
-
-    gridHTML += '<div onclick="selectDay(' + d + ')" style="min-height:56px;border-radius:10px;background:' + bg + ';border:' + bord + ';cursor:pointer;padding:5px 4px;display:flex;flex-direction:column;align-items:center">'
-      + '<span style="font-size:13px;font-weight:' + (evs.length ? 700 : 400) + ';color:' + (isSel ? '#fff' : '#334155') + '">' + d + '</span>'
-      + dots
-      + '</div>';
-  });
-  gridHTML += '</div>';
-
-  var gridEl = document.getElementById('calGrid');
-  if (gridEl) gridEl.innerHTML = gridHTML;
-
-  /* Month heading */
-  var headEl = document.getElementById('calHead');
-  if (headEl) headEl.textContent = MONTHS[curMonth] + ' ' + curYear;
-
-  /* Month event list */
-  var evList = document.getElementById('monthEvents');
-  if (evList) {
-    var mEvs = eventsInMonth();
-    if (mEvs.length === 0) {
-      evList.innerHTML = '<div style="text-align:center;color:#94A3B8;padding:18px 0;font-size:13px">No reminders this month</div>';
-    } else {
-      evList.innerHTML = mEvs.map(function(e) {
-        var pc = PCOL[e.priority] || '#94A3B8';
-        var day = new Date(e.dueDate).getDate();
-        return '<div style="display:flex;gap:11px;padding:10px 0;border-bottom:1px solid #F8FAFC">'
-          + '<div style="width:40px;height:40px;border-radius:10px;background:' + pc + '15;display:flex;align-items:center;justify-content:center;flex-shrink:0">'
-          +   '<span style="font-size:14px;font-weight:800;color:' + pc + '">' + day + '</span>'
-          + '</div>'
-          + '<div>'
-          +   '<div style="font-weight:600;font-size:13px;color:#0F172A">' + e.title + '</div>'
-          +   '<div style="font-size:11px;color:#64748B">' + Layout.fmtDate(e.dueDate) + '</div>'
-          + '</div>'
-          + '</div>';
-      }).join('');
-    }
-  }
-
-  /* Selected day detail */
-  var selDetail = document.getElementById('selDetail');
-  if (selDetail) {
-    if (selDay) {
-      var dayEvs = eventsOnDay(selDay);
-      var content;
-      if (dayEvs.length === 0) {
-        content = '<div style="font-size:13px;color:#64748B">No reminders on this day.</div>';
-      } else {
-        content = dayEvs.map(function(e) {
-          var pc = PCOL[e.priority] || '#94A3B8';
-          return '<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px">'
-            + '<div style="width:8px;height:8px;border-radius:50%;background:' + pc + ';flex-shrink:0"></div>'
-            + '<span style="font-size:13px;font-weight:600;color:#0F172A">' + e.title + '</span>'
-            + '</div>';
-        }).join('');
-      }
-      selDetail.style.display = 'block';
-      selDetail.innerHTML =
-        '<div style="font-weight:700;font-size:13px;color:#7C3AED;margin-bottom:10px">📅 ' + MONTHS[curMonth] + ' ' + selDay + '</div>'
-        + content;
-    } else {
-      selDetail.style.display = 'none';
-    }
-  }
-}
-
-function selectDay(d) {
-  selDay = selDay === d ? null : d;
-  renderCalendar();
-}
-
-function prevMonth() {
-  if (curMonth === 0) { curMonth = 11; curYear--; } else curMonth--;
-  selDay = null;
-  renderCalendar();
-}
-
-function nextMonth() {
-  if (curMonth === 11) { curMonth = 0; curYear++; } else curMonth++;
-  selDay = null;
-  renderCalendar();
-}
-
-Api.getReminders().then(function(res) {
-  reminders = res.success ? res.data : [];
-
+function renderShell(){
   document.getElementById('content').innerHTML =
-    '<div class="page-header">'
-    + '<div><h1 class="page-title">Calendar</h1><p class="page-sub">Schedule and event management</p></div>'
-    + '</div>'
-
-    + '<div style="display:grid;grid-template-columns:1fr 300px;gap:22px">'
-
-    /* Calendar card */
-    + '<div class="card" style="padding:26px">'
-    +   '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:22px">'
-    +     '<button onclick="prevMonth()" style="width:36px;height:36px;border-radius:10px;border:1px solid #E2E8F0;background:#fff;cursor:pointer;font-size:17px">‹</button>'
-    +     '<h2 id="calHead" style="font-size:18px;font-weight:800;margin:0"></h2>'
-    +     '<button onclick="nextMonth()" style="width:36px;height:36px;border-radius:10px;border:1px solid #E2E8F0;background:#fff;cursor:pointer;font-size:17px">›</button>'
-    +   '</div>'
-    +   '<div id="calGrid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px"></div>'
-    + '</div>'
-
-    /* Right panel */
-    + '<div style="display:flex;flex-direction:column;gap:14px">'
-    +   '<div class="card">'
-    +     '<h3 style="font-size:13px;font-weight:800;margin-bottom:14px">Events this Month</h3>'
-    +     '<div id="monthEvents"></div>'
-    +   '</div>'
-    +   '<div id="selDetail" style="background:#7C3AED08;border-radius:14px;padding:18px;border:1px solid #7C3AED25;display:none"></div>'
-    + '</div>'
-
+    '<div class="page-header" style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap"><div><h1 class="page-title">Calendar</h1><p class="page-sub">Mark dates, tag events, and see reminders/tasks in one place</p></div><button onclick="openEventModal()" class="btn btn-primary">Add Event</button></div>'
+    + '<div class="cal-layout">'
+    + '<div class="card" style="padding:22px"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px"><button onclick="prevMonth()" class="btn btn-ghost btn-sm">‹</button><h2 id="calHead" style="font-size:18px;font-weight:800"></h2><button onclick="nextMonth()" class="btn btn-ghost btn-sm">›</button></div><div id="calGrid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px"></div></div>'
+    + '<div style="display:flex;flex-direction:column;gap:14px"><div class="card"><h3 style="font-size:13px;font-weight:800;margin-bottom:14px">This Month</h3><div id="monthEvents"></div></div><div id="selDetail" style="background:#7C3AED08;border-radius:14px;padding:18px;border:1px solid #7C3AED25;display:none"></div></div>'
     + '</div>';
-
   renderCalendar();
-}).catch(function() {
-  document.getElementById('content').innerHTML = '<div class="empty">Failed to load calendar data. Please refresh.</div>';
-});
+}
+
+function renderCalendar(){
+  var days=new Date(curYear,curMonth+1,0).getDate(), first=new Date(curYear,curMonth,1).getDay(), cells=[], i;
+  for(i=0;i<first;i++)cells.push(null); for(i=1;i<=days;i++)cells.push(i); while(cells.length%7!==0)cells.push(null);
+  var html=DAYS.map(function(d){return '<div style="text-align:center;padding:8px 0;font-size:12px;font-weight:700;color:#94A3B8">'+d+'</div>';}).join('');
+  cells.forEach(function(d){ if(!d){html+='<div></div>';return;} var evs=dayItems(d), isSel=d===selDay;
+    html+='<div class="day-cell" onclick="selectDay('+d+')" style="background:'+(isSel?'#7C3AED':(evs.length?'#7C3AED08':'transparent'))+';border:'+(evs.length?'1px solid #7C3AED25':'1px solid transparent')+'"><span style="font-size:13px;font-weight:'+(evs.length?800:400)+';color:'+(isSel?'#fff':'#334155')+'">'+d+'</span>'
+      + evs.slice(0,3).map(function(e){return '<div class="event-chip" style="background:'+e.color+(isSel?'55':'22')+';color:'+(isSel?'#fff':e.color)+'">'+esc(e.title)+'</div>';}).join('')+'</div>';
+  });
+  document.getElementById('calGrid').innerHTML=html;
+  document.getElementById('calHead').textContent=MONTHS[curMonth]+' '+curYear;
+  renderLists();
+}
+
+function renderLists(){
+  var m=monthItems().sort(function(a,b){return new Date(a.date)-new Date(b.date);});
+  document.getElementById('monthEvents').innerHTML=m.length?m.map(eventRow).join(''):'<div style="text-align:center;color:#94A3B8;padding:18px 0;font-size:13px">No events this month</div>';
+  var sel=document.getElementById('selDetail');
+  if(!selDay){sel.style.display='none';return;}
+  var d=dayItems(selDay);
+  sel.style.display='block';
+  sel.innerHTML='<div style="font-weight:700;font-size:13px;color:#7C3AED;margin-bottom:10px">'+MONTHS[curMonth]+' '+selDay+'</div>'+(d.length?d.map(eventRow).join(''):'<div style="font-size:13px;color:#64748B">No tags on this day.</div>');
+}
+
+function eventRow(e){
+  return '<div style="display:flex;gap:10px;padding:10px 0;border-bottom:1px solid #F8FAFC"><div style="width:10px;height:10px;border-radius:50%;background:'+e.color+';margin-top:4px;flex-shrink:0"></div><div style="flex:1"><div style="font-weight:700;font-size:13px;color:#0F172A">'+esc(e.title)+'</div><div style="font-size:11px;color:#64748B">'+new Date(e.date).toLocaleString()+' · '+esc(e.tag)+'</div>'+(e.notes?'<div style="font-size:12px;color:#64748B;margin-top:4px">'+esc(e.notes)+'</div>':'')+'</div>'+(e.type==='event'?'<button onclick="deleteEvent(\''+e._id+'\')" class="btn btn-danger btn-sm">Delete</button>':'')+'</div>';
+}
+function selectDay(d){selDay=selDay===d?null:d;renderCalendar();}
+function prevMonth(){curMonth===0?(curMonth=11,curYear--):curMonth--;selDay=null;renderCalendar();}
+function nextMonth(){curMonth===11?(curMonth=0,curYear++):curMonth++;selDay=null;renderCalendar();}
+function openEventModal(){var d=selDay?new Date(curYear,curMonth,selDay,9,0):new Date();document.getElementById('evDate').value=localInputValue(d);document.getElementById('eventModal').style.display='flex';}
+function closeEventModal(){document.getElementById('eventModal').style.display='none';['evTitle','evTag','evNotes'].forEach(function(id){document.getElementById(id).value='';});document.getElementById('evColor').value='#7C3AED';}
+function saveEvent(){var body={title:document.getElementById('evTitle').value.trim(),date:document.getElementById('evDate').value,tag:document.getElementById('evTag').value.trim()||'event',color:document.getElementById('evColor').value,notes:document.getElementById('evNotes').value.trim()}; if(!body.title||!body.date){Layout.toast('Title and date are required.','error');return;} Api.addCalendarEvent(body).then(function(r){if(r.success){items.push({_id:r.data._id,type:'event',title:r.data.title,date:r.data.date,color:r.data.color,tag:r.data.tag,notes:r.data.notes});closeEventModal();renderCalendar();Layout.toast('Event added.');}else Layout.toast(r.message||'Could not save event','error');});}
+function deleteEvent(id){Api.deleteCalendarEvent(id).then(function(r){if(r.success){items=items.filter(function(i){return i._id!==id;});renderCalendar();Layout.toast('Event deleted.','info');}});}
+load();
 </script>
 </body>
 </html>

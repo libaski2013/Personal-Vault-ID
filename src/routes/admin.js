@@ -13,7 +13,7 @@ const DEFAULT_FEATURES = [
   { name:'todo',       label:'To-Do',           icon:'✅', href:'/trustid/todo.html',        tiers:['free','paid','premium'], enabled:true },
   { name:'calendar',   label:'Calendar',        icon:'📅', href:'/trustid/calendar.html',    tiers:['free','paid','premium'], enabled:true },
   { name:'address',    label:'My Address',      icon:'📍', href:'/trustid/address.html',     tiers:['free','paid','premium'], enabled:true },
-  { name:'chat',       label:'Messages',        icon:'💬', href:'/trustid/chat.html',        tiers:['free','paid','premium'], enabled:true },
+  { name:'chat',       label:'Social Network',  icon:'📡', href:'/trustid/chat.html',        tiers:['free','paid','premium'], enabled:true },
   { name:'share',      label:'Share My Vault',  icon:'📤', href:'/trustid/share.html',       tiers:['free','paid','premium'], enabled:true },
   { name:'vault',      label:'Secret Vault',    icon:'🔐', href:'/trustid/vault.html',       tiers:['paid','premium'],        enabled:true },
   { name:'album',      label:'Secret Album',    icon:'🖼️', href:'/trustid/album.html',       tiers:['paid','premium'],        enabled:true },
