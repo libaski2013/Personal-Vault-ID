@@ -234,10 +234,12 @@ async function saveItem() {
   else Layout.toast(r.message||'Error','error');
 }
 
-async function deleteItem(id) {
-  if (!confirm('Permanently delete this secret?')) return;
-  var r = await fetch('/api/trustid/vault/items/'+id, { method:'DELETE', headers:{Authorization:'Bearer '+Auth.getToken()} }).then(function(x){return x.json();});
-  if (r.success) { vaultItems=vaultItems.filter(function(i){return i._id!==id;}); renderVault(); Layout.toast('Deleted','info'); }
+function deleteItem(id) {
+  Layout.confirm('This secret will be <strong>permanently deleted</strong> from your vault and cannot be recovered.', function() {
+    fetch('/api/trustid/vault/items/'+id, { method:'DELETE', headers:{Authorization:'Bearer '+Auth.getToken()} })
+      .then(function(x){return x.json();})
+      .then(function(r){ if(r.success){ vaultItems=vaultItems.filter(function(i){return i._id!==id;}); renderVault(); Layout.toast('Secret deleted','info'); } });
+  }, {title:'Delete Secret?', icon:'🔐', yesLabel:'Yes, Delete'});
 }
 
 /* ── Boot ── */

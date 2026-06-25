@@ -289,6 +289,31 @@ var Layout = (function () {
     return '<img src="https://api.qrserver.com/v1/create-qr-code/?size=' + size + 'x' + size + '&data=' + encodeURIComponent(text) + '" alt="QR Code" style="border-radius:12px;width:' + size + 'px;height:' + size + 'px">';
   }
 
+  function confirmDialog(msg, onYes, opts) {
+    opts = opts || {};
+    var overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:10000;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(3px)';
+    var box = document.createElement('div');
+    box.style.cssText = 'background:#fff;border-radius:20px;padding:28px 24px;max-width:360px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.25);animation:popIn 0.2s ease;text-align:center';
+    var icon = opts.icon || '⚠️';
+    var yesColor = opts.danger !== false ? '#EF4444' : '#7C3AED';
+    var yesLabel = opts.yesLabel || 'Yes, Delete';
+    box.innerHTML =
+      '<div style="font-size:36px;margin-bottom:12px">' + icon + '</div>'
+      + '<div style="font-size:15px;font-weight:800;color:#0F172A;margin-bottom:8px">' + (opts.title || 'Are you sure?') + '</div>'
+      + '<div style="font-size:13px;color:#64748B;line-height:1.6;margin-bottom:22px">' + msg + '</div>'
+      + '<div style="display:flex;gap:10px">'
+      + '<button id="cfm-no" style="flex:1;padding:11px;border-radius:12px;background:#F1F5F9;border:none;cursor:pointer;font-size:13px;font-weight:700;color:#334155">Cancel</button>'
+      + '<button id="cfm-yes" style="flex:1;padding:11px;border-radius:12px;background:' + yesColor + ';border:none;cursor:pointer;font-size:13px;font-weight:700;color:#fff">' + yesLabel + '</button>'
+      + '</div>';
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+    overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+    box.querySelector('#cfm-no').addEventListener('click', function() { overlay.remove(); });
+    box.querySelector('#cfm-yes').addEventListener('click', function() { overlay.remove(); if (onYes) onYes(); });
+    box.querySelector('#cfm-yes').focus();
+  }
+
   /* ── Auto-logout after 5 minutes of inactivity ── */
   function startInactivityTimer() {
     var TIMEOUT_MS = 5 * 60 * 1000;
@@ -357,6 +382,7 @@ var Layout = (function () {
     statCard, spinner, toast, qrImg,
     resetInactivity: function() { if (_inactivity) _inactivity.reset(); },
     _startInactivity: function() { _inactivity = startInactivityTimer(); },
+    confirm: confirmDialog,
   };
 })();
 

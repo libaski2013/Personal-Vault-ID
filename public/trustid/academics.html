@@ -160,10 +160,12 @@ async function saveRecord() {
   else Layout.toast(r.message||'Failed to save','error');
 }
 
-async function deleteRecord(id) {
-  if (!confirm('Delete this record?')) return;
-  var r = await fetch('/api/trustid/academics/'+id, { method:'DELETE', headers:{ Authorization:'Bearer '+Auth.getToken() } }).then(function(x){return x.json();});
-  if (r.success) { items=items.filter(function(i){return i._id!==id;}); render(); Layout.toast('Deleted','info'); }
+function deleteRecord(id) {
+  Layout.confirm('This academic record will be <strong>permanently deleted</strong>.', function() {
+    fetch('/api/trustid/academics/'+id, { method:'DELETE', headers:{ Authorization:'Bearer '+Auth.getToken() } })
+      .then(function(x){return x.json();})
+      .then(function(r){ if(r.success){ items=items.filter(function(i){return i._id!==id;}); render(); Layout.toast('Record deleted','info'); } });
+  }, {title:'Delete Record?', icon:'🎓', yesLabel:'Yes, Delete'});
 }
 </script>
 </body>

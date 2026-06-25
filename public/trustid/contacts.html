@@ -80,10 +80,12 @@ function render(contacts){
 }
 
 function viewCard(code){ if(code) window.open('./card-view.html?code='+code,'_blank'); }
-async function delContact(id){
-  if(!confirm('Remove this contact?')) return;
-  var r=await fetch('/api/trustid/cards/contacts/'+id,{method:'DELETE',headers:{Authorization:'Bearer '+Auth.getToken()}}).then(function(x){return x.json();});
-  if(r.success){ window.location.reload(); }
+function delContact(id){
+  Layout.confirm('Remove this saved contact?', function() {
+    fetch('/api/trustid/cards/contacts/'+id,{method:'DELETE',headers:{Authorization:'Bearer '+Auth.getToken()}})
+      .then(function(x){return x.json();})
+      .then(function(r){ if(r.success) window.location.reload(); });
+  }, {title:'Remove Contact?', icon:'👥', yesLabel:'Yes, Remove', danger:true});
 }
 </script>
 </body>

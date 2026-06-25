@@ -77,6 +77,16 @@
     @media(max-width:640px){
       .disc-panel{position:absolute;z-index:20;height:calc(100vh - 56px);width:260px;transform:translateX(-100%);transition:transform 0.25s;}
       .disc-panel.mob-open{transform:translateX(0);}
+      .disc-mob-overlay{display:block!important;}
+    }
+    .disc-mob-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:19;backdrop-filter:blur(2px);}
+    .mob-disc-btn{display:none;position:fixed;bottom:80px;right:16px;z-index:18;width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#7C3AED,#8B5CF6);border:none;cursor:pointer;font-size:22px;box-shadow:0 4px 16px rgba(124,58,237,0.4);align-items:center;justify-content:center;color:#fff;transition:transform 0.15s;}
+    .mob-disc-btn:hover{transform:scale(1.1);}
+    .mob-disc-btn.disc-on{background:linear-gradient(135deg,#22C55E,#16A34A);box-shadow:0 4px 16px rgba(34,197,94,0.4);}
+    .mob-disc-close{display:none;position:absolute;top:10px;right:10px;background:rgba(255,255,255,0.15);border:none;cursor:pointer;width:28px;height:28px;border-radius:8px;color:#64748B;font-size:16px;align-items:center;justify-content:center;}
+    @media(max-width:640px){
+      .mob-disc-btn{display:flex;}
+      .mob-disc-close{display:flex;}
     }
 
     /* ── Emoji Picker ── */
@@ -134,9 +144,13 @@
   <div id="main">
     <div id="topbar"></div>
     <div class="chat-shell chat-protected" id="chatShell">
+      <div class="disc-mob-overlay" id="discOverlay" onclick="closeMobDisc()"></div>
       <div class="disc-panel" id="discPanel">
         <div class="disc-hdr">
-          <div style="font-size:14px;font-weight:800;color:#0F172A;margin-bottom:8px">People Nearby</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+            <div style="font-size:14px;font-weight:800;color:#0F172A">People Nearby</div>
+            <button class="mob-disc-close" onclick="closeMobDisc()" title="Close">✕</button>
+          </div>
           <div class="disc-toggle">
             <div>
               <div style="font-size:12px;font-weight:700;color:#334155">Discovery Mode</div>
@@ -166,13 +180,17 @@
         <div class="no-chats-hint" id="noChatHint">
           <div style="font-size:46px;margin-bottom:12px">💬</div>
           <div style="font-size:15px;font-weight:700;color:#334155;margin-bottom:6px">No active chats</div>
-          <div style="font-size:12px;max-width:240px;line-height:1.6">Turn on Discovery, then tap a nearby person to start chatting. Multiple chats open simultaneously as separate tabs.</div>
+          <div style="font-size:12px;max-width:240px;line-height:1.6">Turn on Discovery to find people nearby, then tap someone to chat.</div>
+          <button onclick="openMobDisc()" style="margin-top:16px;padding:10px 20px;border-radius:50px;background:linear-gradient(135deg,#7C3AED,#8B5CF6);border:none;color:#fff;font-size:13px;font-weight:700;cursor:pointer;display:none" id="noChatsDiscBtn">📡 Turn on Discovery</button>
         </div>
         <div id="threadsWrap" style="display:flex;flex-direction:column;flex:1;min-height:0"></div>
       </div>
     </div>
   </div>
 </div>
+<!-- Mobile floating discover button -->
+<button class="mob-disc-btn" id="mobDiscBtn" onclick="toggleMobDisc()" title="Discover nearby people">📡</button>
+
 <!-- Emoji picker (per-thread, positioned relative to footer) -->
 <div id="emojiPicker" class="emoji-picker">
   <div class="ep-search"><input id="epSearch" placeholder="Search emoji..." oninput="filterEmoji(this.value)"></div>
@@ -281,11 +299,29 @@ function connectSocket(){
 }
 
 function toggleDiscovery(on){
+  var btn=document.getElementById("mobDiscBtn");
   if(on){
-    document.getElementById("discSub").textContent="Scanning...";
-    var emit=function(lat,lng){socket.emit("discovery:on",{name:(me.firstName||"")+" "+(me.lastName||""),ini:ini,lat:lat||null,lng:lng||null});document.getElementById("discSub").textContent=lat?"On - within 5 km":"On - same network only";};
-    navigator.geolocation?navigator.geolocation.getCurrentPosition(function(p){emit(p.coords.latitude,p.coords.longitude);},function(){emit(null,null);},{enableHighAccuracy:true,timeout:5000}):emit(null,null);
-  }else{socket.emit("discovery:off");nearbyMap={};buildNearbyList();document.getElementById("discSub").textContent="Off - invisible to everyone";}
+    document.getElementById("discSub").textContent="Getting location...";
+    if(!navigator.geolocation){
+      Layout.toast("GPS not available on this device. Discovery needs location access.","warning");
+      document.getElementById("discToggle").checked=false;
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(function(p){
+      socket.emit("discovery:on",{name:(me.firstName||"")+" "+(me.lastName||""),ini:ini,lat:p.coords.latitude,lng:p.coords.longitude});
+      document.getElementById("discSub").textContent="On - within 5 km";
+      if(btn){btn.textContent="📡";btn.classList.add("disc-on");}
+      if(window.innerWidth<=640)setTimeout(closeMobDisc,600);
+    },function(){
+      Layout.toast("Location access denied. Enable GPS to discover people nearby.","warning");
+      document.getElementById("discToggle").checked=false;
+      document.getElementById("discSub").textContent="Off - location denied";
+    },{enableHighAccuracy:true,timeout:8000});
+  }else{
+    socket.emit("discovery:off");nearbyMap={};buildNearbyList();
+    document.getElementById("discSub").textContent="Off - invisible to everyone";
+    if(btn){btn.textContent="📡";btn.classList.remove("disc-on");}
+  }
 }
 
 function buildNearbyList(){
@@ -425,7 +461,28 @@ function appendBubble(uid,msg,optimistic){
 function showLivePreview(uid,text){var body=document.getElementById("body-"+uid);if(!body)return;var existing=document.getElementById("lp-"+uid);if(!existing){var r=document.createElement("div");r.className="brow them";r.id="lp-"+uid;r.innerHTML='<div class="bub them live-bub" id="lpb-'+uid+'"></div>';body.appendChild(r);}var b=document.getElementById("lpb-"+uid);if(b)b.innerHTML=escHtml(text)+'<span class="live-cur"></span>';}
 function removeLivePreview(uid){var el=document.getElementById("lp-"+uid);if(el)el.remove();}
 
-function endChat(uid){if(!confirm("End chat with "+(chats[uid]&&chats[uid].other.name||"User")+"? All messages will be cleared."))return;if(socket)socket.emit("chat:end",{to:uid});var t=document.getElementById("thread-"+uid);if(t)t.remove();delete chats[uid];var remaining=Object.keys(chats);activeUid=remaining.length?remaining[0]:null;if(activeUid)switchTab(activeUid);else renderTabs();buildNearbyList();}
+function endChat(uid){
+  var name=(chats[uid]&&chats[uid].other.name)||"User";
+  Layout.confirm("End chat with <strong>"+name+"</strong>? All messages will be permanently cleared.",function(){
+    if(socket)socket.emit("chat:end",{to:uid});
+    var t=document.getElementById("thread-"+uid);if(t)t.remove();
+    delete chats[uid];
+    var remaining=Object.keys(chats);
+    activeUid=remaining.length?remaining[0]:null;
+    if(activeUid)switchTab(activeUid);else renderTabs();
+    buildNearbyList();
+  },{title:"End Chat?",yesLabel:"Yes, End Chat",danger:true,icon:"💬"});
+}
+
+/* ── Mobile discovery panel ── */
+function openMobDisc(){var p=document.getElementById("discPanel"),o=document.getElementById("discOverlay");if(p){p.classList.add("mob-open");if(o)o.style.display="block";document.body.style.overflow="hidden";}}
+function closeMobDisc(){var p=document.getElementById("discPanel"),o=document.getElementById("discOverlay");if(p){p.classList.remove("mob-open");if(o)o.style.display="none";document.body.style.overflow="";}}
+function toggleMobDisc(){var p=document.getElementById("discPanel");if(p&&p.classList.contains("mob-open"))closeMobDisc();else openMobDisc();}
+
+/* Show "Turn on Discovery" button on mobile */
+(function showMobDiscHintBtn(){
+  if(window.innerWidth<=640){var b=document.getElementById("noChatsDiscBtn");if(b)b.style.display="block";}
+})();
 
 function openAlbumPicker(uid){albumTargetUid=uid;albumSel.clear();document.getElementById("albumModal").style.display="flex";if(albumUnlocked){document.getElementById("albumPinArea").style.display="none";document.getElementById("albumPickGrid").style.display="block";loadAlbumGrid();}else{document.getElementById("albumPinArea").style.display="block";document.getElementById("albumPickGrid").style.display="none";var ds=document.querySelectorAll("#apinRow input");ds.forEach(function(d,i){d.value="";d.addEventListener("input",function(){if(d.value&&i<ds.length-1)ds[i+1].focus();});});if(ds.length)ds[0].focus();}}
 function closeAlbumPicker(){document.getElementById("albumModal").style.display="none";}

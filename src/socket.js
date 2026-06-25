@@ -27,20 +27,18 @@ module.exports = function attachSocket(httpServer, jwtDecode) {
     maxHttpBufferSize: 5e6,
   });
 
-  /* In-memory discovery map: userId → { uid, name, ini, ip, lat, lng, socketId, ts } */
+  /* In-memory discovery map: userId → { uid, name, ini, lat, lng, socketId, ts } */
   const discovery = new Map();
 
-  /* Find users near me (same IP or within 150 m) */
-  function findNearby(uid, ip, lat, lng) {
+  /* Find users within 5 km by GPS — no network requirement */
+  function findNearby(uid, lat, lng) {
     const nearby = [];
     for (const [id, d] of discovery.entries()) {
       if (id === uid) continue;
-      const sameNet = ip && d.ip && normalIp(ip) === normalIp(d.ip);
-      let dist = null;
-      if (lat != null && lng != null && d.lat != null && d.lng != null)
-        dist = haversineM(lat, lng, d.lat, d.lng);
-      if (sameNet || (dist !== null && dist <= 5000)) {   /* 5 km radius */
-        nearby.push({ uid:id, name:d.name, ini:d.ini, sameNetwork:sameNet, distanceM: dist ? Math.round(dist) : null, distanceKm: dist ? (dist/1000).toFixed(1) : null });
+      if (lat == null || lng == null || d.lat == null || d.lng == null) continue;
+      const dist = haversineM(lat, lng, d.lat, d.lng);
+      if (dist <= 5000) {
+        nearby.push({ uid:id, name:d.name, ini:d.ini, sameNetwork:false, distanceM: Math.round(dist), distanceKm: (dist/1000).toFixed(1) });
       }
     }
     return nearby;
@@ -64,12 +62,12 @@ module.exports = function attachSocket(httpServer, jwtDecode) {
     socket.on('discovery:on', ({ name, ini, lat, lng }) => {
       const uid = socket.data.userId;
       if (!uid) return;
-      discovery.set(uid, { uid, name:name||'?', ini:ini||'?', ip, lat:lat||null, lng:lng||null, socketId:socket.id, ts:Date.now() });
-      const nearby = findNearby(uid, ip, lat, lng);
+      discovery.set(uid, { uid, name:name||'?', ini:ini||'?', lat:lat||null, lng:lng||null, socketId:socket.id, ts:Date.now() });
+      const nearby = findNearby(uid, lat, lng);
       socket.emit('discovery:nearby', nearby);
       /* Tell nearby users this person appeared */
       nearby.forEach(function(n) {
-        io.to('user:'+n.uid).emit('discovery:appeared', { uid, name:name||'?', ini:ini||'?', sameNetwork:n.sameNetwork, distanceM:n.distanceM });
+        io.to('user:'+n.uid).emit('discovery:appeared', { uid, name:name||'?', ini:ini||'?', sameNetwork:false, distanceM:n.distanceM });
       });
     });
 

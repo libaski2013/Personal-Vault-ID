@@ -236,10 +236,12 @@ async function togglePublic(id, current) {
   if (r.success) { entries=entries.map(function(e){return e._id===id?Object.assign({},e,{isPublic:!current}):e;}); render(); Layout.toast(current?'Made private 🔒':'Made public 🌍','success'); }
 }
 
-async function deleteEntry(id) {
-  if (!confirm('Delete this life entry?')) return;
-  var r = await fetch('/api/trustid/life/'+id, { method:'DELETE', headers:{Authorization:'Bearer '+Auth.getToken()} }).then(function(x){return x.json();});
-  if (r.success) { entries=entries.filter(function(e){return e._id!==id;}); render(); Layout.toast('Deleted','info'); }
+function deleteEntry(id) {
+  Layout.confirm('This life story entry will be <strong>permanently deleted</strong>.', function() {
+    fetch('/api/trustid/life/'+id, { method:'DELETE', headers:{Authorization:'Bearer '+Auth.getToken()} })
+      .then(function(x){return x.json();})
+      .then(function(r){ if(r.success){ entries=entries.filter(function(e){return e._id!==id;}); render(); Layout.toast('Entry deleted','info'); } });
+  }, {title:'Delete Entry?', icon:'📖', yesLabel:'Yes, Delete'});
 }
 
 function shareProfile(url) {

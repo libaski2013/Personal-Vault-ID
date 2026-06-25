@@ -142,11 +142,13 @@ function toggleReminder(id, wasDone) {
 }
 
 function deleteReminder(id) {
-  Api.deleteReminder(id).then(function() {
-    allReminders = allReminders.filter(function(r){ return r._id !== id; });
-    renderReminders();
-    Layout.toast('Reminder deleted.', 'info');
-  });
+  Layout.confirm('Delete this reminder?', function() {
+    Api.deleteReminder(id).then(function() {
+      allReminders = allReminders.filter(function(r){ return r._id !== id; });
+      renderReminders();
+      Layout.toast('Reminder deleted.', 'info');
+    });
+  }, {title:'Delete Reminder?', icon:'🔔', yesLabel:'Yes, Delete'});
 }
 
 function submitReminder() {

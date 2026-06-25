@@ -142,11 +142,13 @@ function toggleTodo(id, wasDone) {
 }
 
 function deleteTodo(id) {
-  Api.deleteTodo(id).then(function() {
-    allTodos = allTodos.filter(function(t){ return t._id !== id; });
-    renderTodos();
-    Layout.toast('Task deleted.', 'info');
-  });
+  Layout.confirm('Delete this task?', function() {
+    Api.deleteTodo(id).then(function() {
+      allTodos = allTodos.filter(function(t){ return t._id !== id; });
+      renderTodos();
+      Layout.toast('Task deleted.', 'info');
+    });
+  }, {title:'Delete Task?', icon:'✅', yesLabel:'Yes, Delete'});
 }
 
 function submitTodo() {

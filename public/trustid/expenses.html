@@ -144,16 +144,17 @@ function renderExpenses() {
 }
 
 function deleteExpense(id) {
-  if (!confirm('Delete this expense?')) return;
-  Api.deleteExpense(id).then(function(res) {
-    if (res.success) {
-      allExpenses = allExpenses.filter(function(e){ return e._id !== id; });
-      renderExpenses();
-      Layout.toast('Expense deleted.', 'info');
-    } else {
-      Layout.toast(res.message || 'Failed to delete.', 'error');
-    }
-  });
+  Layout.confirm('Delete this expense record?', function() {
+    Api.deleteExpense(id).then(function(res) {
+      if (res.success) {
+        allExpenses = allExpenses.filter(function(e){ return e._id !== id; });
+        renderExpenses();
+        Layout.toast('Expense deleted.', 'info');
+      } else {
+        Layout.toast(res.message || 'Failed to delete.', 'error');
+      }
+    });
+  }, {title:'Delete Expense?', icon:'💰', yesLabel:'Yes, Delete'});
 }
 
 function submitExpense() {
