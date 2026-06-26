@@ -2,6 +2,9 @@
   "appId": "com.trustid.personalvault",
   "appName": "Personal Vault",
   "webDir": "public/trustid",
+  "server": {
+    "androidScheme": "https"
+  },
   "plugins": {
     "SplashScreen": {
       "launchShowDuration": 1200,

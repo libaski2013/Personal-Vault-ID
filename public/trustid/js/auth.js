@@ -1,7 +1,7 @@
 /* ── TrustID Auth Helper ── */
 /* Uses var so it is accessible from every other <script> tag */
 var PV = window.PV || (window.PV = {});
-PV.BACKEND_ORIGIN = PV.BACKEND_ORIGIN || 'https://trustid-realtime.onrender.com';
+PV.BACKEND_ORIGIN = PV.BACKEND_ORIGIN || 'https://personal-vault-id.onrender.com';
 PV.isNative = PV.isNative || function () {
   var h = window.location.hostname;
   return !!window.Capacitor ||
@@ -23,7 +23,7 @@ PV.fetch = PV.fetch || function (path, opts) {
   var controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
   var timer = null;
   if (controller) {
-    timer = setTimeout(function () { controller.abort(); }, 20000);
+    timer = setTimeout(function () { controller.abort(); }, 60000);
     opts.signal = controller.signal;
   }
   return fetch(PV.url(path), opts).finally(function () {

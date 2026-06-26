@@ -1,6 +1,6 @@
 /* Personal Vault runtime config shared by web and Android WebView. */
 var PV = (function () {
-  var REMOTE_ORIGIN = 'https://trustid-realtime.onrender.com';
+  var REMOTE_ORIGIN = 'https://personal-vault-id.onrender.com';
 
   function isLocalOrigin() {
     var h = window.location.hostname;
@@ -25,7 +25,7 @@ var PV = (function () {
     var controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
     var timer = null;
     if (controller) {
-      timer = setTimeout(function () { controller.abort(); }, 20000);
+      timer = setTimeout(function () { controller.abort(); }, 60000);
       opts.signal = controller.signal;
     }
     return fetch(url(path), opts).finally(function () {

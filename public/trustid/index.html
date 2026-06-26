@@ -185,9 +185,12 @@
 <div class="footer">© 2024 Personal Vault Platform · Secure Digital Identity</div>
 
 <script>
-  /* Redirect already-logged-in users to their dashboard */
+  /* Android opens directly into the app, not the public marketing page. */
   (function () {
     try {
+      var isNative = !!window.Capacitor ||
+        /^(capacitor|ionic|file):$/.test(window.location.protocol) ||
+        ((window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && /Android/i.test(navigator.userAgent || ''));
       var token = localStorage.getItem('tid_token');
       if (token) {
         var user = JSON.parse(localStorage.getItem('tid_user') || 'null');
@@ -196,6 +199,8 @@
             ? './admin/dashboard.html'
             : './dashboard.html'
         );
+      } else if (isNative) {
+        window.location.replace('./login.html');
       }
     } catch (e) { /* ignore */ }
   })();
