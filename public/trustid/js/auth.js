@@ -31,7 +31,9 @@ PV.fetch = PV.fetch || function (path, opts) {
   });
 };
 PV.appPath = PV.appPath || function (path) {
-  if (PV.isNative() && path.charAt(0) === '/') return path.replace(/^\/trustid\//, './');
+  if (PV.isNative() && path.charAt(0) === '/') {
+    return path.replace(/^\/trustid/, '') || '/index.html';
+  }
   return path;
 };
 
@@ -111,10 +113,10 @@ var Auth = (function () {
           window.location.replace(
             user && user.role === 'admin'
               ? PV.appPath('/trustid/admin/dashboard.html')
-              : PV.appPath('/trustid/dashboard.html')
+              : PV.appPath(PV.isNative() ? '/trustid/mobile-home.html' : '/trustid/dashboard.html')
           );
         } catch (e) {
-          window.location.replace(PV.appPath('/trustid/dashboard.html'));
+          window.location.replace(PV.appPath(PV.isNative() ? '/trustid/mobile-home.html' : '/trustid/dashboard.html'));
         }
         return false;
       }

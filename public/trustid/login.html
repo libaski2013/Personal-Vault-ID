@@ -383,7 +383,7 @@
       if (data.success && data.token) {
         localStorage.setItem('tid_token', data.token);
         localStorage.setItem('tid_user',  JSON.stringify(data.user));
-        location.href = data.user.role === 'admin' ? './admin/dashboard.html' : './dashboard.html';
+        location.href = data.user.role === 'admin' ? './admin/dashboard.html' : (PV.isNative && PV.isNative() ? './mobile-home.html' : './dashboard.html');
       } else {
         showErr(data.message || 'Invalid email or password.');
       }

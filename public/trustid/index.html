@@ -197,7 +197,7 @@
         window.location.replace(
           user && user.role === 'admin'
             ? './admin/dashboard.html'
-            : './dashboard.html'
+            : (isNative ? './mobile-home.html' : './dashboard.html')
         );
       } else if (isNative) {
         window.location.replace('./login.html');

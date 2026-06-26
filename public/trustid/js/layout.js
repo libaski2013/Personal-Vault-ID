@@ -100,7 +100,8 @@ var Layout = (function () {
 
   function navItem(item, active) {
     var sel = item.id === active;
-    return '<a href="' + item.href + '" class="nav-item' + (sel ? ' active' : '') + '" title="' + item.label + '">'
+    var href = (window.PV && PV.appPath) ? PV.appPath(item.href) : item.href;
+    return '<a href="' + href + '" class="nav-item' + (sel ? ' active' : '') + '" title="' + item.label + '">'
       + '<span class="nav-icon">' + item.icon + '</span>'
       + '<span class="nav-label">' + item.label + '</span>'
       + (sel ? '<span class="nav-dot"></span>' : '')
@@ -196,7 +197,8 @@ var Layout = (function () {
       bn.className = 'bottom-nav';
       bn.innerHTML = BOTTOM_NAV.map(function(item) {
         var sel = item.id === activePage;
-        return '<a href="' + item.href + '" class="bn-item' + (sel ? ' active' : '') + '">'
+        var href = (window.PV && PV.appPath) ? PV.appPath(item.href) : item.href;
+        return '<a href="' + href + '" class="bn-item' + (sel ? ' active' : '') + '">'
           + '<span class="bn-icon">' + item.icon + '</span>'
           + '<span class="bn-label">' + item.label + '</span>'
           + '</a>';
