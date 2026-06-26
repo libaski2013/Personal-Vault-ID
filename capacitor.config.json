@@ -2,10 +2,6 @@
   "appId": "com.trustid.personalvault",
   "appName": "Personal Vault",
   "webDir": "public/trustid",
-  "server": {
-    "url": "https://trustid-realtime.onrender.com",
-    "cleartext": false
-  },
   "plugins": {
     "SplashScreen": {
       "launchShowDuration": 1200,

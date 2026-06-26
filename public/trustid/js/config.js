@@ -21,7 +21,16 @@ var PV = (function () {
   }
 
   function fetchApi(path, opts) {
-    return fetch(url(path), opts);
+    opts = opts || {};
+    var controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    var timer = null;
+    if (controller) {
+      timer = setTimeout(function () { controller.abort(); }, 20000);
+      opts.signal = controller.signal;
+    }
+    return fetch(url(path), opts).finally(function () {
+      if (timer) clearTimeout(timer);
+    });
   }
 
   return {

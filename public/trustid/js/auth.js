@@ -1,19 +1,36 @@
 /* ── TrustID Auth Helper ── */
 /* Uses var so it is accessible from every other <script> tag */
 var PV = window.PV || (window.PV = {});
-PV.BACKEND_ORIGIN = 'https://trustid-realtime.onrender.com';
-PV.isNative = function () {
-  return /^(capacitor|ionic|file):$/.test(window.location.protocol);
+PV.BACKEND_ORIGIN = PV.BACKEND_ORIGIN || 'https://trustid-realtime.onrender.com';
+PV.isNative = PV.isNative || function () {
+  var h = window.location.hostname;
+  return !!window.Capacitor ||
+    /^(capacitor|ionic|file):$/.test(window.location.protocol) ||
+    ((h === 'localhost' || h === '127.0.0.1' || h === '') && /Android/i.test(navigator.userAgent || ''));
 };
-PV.origin = function () {
+PV.origin = PV.origin || function () {
+  var override = localStorage.getItem('pv_api_origin');
+  if (override) return override.replace(/\/$/, '');
   return PV.isNative() ? PV.BACKEND_ORIGIN : window.location.origin;
 };
-PV.url = function (path) {
+PV.url = PV.url || function (path) {
   if (/^https?:\/\//i.test(path)) return path;
   if (path.charAt(0) !== '/') path = '/' + path;
   return PV.origin() + path;
 };
-PV.appPath = function (path) {
+PV.fetch = PV.fetch || function (path, opts) {
+  opts = opts || {};
+  var controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+  var timer = null;
+  if (controller) {
+    timer = setTimeout(function () { controller.abort(); }, 20000);
+    opts.signal = controller.signal;
+  }
+  return fetch(PV.url(path), opts).finally(function () {
+    if (timer) clearTimeout(timer);
+  });
+};
+PV.appPath = PV.appPath || function (path) {
   if (PV.isNative() && path.charAt(0) === '/') return path.replace(/^\/trustid\//, './');
   return path;
 };
